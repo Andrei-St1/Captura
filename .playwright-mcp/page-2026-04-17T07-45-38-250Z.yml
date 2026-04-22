@@ -1,0 +1,22 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - img [ref=e8]
+        - generic [ref=e11]: Captura
+      - generic [ref=e12]:
+        - heading "Andrei si Alexandra" [level=1] [ref=e13]
+        - paragraph [ref=e14]: Album Nunta
+        - generic [ref=e15]:
+          - paragraph [ref=e16]: Welcome message
+          - paragraph [ref=e17]: “Bine ati venit la albumul nostru digital. Impartasiti cu noi momentele de ne uitat.”
+        - generic [ref=e19]:
+          - text: ⏳
+          - paragraph [ref=e20]: Album not open yet
+          - paragraph [ref=e21]: Opens on 17 April 2026 at 13:39
+    - paragraph [ref=e22]:
+      - text: Powered by
+      - link "Captura" [ref=e23] [cursor=pointer]:
+        - /url: /
+  - button "Open Next.js Dev Tools" [ref=e29] [cursor=pointer]:
+    - img [ref=e30]

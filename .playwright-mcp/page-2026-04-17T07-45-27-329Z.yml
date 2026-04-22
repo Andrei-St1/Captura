@@ -1,0 +1,99 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - link "Captura" [ref=e6] [cursor=pointer]:
+            - /url: /
+          - generic [ref=e7]:
+            - link "Dashboard" [ref=e8] [cursor=pointer]:
+              - /url: /dashboard
+            - link "Albums" [ref=e9] [cursor=pointer]:
+              - /url: /albums
+            - link "Settings" [ref=e10] [cursor=pointer]:
+              - /url: /settings
+        - generic [ref=e11]:
+          - button "Notifications" [ref=e12]:
+            - generic [ref=e13]: notifications
+          - generic [ref=e14]: SA
+          - button "Sign out" [ref=e16]
+    - main [ref=e17]:
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - heading "Welcome back, Stan" [level=1] [ref=e20]:
+            - text: Welcome back,
+            - text: Stan
+          - paragraph [ref=e21]: Manage your event albums and shared memories from one central gallery.
+        - link "add_circle Create Album" [ref=e22] [cursor=pointer]:
+          - /url: /albums/create
+          - generic [ref=e23]: add_circle
+          - generic [ref=e24]: Create Album
+      - generic [ref=e25]:
+        - generic [ref=e26]:
+          - generic:
+            - generic: photo_library
+          - generic [ref=e27]: Total Albums
+          - generic [ref=e28]:
+            - text: "1"
+            - generic [ref=e29]: / 10 max
+        - generic [ref=e30]:
+          - generic:
+            - generic: workspace_premium
+          - generic [ref=e31]: Current Plan
+          - generic [ref=e32]:
+            - text: Pro
+            - generic [ref=e33]:
+              - link "Upgrade plan →" [ref=e34] [cursor=pointer]:
+                - /url: /pricing
+              - button "Manage billing →" [ref=e36]
+        - generic [ref=e37]:
+          - generic:
+            - generic: cloud_done
+          - generic [ref=e38]: Cloud Storage
+          - generic [ref=e39]:
+            - text: "0"
+            - generic [ref=e40]: / 200 GB
+        - generic [ref=e42]:
+          - generic [ref=e43]: Album Storage
+          - generic [ref=e46]:
+            - generic [ref=e47]: Andrei si Alexandra
+            - generic [ref=e48]: / GB
+      - generic [ref=e51]:
+        - heading "Recent Albums" [level=2] [ref=e52]
+        - generic [ref=e53]:
+          - button "filter_list" [ref=e54]:
+            - generic [ref=e55]: filter_list
+          - button "grid_view" [ref=e56]:
+            - generic [ref=e57]: grid_view
+      - link "photo_library Active 17 Apr 2026 Andrei si Alexandra Storage 0.00 / 10 GB photo_library 0 items chevron_right" [ref=e59] [cursor=pointer]:
+        - /url: /albums/87e4e16d-819a-42a2-a9f7-d20ff398fc17
+        - generic [ref=e60]:
+          - generic [ref=e62]: photo_library
+          - generic [ref=e63]: Active
+        - generic [ref=e65]:
+          - paragraph [ref=e66]: 17 Apr 2026
+          - heading "Andrei si Alexandra" [level=3] [ref=e67]
+          - generic [ref=e69]:
+            - generic [ref=e70]: Storage
+            - generic [ref=e71]: 0.00 / 10 GB
+          - generic [ref=e73]:
+            - generic [ref=e74]:
+              - generic [ref=e75]: photo_library
+              - text: 0 items
+            - generic [ref=e76]: chevron_right
+    - contentinfo [ref=e77]:
+      - generic [ref=e78]:
+        - generic [ref=e79]:
+          - text: Captura
+          - paragraph [ref=e80]: © 2026 Captura. Crafted for your memories.
+        - generic [ref=e81]:
+          - link "Pricing" [ref=e82] [cursor=pointer]:
+            - /url: "#"
+          - link "Terms of Service" [ref=e83] [cursor=pointer]:
+            - /url: "#"
+          - link "Privacy" [ref=e84] [cursor=pointer]:
+            - /url: "#"
+          - link "Contact" [ref=e85] [cursor=pointer]:
+            - /url: "#"
+  - button "Open Next.js Dev Tools" [ref=e91] [cursor=pointer]:
+    - img [ref=e92]
