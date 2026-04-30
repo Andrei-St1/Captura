@@ -3,6 +3,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { r2, R2_BUCKET, R2_PUBLIC_URL } from "@/lib/r2";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { detectAndSaveFaces } from "@/lib/faceDetect";
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,6 +64,10 @@ export async function POST(request: NextRequest) {
       file_size: file.size,
       mime_type: file.type,
     }).select("id").single();
+
+    if (fileType === "image" && inserted?.id) {
+      void detectAndSaveFaces(inserted.id, albumId, fileUrl);
+    }
 
     await service
       .from("albums")

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { r2, R2_BUCKET, R2_PUBLIC_URL } from "@/lib/r2";
 import { createServiceClient } from "@/lib/supabase/service";
+import { detectAndSaveFaces } from "@/lib/faceDetect";
 
 export async function POST(request: NextRequest) {
   try {
@@ -77,6 +78,10 @@ export async function POST(request: NextRequest) {
 
     if (dbError) {
       return NextResponse.json({ error: dbError.message }, { status: 500 });
+    }
+
+    if (fileType === "image" && inserted?.id) {
+      void detectAndSaveFaces(inserted.id, albumId, fileUrl);
     }
 
     // Update album used_bytes
