@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (fileType === "image" && inserted?.id) {
-      void detectAndSaveFaces(inserted.id, albumId, fileUrl);
+      await detectAndSaveFaces(inserted.id, albumId, fileUrl);
     }
 
     // Update album used_bytes

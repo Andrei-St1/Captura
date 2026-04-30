@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     }).select("id").single();
 
     if (fileType === "image" && inserted?.id) {
-      void detectAndSaveFaces(inserted.id, albumId, fileUrl);
+      await detectAndSaveFaces(inserted.id, albumId, fileUrl);
     }
 
     await service
