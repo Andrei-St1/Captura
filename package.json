@@ -23,6 +23,7 @@
     "stripe": "^22.0.2"
   },
   "devDependencies": {
+    "@netlify/plugin-nextjs": "^5.15.10",
     "@tailwindcss/postcss": "^4.2.2",
     "@types/node": "^25.6.0",
     "@types/qrcode": "^1.5.6",

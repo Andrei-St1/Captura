@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     const zipBuffer = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE", compressionOptions: { level: 3 } });
 
     const safeName = album.title.replace(/[^a-zA-Z0-9_-]/g, "_");
-    return new NextResponse(zipBuffer, {
+    return new NextResponse(new Uint8Array(zipBuffer), {
       status: 200,
       headers: {
         "Content-Type": "application/zip",

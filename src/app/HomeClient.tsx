@@ -110,9 +110,9 @@ function CameraAnimation() {
       else {
         p.remove();
         photoCount.current++;
-        counter.textContent = String(photoCount.current);
-        counter.style.transform = "scale(1.3)";
-        setTimeout(() => { counter.style.transform = ""; }, 200);
+        counter!.textContent = String(photoCount.current);
+        counter!.style.transform = "scale(1.3)";
+        setTimeout(() => { counter!.style.transform = ""; }, 200);
         if (check) { check.style.opacity = "1"; setTimeout(() => { check.style.opacity = "0"; }, 400); }
       }
     }

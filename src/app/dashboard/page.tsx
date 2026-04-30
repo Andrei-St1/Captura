@@ -165,7 +165,7 @@ export default async function DashboardPage({
                   style={{ width: `${usage.albumsPercent}%` }}
                 />
               </div>
-              <p className="text-[10px] text-on-surface-variant mt-1">{limits.remainingAlbums} remaining</p>
+              <p className="text-[10px] text-on-surface-variant mt-1">{limits.limits.remainingAlbums} remaining</p>
             </div>
           </div>
 
