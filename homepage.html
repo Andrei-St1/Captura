@@ -31,9 +31,24 @@
     --gold-dim:  oklch(60% 0.10 82);
     --gold-glow: oklch(76% 0.13 82 / 0.18);
     --sage:      oklch(68% 0.09 155);
+    --nav-bg:    oklch(11% 0.012 265 / 0.85);
     --serif:     'Cormorant Garamond', Georgia, serif;
     --sans:      'DM Sans', system-ui, sans-serif;
     --radius:    12px;
+  }
+
+  [data-theme="light"] {
+    --bg:        oklch(97% 0.008 80);
+    --bg2:       oklch(93% 0.010 80);
+    --bg3:       oklch(89% 0.012 80);
+    --border:    oklch(80% 0.010 80);
+    --text:      oklch(18% 0.015 265);
+    --muted:     oklch(46% 0.010 265);
+    --gold:      oklch(58% 0.16 72);
+    --gold-dim:  oklch(48% 0.13 72);
+    --gold-glow: oklch(58% 0.16 72 / 0.14);
+    --sage:      oklch(50% 0.10 155);
+    --nav-bg:    oklch(97% 0.008 80 / 0.9);
   }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -47,6 +62,7 @@
     font-weight: 300;
     line-height: 1.6;
     overflow-x: hidden;
+    transition: background 0.3s, color 0.3s;
   }
 
   /* ── NAV ── */
@@ -55,7 +71,7 @@
     display: flex; align-items: center; justify-content: space-between;
     padding: 20px 48px;
     backdrop-filter: blur(16px);
-    background: oklch(11% 0.012 265 / 0.8);
+    background: var(--nav-bg);
     border-bottom: 1px solid transparent;
     transition: border-color 0.3s;
   }
@@ -74,6 +90,22 @@
     transition: color 0.2s;
   }
   .nav-links a:hover { color: var(--text); }
+  /* ── THEME TOGGLE ── */
+  .theme-toggle {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: var(--bg2); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: background 0.2s, border-color 0.2s;
+    color: var(--muted); flex-shrink: 0;
+  }
+  .theme-toggle:hover { background: var(--bg3); color: var(--text); }
+  .theme-toggle svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; }
+  .icon-sun, .icon-moon { position: absolute; transition: opacity 0.25s, transform 0.25s; }
+  .icon-sun  { opacity: 1; transform: scale(1); }
+  .icon-moon { opacity: 0; transform: scale(0.6); }
+  [data-theme="light"] .icon-sun  { opacity: 0; transform: scale(0.6); }
+  [data-theme="light"] .icon-moon { opacity: 1; transform: scale(1); }
+
   .nav-cta {
     background: var(--gold); color: var(--bg);
     padding: 9px 22px; border-radius: 6px;
@@ -116,6 +148,7 @@
     font-weight: 300;
     line-height: 1.05;
     letter-spacing: -0.02em;
+    color: var(--gold);
     animation: fadeUp 0.8s ease 0.1s both;
   }
   .hero-eyebrow em { font-style: italic; color: var(--gold); }
@@ -230,6 +263,7 @@
     font-size: clamp(36px, 4.5vw, 60px);
     font-weight: 300; line-height: 1.1;
     text-align: center; margin-bottom: 16px;
+    color: var(--gold);
   }
   .section-sub {
     font-size: 16px; color: var(--muted); text-align: center;
@@ -432,6 +466,15 @@
     border-color: oklch(76% 0.13 82 / 0.4);
     background: oklch(17% 0.018 265);
   }
+  .pricing-card.featured .pricing-tier,
+  .pricing-card.featured .pricing-desc,
+  .pricing-card.featured .pricing-price .currency,
+  .pricing-card.featured .pricing-price .period,
+  .pricing-card.featured .pricing-features li {
+    color: oklch(70% 0.008 265);
+  }
+  .pricing-card.featured .pricing-price .amount { color: oklch(93% 0.008 80) !important; }
+  .pricing-card.featured .pricing-divider { background: oklch(28% 0.012 265); }
   .pricing-card.featured:hover { border-color: oklch(76% 0.13 82 / 0.65); }
   .pricing-badge {
     position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
@@ -509,6 +552,7 @@
     font-size: clamp(36px, 4vw, 56px);
     font-weight: 300; line-height: 1.1;
     margin-bottom: 16px; position: relative; z-index: 1;
+    color: var(--gold);
   }
   .cta-title em { font-style: italic; color: var(--gold); }
   .cta-sub {
@@ -591,6 +635,10 @@
     border: 2px solid transparent; transition: border-color 0.2s;
   }
   .tweak-swatch.active { border-color: white; }
+  .tw-swatch-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:5px;}
+  .tw-swatch{height:24px;border-radius:5px;cursor:pointer;border:2px solid transparent;box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);transition:border-color .15s;}
+  .tw-swatch.sel{border-color:white;}
+  .tw-divider{height:1px;background:var(--border);margin:4px 0;}
 
   @media (max-width: 960px) {
     nav { padding: 16px 24px; }
@@ -618,6 +666,10 @@
     <li><a href="#">Sign in</a></li>
   </ul>
   <a href="#" class="nav-cta">Get started free</a>
+  <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme" style="position:relative;overflow:hidden;">
+    <svg class="icon-sun"  viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+    <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+  </button>
 </nav>
 
 <!-- HERO -->
@@ -961,12 +1013,11 @@
   <div class="tweaks-title">Tweaks</div>
   <div class="tweak-row">
     <label>Accent color</label>
-    <div class="tweak-swatch-row">
-      <div class="tweak-swatch active" style="background:oklch(76% 0.13 82)" data-gold="oklch(76% 0.13 82)" onclick="setAccent(this,'oklch(76% 0.13 82)','oklch(60% 0.10 82)')"></div>
-      <div class="tweak-swatch" style="background:oklch(70% 0.13 200)" onclick="setAccent(this,'oklch(70% 0.13 200)','oklch(55% 0.10 200)')"></div>
-      <div class="tweak-swatch" style="background:oklch(72% 0.13 310)" onclick="setAccent(this,'oklch(72% 0.13 310)','oklch(56% 0.10 310)')"></div>
-      <div class="tweak-swatch" style="background:oklch(68% 0.12 155)" onclick="setAccent(this,'oklch(68% 0.12 155)','oklch(52% 0.09 155)')"></div>
-    </div>
+    <div class="tw-swatch-grid" id="tw-accent"></div>
+  </div>
+  <div class="tweak-row">
+    <label>Background</label>
+    <div class="tw-swatch-grid" id="tw-bg"></div>
   </div>
   <div class="tweak-row">
     <label>Hero headline</label>
@@ -987,6 +1038,20 @@
 </div>
 
 <script>
+// Theme toggle
+function toggleTheme() {
+  const isLight = document.documentElement.dataset.theme === 'light';
+  document.documentElement.dataset.theme = isLight ? '' : 'light';
+  localStorage.setItem('captura-theme', isLight ? 'dark' : 'light');
+}
+(function() {
+  const saved = localStorage.getItem('captura-theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (saved === 'light' || (!saved && !prefersDark)) {
+    document.documentElement.dataset.theme = 'light';
+  }
+})();
+
 // NAV scroll
 const nav = document.getElementById('main-nav');
 window.addEventListener('scroll', () => {
@@ -1091,11 +1156,16 @@ function startCameraLoop() {
 }
 
 // ── TWEAKS ──
+const TW_ACCENT_IX=['oklch(44% 0.16 72)','oklch(48% 0.18 60)','oklch(46% 0.15 45)','oklch(46% 0.12 155)','oklch(38% 0.14 155)','oklch(44% 0.13 195)','oklch(40% 0.10 250)','oklch(42% 0.16 275)','oklch(40% 0.14 310)','oklch(46% 0.16 10)','oklch(40% 0.18 25)','oklch(36% 0.06 265)'];
+const TW_BG_IX=['oklch(97% 0.008 80)','oklch(96% 0.012 60)','oklch(98% 0.006 70)','oklch(97% 0.006 250)','oklch(93% 0.010 80)','oklch(94% 0.008 250)','oklch(15% 0.012 265)','oklch(11% 0.012 265)'];
+let twColorsIX={accent:'oklch(76% 0.13 82)',bg:'oklch(11% 0.012 265)'};
+function applyTwColorsIX(){const r=document.documentElement.style,a=twColorsIX.accent;r.setProperty('--gold',a);r.setProperty('--gold-dim',a);r.setProperty('--gold-glow',a.replace(')','/0.18)'));r.setProperty('--bg',twColorsIX.bg);}
+function buildTwGridIX(id,presets,key){const g=document.getElementById(id);if(!g)return;g.innerHTML=presets.map(c=>`<div class="tw-swatch${twColorsIX[key]===c?' sel':''}" style="background:${c}" data-c="${c}" data-key="${key}" data-grid="${id}"></div>`).join('');g.addEventListener('click',e=>{const el=e.target.closest('.tw-swatch');if(!el)return;twColorsIX[el.dataset.key]=el.dataset.c;document.querySelectorAll('#'+el.dataset.grid+' .tw-swatch').forEach(s=>s.classList.remove('sel'));el.classList.add('sel');applyTwColorsIX();});}
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "accent": "oklch(76% 0.13 82)",
   "accentDim": "oklch(60% 0.10 82)",
   "headline": "Every shot,||from every guest.",
-  "bgHue": "265"
+  "bgHue": "0"
 }/*EDITMODE-END*/;
 
 let tweaks = {...TWEAK_DEFAULTS};
@@ -1138,6 +1208,8 @@ window.addEventListener('message', e => {
   if (e.data?.type === '__deactivate_edit_mode') document.getElementById('tweaks-panel').classList.remove('open');
 });
 window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+buildTwGridIX('tw-accent',TW_ACCENT_IX,'accent');
+buildTwGridIX('tw-bg',TW_BG_IX,'bg');
 </script>
 </body>
 </html>
