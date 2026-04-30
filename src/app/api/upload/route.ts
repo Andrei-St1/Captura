@@ -64,8 +64,8 @@ export async function POST(request: NextRequest) {
 
     const fileUrl = `${R2_PUBLIC_URL}/${filePath}`;
 
-    // Insert media record
-    const { error: dbError } = await supabase.from("media").insert({
+    // Insert media record + get ID back
+    const { data: inserted, error: dbError } = await supabase.from("media").insert({
       album_id: albumId,
       uploader_name: uploaderName || null,
       file_url: fileUrl,
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       file_type: fileType,
       file_size: file.size,
       mime_type: file.type,
-    });
+    }).select("id").single();
 
     if (dbError) {
       return NextResponse.json({ error: dbError.message }, { status: 500 });
@@ -84,41 +84,6 @@ export async function POST(request: NextRequest) {
       .from("albums")
       .update({ used_bytes: usedBytes + file.size })
       .eq("id", albumId);
-
-    // Trigger face detection in background (fire-and-forget)
-    if (fileType === "image") {
-      const { data: inserted } = await supabase
-        .from("media")
-        .select("id")
-        .eq("file_url", fileUrl)
-        .single();
-
-      if (inserted && process.env.FACE_SERVICE_URL) {
-        fetch(`${process.env.FACE_SERVICE_URL}/detect`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mediaId: inserted.id, albumId, imageUrl: fileUrl }),
-        })
-          .then((r) => r.json())
-          .then(async (faces: { id: string; mediaId: string; albumId: string; descriptor: number[]; box: { x: number; y: number; w: number; h: number } }[]) => {
-            if (!faces?.length) return;
-            await supabase.from("album_faces").upsert(
-              faces.map((f) => ({
-                id: f.id,
-                media_id: f.mediaId,
-                album_id: f.albumId,
-                descriptor: f.descriptor,
-                box_x: f.box.x,
-                box_y: f.box.y,
-                box_w: f.box.w,
-                box_h: f.box.h,
-              })),
-              { onConflict: "id" }
-            );
-          })
-          .catch(() => {});
-      }
-    }
 
     return NextResponse.json({ success: true, fileUrl, fileType });
   } catch (err) {

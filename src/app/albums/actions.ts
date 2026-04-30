@@ -228,7 +228,8 @@ export async function deleteAlbum(albumId: string) {
     await r2.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: coverPath })).catch(() => {});
   }
 
-  // Delete DB records (media → qr_codes → album)
+  // Delete DB records (faces → media → qr_codes → album)
+  await service.from("album_faces").delete().eq("album_id", albumId);
   await service.from("media").delete().eq("album_id", albumId);
   await service.from("qr_codes").delete().eq("album_id", albumId);
   await service.from("albums").delete().eq("id", albumId);
@@ -288,11 +289,59 @@ export async function deleteMedia(mediaId: string, albumId: string) {
   }
 
   // Delete from DB
+  await serviceClient.from("album_faces").delete().eq("media_id", mediaId);
   await serviceClient.from("media").delete().eq("id", mediaId);
 
   // Update album used_bytes
   const newUsed = Math.max(0, (album.used_bytes ?? 0) - media.file_size);
   await serviceClient.from("albums").update({ used_bytes: newUsed }).eq("id", albumId);
+
+  revalidatePath(`/albums/${albumId}`);
+  return { success: true };
+}
+
+export async function deleteMediaBulk(mediaIds: string[], albumId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Unauthorized" };
+
+  // One ownership check
+  const { data: album } = await supabase
+    .from("albums")
+    .select("id, used_bytes")
+    .eq("id", albumId)
+    .eq("owner_id", user.id)
+    .single();
+  if (!album) return { error: "Album not found." };
+
+  const service = createServiceClient();
+
+  // Fetch all records in one query
+  const { data: mediaFiles } = await service
+    .from("media")
+    .select("id, file_path, file_size")
+    .in("id", mediaIds)
+    .eq("album_id", albumId);
+
+  if (!mediaFiles?.length) return { success: true };
+
+  // Delete from R2 in parallel
+  await Promise.all(
+    mediaFiles.map((m) =>
+      r2.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: m.file_path })).catch(() => {})
+    )
+  );
+
+  const ids = mediaFiles.map((m) => m.id);
+
+  // Delete faces + media in one query each
+  await service.from("album_faces").delete().in("media_id", ids);
+  await service.from("media").delete().in("id", ids);
+
+  // Update used_bytes once
+  const freed = mediaFiles.reduce((sum, m) => sum + (m.file_size ?? 0), 0);
+  const newUsed = Math.max(0, (album.used_bytes ?? 0) - freed);
+  await service.from("albums").update({ used_bytes: newUsed }).eq("id", albumId);
 
   revalidatePath(`/albums/${albumId}`);
   return { success: true };

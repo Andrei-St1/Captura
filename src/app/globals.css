@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@keyframes loading-bar {
+  0%   { transform: translateX(-100%); width: 40%; }
+  50%  { width: 60%; }
+  100% { transform: translateX(260%); width: 40%; }
+}
+
 @theme {
   /* Brand colors */
   --color-surface:                 #fcf9f8;

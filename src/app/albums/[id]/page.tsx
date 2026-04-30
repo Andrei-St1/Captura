@@ -7,6 +7,7 @@ import { UploadsPreview } from "./UploadsPreview";
 import { AlbumStatusButton } from "./AlbumStatusButton";
 import { QRCodesSection } from "./QRCodesSection";
 import { DeleteAlbumButton } from "./DeleteAlbumButton";
+import { OwnerUploadButton } from "./gallery/OwnerUploadButton";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -257,11 +258,14 @@ export default async function AlbumPage({
 
             {/* Uploads */}
             <div className="bg-surface-container-lowest rounded-2xl ring-1 ring-outline-variant/30 overflow-hidden">
-              <div className="bg-surface-container-low px-6 py-4 border-b border-outline-variant/20 flex items-center justify-between">
-                <h2 className="font-noto-serif text-lg font-light text-on-surface">Recent uploads</h2>
-                {totalMediaCount > 0 && (
-                  <span className="text-xs text-on-surface-variant">{totalMediaCount} {totalMediaCount === 1 ? "file" : "files"} total</span>
-                )}
+              <div className="bg-surface-container-low px-6 py-4 border-b border-outline-variant/20 flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="font-noto-serif text-lg font-light text-on-surface">Recent uploads</h2>
+                  {totalMediaCount > 0 && (
+                    <span className="text-xs text-on-surface-variant">{totalMediaCount} {totalMediaCount === 1 ? "file" : "files"} total</span>
+                  )}
+                </div>
+                <OwnerUploadButton albumId={album.id} compact />
               </div>
               <UploadsPreview
                 items={recentItems}

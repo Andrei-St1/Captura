@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { deleteMedia } from "@/app/albums/actions";
+import { deleteMedia, deleteMediaBulk } from "@/app/albums/actions";
 
 function CopyButton({ url }: { url: string }) {
   const [copied, setCopied] = useState(false);
@@ -106,6 +106,9 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
     setSelected(new Set());
   }
 
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   async function handleDelete(mediaId: string) {
     setDeleting(mediaId);
     const result = await deleteMedia(mediaId, albumId);
@@ -115,6 +118,16 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
     }
     setDeleting(null);
     setConfirmDelete(null);
+  }
+
+  async function handleBulkDelete() {
+    setBulkDeleting(true);
+    const ids = Array.from(selected);
+    await deleteMediaBulk(ids, albumId);
+    setItems((prev) => prev.filter((i) => !selected.has(i.id)));
+    setConfirmBulkDelete(false);
+    setBulkDeleting(false);
+    exitSelection();
   }
 
   if (items.length === 0) {
@@ -168,54 +181,90 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
   return (
     <>
       {/* Toolbar */}
-      <div className="flex items-center gap-2 px-4 pt-3 pb-1 flex-wrap">
+      <div className={`flex items-center justify-between gap-3 px-5 py-3 border-b border-outline-variant/20 transition-colors ${selecting ? "bg-primary/5" : ""}`}>
+
         {!selecting ? (
           <>
-            <button
-              onClick={() => setSelecting(true)}
-              className="flex items-center gap-1.5 rounded-xl border border-outline-variant/40 px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:border-primary hover:text-primary transition"
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>check_box</span>
-              Select
-            </button>
-            <button
-              onClick={() => triggerDownload()}
-              disabled={downloading}
-              className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition disabled:opacity-60"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>
-              </svg>
-              {downloading ? "Preparing…" : "Download all"}
-            </button>
+            {/* Left: photo count */}
+            <span className="text-xs text-on-surface-variant font-medium">
+              {items.length} {items.length === 1 ? "photo" : "photos"}
+            </span>
+
+            {/* Right: actions */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSelecting(true)}
+                className="flex items-center gap-1.5 rounded-xl border border-outline-variant/40 px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:border-primary hover:text-primary transition"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>check_box</span>
+                Select
+              </button>
+              <button
+                onClick={() => triggerDownload()}
+                disabled={downloading}
+                className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition disabled:opacity-60"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>
+                </svg>
+                {downloading ? "Preparing…" : "Download all"}
+              </button>
+            </div>
           </>
         ) : (
           <>
-            <span className="text-xs font-medium text-on-surface-variant">
-              {selected.size} selected
-            </span>
-            <button
-              onClick={() => setSelected(new Set(items.map(i => i.id)))}
-              className="text-xs text-primary hover:underline underline-offset-2"
-            >
-              Select all
-            </button>
-            <button
-              onClick={() => triggerDownload(Array.from(selected))}
-              disabled={selected.size === 0 || downloading}
-              className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition disabled:opacity-60 ml-1"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>
-              </svg>
-              {downloading ? "Preparing…" : `Download (${selected.size})`}
-            </button>
-            <button
-              onClick={exitSelection}
-              className="ml-auto text-xs text-on-surface-variant hover:text-on-surface transition"
-            >
-              Cancel
-            </button>
+            {/* Left: selection count + select all */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className="h-5 w-5 rounded-md bg-primary flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </div>
+                <span className="text-xs font-semibold text-on-surface">
+                  {selected.size} selected
+                </span>
+              </div>
+              <div className="h-3 w-px bg-outline-variant/40" />
+              <button
+                onClick={() => setSelected(new Set(items.map(i => i.id)))}
+                className="text-xs text-primary hover:text-primary/70 font-medium transition"
+              >
+                Select all
+              </button>
+            </div>
+
+            {/* Right: actions */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => triggerDownload(Array.from(selected))}
+                disabled={selected.size === 0 || downloading}
+                className="flex items-center gap-1.5 rounded-xl border border-outline-variant/40 px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:border-primary hover:text-primary transition disabled:opacity-40"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>
+                </svg>
+                {downloading ? "Preparing…" : "Download"}
+              </button>
+              <button
+                onClick={() => { if (selected.size > 0) setConfirmBulkDelete(true); }}
+                disabled={selected.size === 0}
+                className="flex items-center gap-1.5 rounded-xl bg-red-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600 transition disabled:opacity-40"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                </svg>
+                Delete
+              </button>
+              <div className="h-3 w-px bg-outline-variant/40" />
+              <button
+                onClick={exitSelection}
+                className="flex items-center gap-1 text-xs text-on-surface-variant hover:text-on-surface transition"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>close</span>
+                Cancel
+              </button>
+            </div>
           </>
         )}
       </div>
@@ -267,7 +316,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
             {/* Delete button */}
             <button
               onClick={(e) => { e.stopPropagation(); setConfirmDelete(item.id); }}
-              className={`absolute top-2 right-2 transition-opacity rounded-lg bg-black/50 p-1.5 text-white hover:bg-red-500/80 backdrop-blur-sm ${selecting ? "hidden" : "opacity-0 group-hover:opacity-100"}`}
+              className={`absolute top-2 right-2 rounded-lg bg-black/50 p-1.5 text-white hover:bg-red-500/80 backdrop-blur-sm transition-colors ${selecting ? "hidden" : ""}`}
               aria-label="Delete"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -312,6 +361,39 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
                 className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white hover:bg-red-600 transition disabled:opacity-60"
               >
                 {deleting === confirmDelete ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk delete confirm modal */}
+      {confirmBulkDelete && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+          onClick={() => setConfirmBulkDelete(false)}
+        >
+          <div
+            className="bg-surface-container-lowest rounded-2xl p-6 max-w-sm w-full shadow-2xl ring-1 ring-outline-variant/30"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-noto-serif text-lg text-on-surface mb-2">Delete {selected.size} {selected.size === 1 ? "file" : "files"}?</h3>
+            <p className="text-sm text-on-surface-variant mb-6">
+              This permanently removes the selected files from storage and cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmBulkDelete(false)}
+                className="flex-1 rounded-xl border border-outline-variant/40 py-2.5 text-sm font-medium text-on-surface-variant hover:bg-surface-container transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white hover:bg-red-600 transition disabled:opacity-60"
+              >
+                {bulkDeleting ? "Deleting…" : "Delete all"}
               </button>
             </div>
           </div>

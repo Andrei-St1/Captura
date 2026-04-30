@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     const fileUrl = `${R2_PUBLIC_URL}/${filePath}`;
 
-    await service.from("media").insert({
+    const { data: inserted } = await service.from("media").insert({
       album_id: albumId,
       uploader_name: null,
       file_url: fileUrl,
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       file_type: fileType,
       file_size: file.size,
       mime_type: file.type,
-    });
+    }).select("id").single();
 
     await service
       .from("albums")

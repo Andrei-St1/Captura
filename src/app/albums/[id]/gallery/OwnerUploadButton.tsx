@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 
 interface Props {
   albumId: string;
+  compact?: boolean;
 }
 
-export function OwnerUploadButton({ albumId }: Props) {
+export function OwnerUploadButton({ albumId, compact }: Props) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -20,24 +21,25 @@ export function OwnerUploadButton({ albumId }: Props) {
     setErrors([]);
     setProgress({ done: 0, total: files.length });
 
+    let done = 0;
     const errs: string[] = [];
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("albumId", albumId);
-
-      try {
-        const res = await fetch("/api/upload-owner", { method: "POST", body: fd });
-        const data = await res.json();
-        if (!res.ok) errs.push(`${file.name}: ${data.error ?? "failed"}`);
-      } catch {
-        errs.push(`${file.name}: network error`);
-      }
-
-      setProgress({ done: i + 1, total: files.length });
-    }
+    await Promise.all(
+      Array.from(files).map(async (file) => {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("albumId", albumId);
+        try {
+          const res = await fetch("/api/upload-owner", { method: "POST", body: fd });
+          const data = await res.json();
+          if (!res.ok) errs.push(`${file.name}: ${data.error ?? "failed"}`);
+        } catch {
+          errs.push(`${file.name}: network error`);
+        }
+        done++;
+        setProgress({ done, total: files.length });
+      })
+    );
 
     setUploading(false);
     setProgress(null);
@@ -51,19 +53,22 @@ export function OwnerUploadButton({ albumId }: Props) {
       <button
         onClick={() => inputRef.current?.click()}
         disabled={uploading}
-        className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-container px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:scale-[1.02] transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+        className={compact
+          ? "flex items-center gap-1.5 rounded-xl border border-outline-variant/40 px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:border-primary hover:text-primary transition disabled:opacity-60 disabled:cursor-not-allowed shrink-0"
+          : "flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary-container px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:scale-[1.02] transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+        }
       >
         {uploading ? (
           <>
-            <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
             </svg>
-            {progress ? `Uploading ${progress.done}/${progress.total}…` : "Uploading…"}
+            {progress ? `${progress.done}/${progress.total}…` : "Uploading…"}
           </>
         ) : (
           <>
-            <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>upload</span>
-            Upload photos
+            <span className="material-symbols-outlined" style={{ fontSize: compact ? "15px" : "18px" }}>upload</span>
+            {compact ? "Upload" : "Upload photos"}
           </>
         )}
       </button>

@@ -88,7 +88,7 @@ export function UploadsPreview({ items, totalCount, albumId, firstQR }: Props) {
 
   return (
     <div>
-      <div className="grid grid-cols-2 gap-2 p-4">
+      <div className="grid grid-cols-4 gap-2 p-4">
         {items.slice(0, 4).map((item) => (
           <Link
             key={item.id}
