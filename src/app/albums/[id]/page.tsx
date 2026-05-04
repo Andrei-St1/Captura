@@ -92,7 +92,7 @@ export default async function AlbumPage({
     .eq("album_id", album.id)
     .order("created_at", { ascending: true });
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
   const qrCodes = await Promise.all(
     (qrRows ?? []).map(async (qr) => {
       const joinUrl = `${appUrl}/join/${qr.token}`;

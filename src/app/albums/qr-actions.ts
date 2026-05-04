@@ -111,7 +111,7 @@ export async function getAlbumQRCodesForDashboard(albumId: string): Promise<
 
   if (!qrRows?.length) return [];
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
   return Promise.all(
     qrRows.map(async (qr) => {
       const joinUrl = `${appUrl}/join/${qr.token}`;
