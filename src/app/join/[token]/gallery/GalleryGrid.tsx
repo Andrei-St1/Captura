@@ -27,28 +27,16 @@ export function GalleryGrid({ items }: { items: MediaItem[] }) {
   const [lightbox, setLightbox] = useState<MediaItem | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
 
-  async function handleDownload(item: MediaItem, e: React.MouseEvent) {
+  function handleDownload(item: MediaItem, e: React.MouseEvent) {
     e.stopPropagation();
     setDownloading(item.id);
-    try {
-      const res = await fetch(`/api/download-file?id=${item.id}`);
-      if (!res.ok) throw new Error("failed");
-      const blob = await res.blob();
-      const disposition = res.headers.get("Content-Disposition");
-      const filename = disposition?.match(/filename="([^"]+)"/)?.[1] ?? "download";
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      window.open(item.file_url, "_blank");
-    } finally {
-      setDownloading(null);
-    }
+    const a = document.createElement("a");
+    a.href = `/api/download-file?id=${item.id}`;
+    a.download = "";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => setDownloading(null), 1500);
   }
 
   return (
