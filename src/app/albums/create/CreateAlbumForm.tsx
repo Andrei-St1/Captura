@@ -54,6 +54,7 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
   }
 
   function removeCover(e: React.MouseEvent) {
+    e.preventDefault();
     e.stopPropagation();
     setCoverFile(null);
     setCoverPreviewUrl(null);
@@ -248,18 +249,19 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
                     {/* Cover upload */}
                     <div className="ca-field">
                       <label>Cover image</label>
-                      <div
+                      <label
+                        htmlFor="ca-cover-input"
                         className={`ca-cover-area${isDragging ? " drag" : ""}${coverPreviewUrl ? " has-img" : ""}`}
-                        onClick={() => coverInputRef.current?.click()}
                         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                         onDragLeave={() => setIsDragging(false)}
                         onDrop={(e) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) applyCoverFile(f); }}
                       >
                         <input
+                          id="ca-cover-input"
                           ref={coverInputRef}
                           type="file"
                           accept="image/*,image/heic,image/heif"
-                          className="ca-file-input"
+                          style={{ display: "none" }}
                           onChange={(e) => { const f = e.target.files?.[0]; if (f) applyCoverFile(f); }}
                         />
                         {coverPreviewUrl ? (
@@ -287,7 +289,7 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
                             </div>
                           </div>
                         )}
-                      </div>
+                      </label>
 
                       <div className="ca-preset-hint">Or pick a gradient preset:</div>
                       <div className="ca-presets">
