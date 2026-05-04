@@ -31,20 +31,19 @@ export function GalleryGrid({ items }: { items: MediaItem[] }) {
     e.stopPropagation();
     setDownloading(item.id);
     try {
-      const res = await fetch(item.file_url);
+      const res = await fetch(`/api/download-file?id=${item.id}`);
+      if (!res.ok) throw new Error("failed");
       const blob = await res.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      const ext = item.file_url.split(".").pop()?.split("?")[0] ?? (item.file_type === "video" ? "mp4" : "jpg");
-      const name = item.uploader_name
-        ? `${item.uploader_name.replace(/[^a-zA-Z0-9_-]/g, "_")}.${ext}`
-        : `file.${ext}`;
+      const disposition = res.headers.get("Content-Disposition");
+      const filename = disposition?.match(/filename="([^"]+)"/)?.[1] ?? "download";
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = objectUrl;
-      a.download = name;
+      a.href = url;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(objectUrl);
+      URL.revokeObjectURL(url);
     } catch {
       window.open(item.file_url, "_blank");
     } finally {
