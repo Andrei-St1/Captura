@@ -307,9 +307,22 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb }: Props) {
               <button
                 type="submit"
                 disabled={loading || remaining <= 0}
-                className="rounded-xl bg-gradient-to-r from-primary to-primary-container px-8 py-3 text-sm font-semibold text-white shadow-md hover:scale-[1.02] transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+                className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary to-primary-container px-8 py-3 text-sm font-semibold text-white shadow-md hover:scale-[1.02] transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 min-w-[140px]"
               >
-                {loading ? "Creating…" : "Create album"}
+                {loading && (
+                  <span className="absolute inset-x-0 bottom-0 h-0.5 bg-white/40">
+                    <span className="absolute inset-y-0 left-0 bg-white/80 animate-[loading-bar_1.8s_ease-in-out_infinite]" style={{ width: "40%" }} />
+                  </span>
+                )}
+                <span className="flex items-center justify-center gap-2">
+                  {loading && (
+                    <svg className="animate-spin h-4 w-4 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                  )}
+                  {loading ? "Creating…" : "Create album"}
+                </span>
               </button>
             </div>
 
