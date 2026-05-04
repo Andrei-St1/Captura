@@ -25,6 +25,32 @@ function formatBytes(bytes: number) {
 
 export function GalleryGrid({ items }: { items: MediaItem[] }) {
   const [lightbox, setLightbox] = useState<MediaItem | null>(null);
+  const [downloading, setDownloading] = useState<string | null>(null);
+
+  async function handleDownload(item: MediaItem, e: React.MouseEvent) {
+    e.stopPropagation();
+    setDownloading(item.id);
+    try {
+      const res = await fetch(item.file_url);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const ext = item.file_url.split(".").pop()?.split("?")[0] ?? (item.file_type === "video" ? "mp4" : "jpg");
+      const name = item.uploader_name
+        ? `${item.uploader_name.replace(/[^a-zA-Z0-9_-]/g, "_")}.${ext}`
+        : `file.${ext}`;
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      window.open(item.file_url, "_blank");
+    } finally {
+      setDownloading(null);
+    }
+  }
 
   return (
     <>
@@ -64,6 +90,26 @@ export function GalleryGrid({ items }: { items: MediaItem[] }) {
 
             {/* Hover overlay */}
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all" />
+
+            {/* Download button */}
+            <button
+              onClick={(e) => handleDownload(item, e)}
+              disabled={downloading === item.id}
+              className="absolute top-2 right-2 rounded-lg bg-black/50 p-1.5 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70 disabled:opacity-50"
+              title="Download"
+            >
+              {downloading === item.id ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" x2="12" y1="15" y2="3" />
+                </svg>
+              )}
+            </button>
 
             {/* Uploader name */}
             {item.uploader_name && (
@@ -122,21 +168,24 @@ export function GalleryGrid({ items }: { items: MediaItem[] }) {
               </div>
               <div className="flex items-center gap-4">
                 <span className="text-white/40 text-xs">{formatBytes(lightbox.file_size)}</span>
-                <a
-                  href={lightbox.file_url}
-                  download
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs text-white hover:bg-white/20 transition"
-                  onClick={(e) => e.stopPropagation()}
+                <button
+                  onClick={(e) => handleDownload(lightbox, e)}
+                  disabled={downloading === lightbox.id}
+                  className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs text-white hover:bg-white/20 transition disabled:opacity-50"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" x2="12" y1="15" y2="3" />
-                  </svg>
-                  Download
-                </a>
+                  {downloading === lightbox.id ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" x2="12" y1="15" y2="3" />
+                    </svg>
+                  )}
+                  {downloading === lightbox.id ? "Downloading…" : "Download"}
+                </button>
               </div>
             </div>
 
