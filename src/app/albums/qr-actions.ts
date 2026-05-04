@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { generateToken } from "@/lib/qr";
+import { generateToken, generateQRDataURL } from "@/lib/qr";
 
 export async function createQRCode(albumId: string, label: string) {
   const supabase = await createClient();
@@ -86,6 +86,39 @@ export async function deleteQRCode(qrId: string, albumId: string) {
 
   revalidatePath(`/albums/${albumId}`);
   return { success: true };
+}
+
+export async function getAlbumQRCodesForDashboard(albumId: string): Promise<
+  { id: string; label: string; enabled: boolean; joinUrl: string; dataUrl: string }[]
+> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data: album } = await supabase
+    .from("albums")
+    .select("id")
+    .eq("id", albumId)
+    .eq("owner_id", user.id)
+    .single();
+  if (!album) return [];
+
+  const { data: qrRows } = await supabase
+    .from("qr_codes")
+    .select("id, token, label, enabled")
+    .eq("album_id", albumId)
+    .order("created_at", { ascending: true });
+
+  if (!qrRows?.length) return [];
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  return Promise.all(
+    qrRows.map(async (qr) => {
+      const joinUrl = `${appUrl}/join/${qr.token}`;
+      const dataUrl = await generateQRDataURL(joinUrl);
+      return { id: qr.id, label: qr.label, enabled: qr.enabled, joinUrl, dataUrl };
+    })
+  );
 }
 
 export async function updateQRLabel(qrId: string, albumId: string, label: string) {

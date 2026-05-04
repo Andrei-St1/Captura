@@ -19,6 +19,7 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb }: Props) {
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const submittingRef = useRef(false);
 
   const remaining = planStorageGb - allocatedGb;
   const usedPercent = Math.round((allocatedGb / planStorageGb) * 100);
@@ -38,23 +39,29 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb }: Props) {
   }
 
   async function handleSubmit(formData: FormData) {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setError(null);
     setLoading(true);
-    formData.set("show_gallery", showGallery ? "true" : "false");
-    const result = await createAlbum(formData);
-    if (result?.error) {
-      setError(result.error);
-      setLoading(false);
-      return;
-    }
-    if (result?.albumId) {
-      if (coverFile) {
-        const fd = new FormData();
-        fd.append("file", coverFile);
-        fd.append("albumId", result.albumId);
-        await fetch("/api/upload-thumbnail", { method: "POST", body: fd });
+    try {
+      formData.set("show_gallery", showGallery ? "true" : "false");
+      const result = await createAlbum(formData);
+      if (result?.error) {
+        setError(result.error);
+        return;
       }
-      router.push(`/albums/${result.albumId}`);
+      if (result?.albumId) {
+        if (coverFile) {
+          const fd = new FormData();
+          fd.append("file", coverFile);
+          fd.append("albumId", result.albumId);
+          await fetch("/api/upload-thumbnail", { method: "POST", body: fd });
+        }
+        router.push(`/albums/${result.albumId}`);
+      }
+    } finally {
+      submittingRef.current = false;
+      setLoading(false);
     }
   }
 

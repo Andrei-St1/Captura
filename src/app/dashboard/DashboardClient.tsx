@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { logout } from "@/app/auth/actions";
 import { createPortalSession } from "@/app/stripe/actions";
+import { getAlbumQRCodesForDashboard } from "@/app/albums/qr-actions";
 
 interface Album {
   id: string;
@@ -128,9 +130,56 @@ export default function DashboardClient({
   totalMediaCount,
   checkout,
 }: DashboardClientProps) {
+  const router = useRouter();
   const [filter, setFilter] = useState<"all" | "open" | "closed">("all");
   const [checkoutDismissed, setCheckoutDismissed] = useState(false);
   const [noPlanDismissed, setNoPlanDismissed] = useState(false);
+
+  type QRItem = { id: string; label: string; enabled: boolean; joinUrl: string; dataUrl: string };
+  const [qrModal, setQrModal] = useState<{ albumId: string; albumTitle: string } | null>(null);
+  const [qrItems, setQrItems] = useState<QRItem[]>([]);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [downloadModal, setDownloadModal] = useState<{ albumId: string; albumTitle: string } | null>(null);
+  const [downloadLoading, setDownloadLoading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  async function openQR(albumId: string, albumTitle: string) {
+    setQrModal({ albumId, albumTitle });
+    setQrItems([]);
+    setQrLoading(true);
+    const codes = await getAlbumQRCodesForDashboard(albumId);
+    setQrItems(codes);
+    setQrLoading(false);
+  }
+
+  async function handleDownload(albumId: string, albumTitle: string) {
+    setDownloadLoading(true);
+    setDownloadError(null);
+    try {
+      const res = await fetch("/api/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ albumId }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setDownloadError((data as { error?: string }).error ?? "Download failed.");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${albumTitle.replace(/[^a-zA-Z0-9_-]/g, "_")}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setDownloadModal(null);
+    } finally {
+      setDownloadLoading(false);
+    }
+  }
 
   const today = new Date().toLocaleDateString("en-GB", {
     weekday: "long",
@@ -1091,6 +1140,121 @@ export default function DashboardClient({
           }
           .db-topbar-left h1 { font-size: 20px; }
         }
+
+        /* ── Modals ──────────────────────────────────────────────────────── */
+        .db-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 200;
+          background: oklch(0% 0 0 / 0.5);
+          backdrop-filter: blur(4px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+        }
+
+        .db-modal {
+          background: var(--bg2);
+          border: 1px solid var(--border);
+          border-radius: 20px;
+          width: 100%;
+          max-width: 500px;
+          max-height: 85vh;
+          overflow-y: auto;
+          box-shadow: 0 24px 80px oklch(0% 0 0 / 0.30);
+        }
+
+        .db-modal-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 24px 24px 20px;
+          border-bottom: 1px solid var(--border);
+        }
+
+        .db-modal-title {
+          font-family: var(--serif);
+          font-size: 22px;
+          font-weight: 400;
+          color: var(--text);
+          line-height: 1.2;
+        }
+
+        .db-modal-sub {
+          font-size: 12px;
+          color: var(--muted2);
+          margin-top: 3px;
+        }
+
+        .db-modal-x {
+          background: none;
+          border: none;
+          cursor: pointer;
+          color: var(--muted2);
+          padding: 6px;
+          border-radius: 8px;
+          transition: color 0.15s, background 0.15s;
+          flex-shrink: 0;
+        }
+
+        .db-modal-x:hover { color: var(--text); background: var(--bg3); }
+
+        .db-modal-body { padding: 20px 24px; }
+
+        .db-modal-foot {
+          display: flex;
+          gap: 10px;
+          padding: 0 24px 24px;
+        }
+
+        .db-modal-btn {
+          flex: 1;
+          padding: 10px 16px;
+          border-radius: 10px;
+          border: none;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: var(--sans);
+          transition: opacity 0.15s;
+        }
+
+        .db-modal-btn:hover:not(:disabled) { opacity: 0.85; }
+        .db-modal-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .db-modal-btn-gold { background: var(--gold); color: #fff; }
+        .db-modal-btn-ghost { background: var(--bg3); color: var(--muted); border: 1px solid var(--border); }
+
+        .db-qr-item {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 14px;
+          border-radius: 12px;
+          background: var(--bg3);
+          border: 1px solid var(--border);
+          margin-bottom: 10px;
+        }
+
+        .db-qr-item:last-child { margin-bottom: 0; }
+
+        .db-qr-label {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--text);
+          margin-bottom: 4px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .db-qr-url {
+          font-size: 10px;
+          font-family: monospace;
+          color: var(--muted2);
+          word-break: break-all;
+        }
       `}</style>
 
       <div className="db-root">
@@ -1513,7 +1677,12 @@ export default function DashboardClient({
                   const usedGb = parseFloat((album.used_bytes / 1024 ** 3).toFixed(2));
 
                   return (
-                    <div key={album.id} className="db-album-card">
+                    <div
+                      key={album.id}
+                      className="db-album-card"
+                      style={{ cursor: "pointer" }}
+                      onClick={() => router.push(`/albums/${album.id}`)}
+                    >
                       <div
                         className="db-album-cover"
                         style={{
@@ -1577,16 +1746,16 @@ export default function DashboardClient({
                         </div>
 
                         <div className="db-album-actions">
-                          <Link
-                            href={`/albums/${album.id}`}
+                          <button
                             className="db-action-btn db-action-btn-primary"
+                            onClick={(e) => { e.stopPropagation(); router.push(`/albums/${album.id}`); }}
                           >
                             Manage
-                          </Link>
-                          <Link
-                            href={`/albums/${album.id}?tab=qr`}
+                          </button>
+                          <button
                             className="db-action-btn"
                             title="QR Code"
+                            onClick={(e) => { e.stopPropagation(); openQR(album.id, album.title); }}
                           >
                             <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                               <rect x="1" y="1" width="4" height="4" rx="0.5" />
@@ -1595,17 +1764,17 @@ export default function DashboardClient({
                               <path d="M8 8h1v1H8zM10 8h3M8 10h2M10 10v3" />
                             </svg>
                             QR
-                          </Link>
-                          <Link
-                            href={`/albums/${album.id}?tab=download`}
+                          </button>
+                          <button
                             className="db-action-btn"
                             title="Download"
+                            onClick={(e) => { e.stopPropagation(); setDownloadModal({ albumId: album.id, albumTitle: album.title }); setDownloadError(null); }}
                           >
                             <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M6.5 1v8M3.5 6l3 3 3-3" />
                               <path d="M1 10.5h11" />
                             </svg>
-                          </Link>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1616,6 +1785,114 @@ export default function DashboardClient({
           </div>
         </div>
       </div>
+
+      {/* ── QR modal ─────────────────────────────────────────────────────────── */}
+      {qrModal && (
+        <div className="db-overlay" onClick={() => setQrModal(null)}>
+          <div className="db-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="db-modal-head">
+              <div>
+                <div className="db-modal-title">QR Codes</div>
+                <div className="db-modal-sub">{qrModal.albumTitle}</div>
+              </div>
+              <button className="db-modal-x" onClick={() => setQrModal(null)} aria-label="Close">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M2 2l12 12M14 2L2 14" />
+                </svg>
+              </button>
+            </div>
+            <div className="db-modal-body">
+              {qrLoading ? (
+                <div style={{ textAlign: "center", padding: "32px 0", color: "var(--muted2)", fontSize: 13 }}>
+                  Loading QR codes…
+                </div>
+              ) : qrItems.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "32px 0" }}>
+                  <div style={{ fontSize: 13, color: "var(--muted2)", marginBottom: 12 }}>
+                    No QR codes for this album.
+                  </div>
+                  <button
+                    className="db-modal-btn db-modal-btn-gold"
+                    style={{ maxWidth: 200, margin: "0 auto", display: "block" }}
+                    onClick={() => { setQrModal(null); router.push(`/albums/${qrModal.albumId}`); }}
+                  >
+                    Go to album →
+                  </button>
+                </div>
+              ) : (
+                qrItems.map((qr) => (
+                  <div key={qr.id} className="db-qr-item">
+                    <div style={{ background: "#fff", borderRadius: 8, padding: 6, flexShrink: 0 }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={qr.dataUrl} alt={qr.label} width={90} height={90} />
+                    </div>
+                    <div style={{ overflow: "hidden" }}>
+                      <div className="db-qr-label">
+                        {qr.label}
+                        {!qr.enabled && (
+                          <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 20, background: "var(--bg4)", color: "var(--muted2)" }}>
+                            disabled
+                          </span>
+                        )}
+                      </div>
+                      <div className="db-qr-url">{qr.joinUrl}</div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Download confirmation modal ───────────────────────────────────────── */}
+      {downloadModal && (
+        <div className="db-overlay" onClick={() => { if (!downloadLoading) setDownloadModal(null); }}>
+          <div className="db-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="db-modal-head">
+              <div>
+                <div className="db-modal-title">Download album</div>
+                <div className="db-modal-sub">{downloadModal.albumTitle}</div>
+              </div>
+              <button
+                className="db-modal-x"
+                onClick={() => setDownloadModal(null)}
+                disabled={downloadLoading}
+                aria-label="Close"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M2 2l12 12M14 2L2 14" />
+                </svg>
+              </button>
+            </div>
+            <div className="db-modal-body">
+              <p style={{ fontSize: 14, color: "var(--text)", lineHeight: 1.6 }}>
+                Do you wish to download the contents of <strong>{downloadModal.albumTitle}</strong>?
+                All photos and videos will be bundled into a ZIP file.
+              </p>
+              {downloadError && (
+                <p style={{ marginTop: 12, fontSize: 12, color: "var(--red)" }}>{downloadError}</p>
+              )}
+            </div>
+            <div className="db-modal-foot">
+              <button
+                className="db-modal-btn db-modal-btn-ghost"
+                onClick={() => setDownloadModal(null)}
+                disabled={downloadLoading}
+              >
+                No
+              </button>
+              <button
+                className="db-modal-btn db-modal-btn-gold"
+                onClick={() => handleDownload(downloadModal.albumId, downloadModal.albumTitle)}
+                disabled={downloadLoading}
+              >
+                {downloadLoading ? "Downloading…" : "Yes, download"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

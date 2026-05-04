@@ -26,6 +26,7 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
   const [files, setFiles] = useState<FileItem[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [allDone, setAllDone] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function validateFile(file: File): string | null {
@@ -51,30 +52,36 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
   }, []);
 
   async function handleUpload() {
+    if (isUploading) return;
     const pending = files.filter((f) => f.status === "pending");
     if (!pending.length) return;
 
-    for (const item of pending) {
-      setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "uploading", progress: 50 } : f));
-      try {
-        const fd = new FormData();
-        fd.append("file", item.file);
-        fd.append("albumId", albumId);
-        if (uploaderName.trim()) fd.append("uploaderName", uploaderName.trim());
+    setIsUploading(true);
+    try {
+      await Promise.all(pending.map(async (item) => {
+        setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "uploading", progress: 50 } : f));
+        try {
+          const fd = new FormData();
+          fd.append("file", item.file);
+          fd.append("albumId", albumId);
+          if (uploaderName.trim()) fd.append("uploaderName", uploaderName.trim());
 
-        const res = await fetch("/api/upload", { method: "POST", body: fd });
-        const result = await res.json();
+          const res = await fetch("/api/upload", { method: "POST", body: fd });
+          const result = await res.json();
 
-        if (!res.ok || result.error) {
-          setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "error", error: result.error ?? "Upload failed.", progress: 0 } : f));
-        } else {
-          setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "done", progress: 100 } : f));
+          if (!res.ok || result.error) {
+            setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "error", error: result.error ?? "Upload failed.", progress: 0 } : f));
+          } else {
+            setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "done", progress: 100 } : f));
+          }
+        } catch {
+          setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "error", error: "Unexpected error.", progress: 0 } : f));
         }
-      } catch {
-        setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "error", error: "Unexpected error.", progress: 0 } : f));
-      }
+      }));
+    } finally {
+      setIsUploading(false);
+      setAllDone(true);
     }
-    setAllDone(true);
   }
 
   const pendingCount = files.filter((f) => f.status === "pending").length;
@@ -223,7 +230,8 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
       {pendingCount > 0 && (
         <button
           onClick={handleUpload}
-          className="w-full rounded-xl py-3.5 text-sm font-semibold text-white transition hover:opacity-90 shadow-sm"
+          disabled={isUploading}
+          className="w-full rounded-xl py-3.5 text-sm font-semibold text-white transition hover:opacity-90 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ background: "linear-gradient(to right, #7d5070, #b784a7)" }}
         >
           Share {pendingCount} {pendingCount === 1 ? "file" : "files"}
