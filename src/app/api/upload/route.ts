@@ -3,6 +3,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { r2, R2_BUCKET, R2_PUBLIC_URL } from "@/lib/r2";
 import { createServiceClient } from "@/lib/supabase/service";
 import { detectAndSaveFaces } from "@/lib/faceDetect";
+import { maybeConvertHeic } from "@/lib/convertHeic";
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,21 +46,25 @@ export async function POST(request: NextRequest) {
 
     // Build R2 path
     const timestamp = Date.now();
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const arrayBuffer = await file.arrayBuffer();
+    let buffer: Buffer = Buffer.from(new Uint8Array(arrayBuffer));
+    let mimeType = file.type;
+    let fileName = file.name;
+
+    ({ buffer, mimeType, fileName } = await maybeConvertHeic(buffer, mimeType, fileName));
+
+    const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
     const filePath = `albums/${albumId}/${timestamp}-${safeName}`;
-    const fileType = file.type.startsWith("video/") ? "video" : "image";
+    const fileType = mimeType.startsWith("video/") ? "video" : "image";
 
     // Upload to R2
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
     await r2.send(
       new PutObjectCommand({
         Bucket: R2_BUCKET,
         Key: filePath,
         Body: buffer,
-        ContentType: file.type,
-        ContentLength: file.size,
+        ContentType: mimeType,
+        ContentLength: buffer.length,
       })
     );
 
@@ -72,8 +77,8 @@ export async function POST(request: NextRequest) {
       file_url: fileUrl,
       file_path: filePath,
       file_type: fileType,
-      file_size: file.size,
-      mime_type: file.type,
+      file_size: buffer.length,
+      mime_type: mimeType,
     }).select("id").single();
 
     if (dbError) {
@@ -87,7 +92,7 @@ export async function POST(request: NextRequest) {
     // Update album used_bytes
     await supabase
       .from("albums")
-      .update({ used_bytes: usedBytes + file.size })
+      .update({ used_bytes: usedBytes + buffer.length })
       .eq("id", albumId);
 
     return NextResponse.json({ success: true, fileUrl, fileType });

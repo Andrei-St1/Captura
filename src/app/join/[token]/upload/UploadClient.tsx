@@ -13,7 +13,7 @@ interface FileItem {
 
 const MAX_IMAGE_SIZE = 50 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
-const ACCEPTED = "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm";
+const ACCEPTED = "image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,video/mp4,video/quicktime,video/webm";
 
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
