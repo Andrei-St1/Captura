@@ -1,8 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import { OwnerMediaGrid } from "../OwnerMediaGrid";
-import { FaceFilter } from "./FaceFilter";
 
 interface MediaItem {
   id: string;
@@ -21,14 +19,5 @@ interface Props {
 }
 
 export function GalleryWithFaces({ items, albumId, albumTitle }: Props) {
-  const [filteredIds, setFilteredIds] = useState<Set<string> | null>(null);
-
-  const displayed = filteredIds ? items.filter((i) => filteredIds.has(i.id)) : items;
-
-  return (
-    <div className="bg-surface-container-lowest rounded-2xl ring-1 ring-outline-variant/30 overflow-hidden">
-      <FaceFilter items={items} albumId={albumId} onFilter={setFilteredIds} />
-      <OwnerMediaGrid items={displayed} albumId={albumId} albumTitle={albumTitle} />
-    </div>
-  );
+  return <OwnerMediaGrid items={items} albumId={albumId} albumTitle={albumTitle} />;
 }
