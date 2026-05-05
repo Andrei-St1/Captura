@@ -16,8 +16,16 @@ interface Props {
   items: MediaItem[];
   albumId: string;
   albumTitle: string;
+  firstQR?: { dataUrl: string; joinUrl: string; label: string } | null;
 }
 
-export function GalleryWithFaces({ items, albumId, albumTitle }: Props) {
-  return <OwnerMediaGrid items={items} albumId={albumId} albumTitle={albumTitle} />;
+export function GalleryWithFaces({ items, albumId, albumTitle, firstQR }: Props) {
+  return (
+    <OwnerMediaGrid
+      items={items}
+      albumId={albumId}
+      albumTitle={albumTitle}
+      firstQR={firstQR}
+    />
+  );
 }
