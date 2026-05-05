@@ -38,19 +38,11 @@ export function GalleryGrid({ items }: { items: MediaItem[] }) {
             className="group relative aspect-square overflow-hidden rounded-xl bg-white/50 shadow-sm hover:shadow-md transition-all hover:scale-[1.02] cursor-pointer"
           >
             {item.file_type === "video" ? (
-              <div className="relative h-full w-full bg-slate-900 flex items-center justify-center">
-                <video
-                  src={item.file_url}
-                  className="h-full w-full object-cover opacity-80"
-                  muted
-                  playsInline
-                />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="rounded-full bg-white/90 p-3 shadow-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#7c3aed">
-                      <polygon points="5 3 19 12 5 21 5 3" />
-                    </svg>
-                  </div>
+              <div className="relative h-full w-full flex items-center justify-center" style={{ background: "linear-gradient(135deg, #1e1b2e, #0f0e1a)" }}>
+                <div className="rounded-full bg-white/90 p-3 shadow-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#7c3aed">
+                    <polygon points="5 3 19 12 5 21 5 3" />
+                  </svg>
                 </div>
               </div>
             ) : (
@@ -59,6 +51,11 @@ export function GalleryGrid({ items }: { items: MediaItem[] }) {
                 src={item.file_url}
                 alt={item.uploader_name ?? "Photo"}
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                onError={(e) => {
+                  const t = e.currentTarget;
+                  t.style.display = "none";
+                  if (t.parentElement) t.parentElement.style.background = "linear-gradient(135deg, #e8e4f0, #d8d0e8)";
+                }}
               />
             )}
 

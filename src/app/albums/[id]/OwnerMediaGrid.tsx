@@ -1269,12 +1269,31 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
                   {/* Media */}
                   {item.file_type === "video" ? (
                     <>
-                      <video src={item.file_url} muted playsInline />
+                      {/* Static placeholder — avoids black bars and browser recording indicators */}
+                      <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, oklch(22% 0.02 265), oklch(15% 0.01 265))" }} />
                       <div className="og-video-badge"><IconPlay /></div>
                     </>
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.file_url} alt={item.uploader_name ?? "Upload"} loading="lazy" />
+                    <img
+                      src={item.file_url}
+                      alt={item.uploader_name ?? "Upload"}
+                      loading="lazy"
+                      onError={(e) => {
+                        const t = e.currentTarget;
+                        t.style.display = "none";
+                        const ph = t.parentElement?.querySelector(".og-img-ph") as HTMLElement | null;
+                        if (ph) ph.style.display = "flex";
+                      }}
+                    />
+                  )}
+                  {/* Broken-image placeholder (hidden until onError fires) */}
+                  {item.file_type !== "video" && (
+                    <div className="og-img-ph" style={{ display: "none", position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", background: "var(--og-bg3)", flexDirection: "column", gap: 6 }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--og-muted2)" strokeWidth="1.5" strokeLinecap="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>
+                      </svg>
+                    </div>
                   )}
 
                   {/* Hover overlay gradient */}
