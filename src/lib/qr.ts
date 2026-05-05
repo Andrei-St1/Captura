@@ -6,7 +6,7 @@ export async function generateQRDataURL(url: string): Promise<string> {
     width: 400,
     margin: 2,
     color: {
-      dark: "#7d5070",
+      dark: "#793000",
       light: "#ffffff",
     },
   });
