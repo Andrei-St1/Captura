@@ -213,24 +213,25 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
           </>
         ) : (
           <>
-            {/* Left: selection count + select all */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <div className="h-5 w-5 rounded-md bg-primary flex items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                </div>
-                <span className="text-xs font-semibold text-on-surface">
-                  {selected.size} selected
-                </span>
-              </div>
+            {/* Left: count + select all / deselect */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-semibold text-on-surface">
+                {selected.size} selected
+              </span>
               <div className="h-3 w-px bg-outline-variant/40" />
               <button
                 onClick={() => setSelected(new Set(items.map(i => i.id)))}
-                className="text-xs text-primary hover:text-primary/70 font-medium transition"
+                disabled={selected.size === items.length}
+                className="rounded-lg border border-outline-variant/40 px-2.5 py-1 text-xs font-medium text-on-surface-variant hover:border-primary hover:text-primary transition disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Select all
+              </button>
+              <button
+                onClick={() => setSelected(new Set())}
+                disabled={selected.size === 0}
+                className="rounded-lg border border-outline-variant/40 px-2.5 py-1 text-xs font-medium text-on-surface-variant hover:border-primary hover:text-primary transition disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Deselect
               </button>
             </div>
 
@@ -249,7 +250,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
               <button
                 onClick={() => { if (selected.size > 0) setConfirmBulkDelete(true); }}
                 disabled={selected.size === 0}
-                className="flex items-center gap-1.5 rounded-xl bg-red-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600 transition disabled:opacity-40"
+                className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition disabled:opacity-40"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
@@ -316,7 +317,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
             {/* Delete button */}
             <button
               onClick={(e) => { e.stopPropagation(); setConfirmDelete(item.id); }}
-              className={`absolute top-2 right-2 rounded-lg bg-black/50 p-1.5 text-white hover:bg-red-500/80 backdrop-blur-sm transition-colors ${selecting ? "hidden" : ""}`}
+              className={`absolute top-2 right-2 rounded-lg bg-black/50 p-1.5 text-white hover:bg-primary/80 backdrop-blur-sm transition-colors ${selecting ? "hidden" : ""}`}
               aria-label="Delete"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -358,7 +359,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
               <button
                 onClick={() => handleDelete(confirmDelete)}
                 disabled={deleting === confirmDelete}
-                className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white hover:bg-red-600 transition disabled:opacity-60"
+                className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-white hover:bg-primary/90 transition disabled:opacity-60"
               >
                 {deleting === confirmDelete ? "Deleting…" : "Delete"}
               </button>
@@ -391,7 +392,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
               <button
                 onClick={handleBulkDelete}
                 disabled={bulkDeleting}
-                className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white hover:bg-red-600 transition disabled:opacity-60"
+                className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-white hover:bg-primary/90 transition disabled:opacity-60"
               >
                 {bulkDeleting ? "Deleting…" : "Delete all"}
               </button>
@@ -410,7 +411,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
             <div className="absolute -top-10 right-0 flex items-center gap-3">
               <button
                 onClick={() => { setConfirmDelete(lightbox.id); }}
-                className="flex items-center gap-1.5 rounded-lg bg-red-500/80 px-3 py-1.5 text-xs text-white hover:bg-red-500 transition"
+                className="flex items-center gap-1.5 rounded-lg bg-primary/80 px-3 py-1.5 text-xs text-white hover:bg-primary transition"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />

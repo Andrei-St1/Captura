@@ -23,13 +23,6 @@ function formatBytes(bytes: number) {
   return `${Math.round(bytes / 1024)} KB`;
 }
 
-const DownloadIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-    <polyline points="7 10 12 15 17 10" />
-    <line x1="12" x2="12" y1="15" y2="3" />
-  </svg>
-);
 
 export function GalleryGrid({ items }: { items: MediaItem[] }) {
   const [lightbox, setLightbox] = useState<MediaItem | null>(null);
@@ -71,17 +64,6 @@ export function GalleryGrid({ items }: { items: MediaItem[] }) {
 
             {/* Hover overlay */}
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all" />
-
-            {/* Download link */}
-            <a
-              href={`/api/download-file?id=${item.id}`}
-              download
-              onClick={(e) => e.stopPropagation()}
-              className="absolute top-2 right-2 rounded-lg bg-black/50 p-1.5 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
-              title="Download"
-            >
-              <DownloadIcon />
-            </a>
 
             {/* Uploader name */}
             {item.uploader_name && (
@@ -138,18 +120,7 @@ export function GalleryGrid({ items }: { items: MediaItem[] }) {
                 )}
                 <p className="text-white/50 text-xs">{formatDate(lightbox.created_at)}</p>
               </div>
-              <div className="flex items-center gap-4">
-                <span className="text-white/40 text-xs">{formatBytes(lightbox.file_size)}</span>
-                <a
-                  href={`/api/download-file?id=${lightbox.id}`}
-                  download
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs text-white hover:bg-white/20 transition"
-                >
-                  <DownloadIcon />
-                  Download
-                </a>
-              </div>
+              <span className="text-white/40 text-xs">{formatBytes(lightbox.file_size)}</span>
             </div>
 
             {/* Nav arrows */}
