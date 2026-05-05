@@ -3,21 +3,10 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 
-const gradients = [
-  "from-violet-400 via-purple-400 to-pink-400",
-  "from-amber-400 via-orange-400 to-rose-400",
-  "from-sky-400 via-blue-400 to-indigo-400",
-  "from-emerald-400 via-teal-400 to-cyan-400",
-  "from-rose-400 via-pink-400 to-fuchsia-400",
-  "from-orange-400 via-amber-400 to-yellow-400",
-];
-
-type SortKey = "created_desc" | "created_asc" | "name_asc" | "name_desc" | "date_asc" | "date_desc";
-type FilterKey = "all" | "active" | "archived";
-
 interface Album {
   id: string;
   title: string;
+  description: string | null;
   status: string;
   open_date: string | null;
   close_date: string | null;
@@ -28,12 +17,41 @@ interface Album {
   media?: { count: number }[];
 }
 
-function formatDate(iso: string | null) {
-  if (!iso) return null;
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+interface Props {
+  albums: Album[];
+  totalCount: number;
+  activeCount: number;
 }
 
-function formatBytes(bytes: number) {
+type Filter = "all" | "active" | "scheduled" | "archived";
+type Sort = "recent" | "name" | "media" | "storage";
+type View = "grid" | "list";
+
+const COVER_GRADIENTS = [
+  ["oklch(78% 0.08 30)", "oklch(70% 0.06 330)"],
+  ["oklch(72% 0.08 280)", "oklch(68% 0.06 260)"],
+  ["oklch(74% 0.09 155)", "oklch(66% 0.07 135)"],
+  ["oklch(70% 0.07 210)", "oklch(64% 0.05 190)"],
+  ["oklch(76% 0.08 50)", "oklch(68% 0.06 30)"],
+  ["oklch(72% 0.08 320)", "oklch(66% 0.06 300)"],
+];
+
+function getStatus(album: Album): "active" | "scheduled" | "archived" {
+  if (album.status === "archived") return "archived";
+  const now = new Date();
+  if (album.open_date && new Date(album.open_date) > now) return "scheduled";
+  return "active";
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
   const gb = bytes / 1024 ** 3;
   if (gb >= 1) return `${gb.toFixed(2)} GB`;
@@ -42,181 +60,485 @@ function formatBytes(bytes: number) {
   return `${Math.round(bytes / 1024)} KB`;
 }
 
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: "created_desc", label: "Newest first" },
-  { value: "created_asc",  label: "Oldest first" },
-  { value: "name_asc",     label: "Name A–Z" },
-  { value: "name_desc",    label: "Name Z–A" },
-  { value: "date_desc",    label: "Event date ↓" },
-  { value: "date_asc",     label: "Event date ↑" },
-];
+/* ── SVG ICONS ── */
+function IconCamera() {
+  return (
+    <svg viewBox="0 0 12 12" width={12} height={12} stroke="currentColor" fill="none" strokeWidth={1.5}>
+      <rect x="1" y="2" width="10" height="8" rx="1" />
+      <circle cx="6" cy="6" r="2" />
+    </svg>
+  );
+}
 
-const FILTER_OPTIONS: { value: FilterKey; label: string }[] = [
-  { value: "all",      label: "All" },
-  { value: "active",   label: "Active" },
-  { value: "archived", label: "Archived" },
-];
+function IconCalendar() {
+  return (
+    <svg viewBox="0 0 12 12" width={12} height={12} stroke="currentColor" fill="none" strokeWidth={1.5}>
+      <rect x="1" y="1" width="10" height="10" rx="1" />
+      <path d="M1 5h10M4 1v4" />
+    </svg>
+  );
+}
 
-export function AlbumsClient({ albums: initial }: { albums: Album[] }) {
-  const [sort, setSort] = useState<SortKey>("created_desc");
-  const [filter, setFilter] = useState<FilterKey>("all");
+function IconSearch() {
+  return (
+    <svg viewBox="0 0 16 16" width={13} height={13} stroke="currentColor" fill="none" strokeWidth={1.5}>
+      <circle cx="7" cy="7" r="4" />
+      <path d="M11 11l3 3" />
+    </svg>
+  );
+}
 
-  const albums = useMemo(() => {
-    let list = filter === "all" ? initial : initial.filter((a) => a.status === filter);
+function IconGrid() {
+  return (
+    <svg viewBox="0 0 14 14" width={14} height={14} stroke="currentColor" fill="none" strokeWidth={1.5}>
+      <rect x="1" y="1" width="5" height="5" rx="1" />
+      <rect x="8" y="1" width="5" height="5" rx="1" />
+      <rect x="1" y="8" width="5" height="5" rx="1" />
+      <rect x="8" y="8" width="5" height="5" rx="1" />
+    </svg>
+  );
+}
 
-    list = [...list].sort((a, b) => {
+function IconList() {
+  return (
+    <svg viewBox="0 0 14 14" width={14} height={14} stroke="currentColor" fill="none" strokeWidth={1.5}>
+      <rect x="1" y="2" width="12" height="3" rx="1" />
+      <rect x="1" y="6.5" width="12" height="3" rx="1" />
+      <rect x="1" y="11" width="12" height="3" rx="1" />
+    </svg>
+  );
+}
+
+function IconChevron() {
+  return (
+    <svg viewBox="0 0 12 12" width={12} height={12} stroke="currentColor" fill="none" strokeWidth={2}>
+      <path d="M2 4l4 4 4-4" />
+    </svg>
+  );
+}
+
+function IconPlus() {
+  return (
+    <svg viewBox="0 0 14 14" width={13} height={13} stroke="currentColor" fill="none" strokeWidth={2.5}>
+      <path d="M7 1v12M1 7h12" />
+    </svg>
+  );
+}
+
+function IconPhoto() {
+  return (
+    <svg viewBox="0 0 32 32" width={32} height={32} stroke="currentColor" fill="none" strokeWidth={1.2}>
+      <rect x="4" y="4" width="24" height="24" rx="4" />
+      <circle cx="16" cy="16" r="5" />
+      <circle cx="24" cy="8" r="2" />
+    </svg>
+  );
+}
+
+function IconNoResults() {
+  return (
+    <svg viewBox="0 0 32 32" width={32} height={32} stroke="currentColor" fill="none" strokeWidth={1.2}>
+      <circle cx="14" cy="14" r="9" />
+      <path d="M22 22l7 7" />
+      <path d="M10 14h8M14 10v8" />
+    </svg>
+  );
+}
+
+/* ── STORAGE BAR ── */
+interface StorageBarProps {
+  usedBytes: number;
+  allocatedGb: number;
+  className?: string;
+  trackClass?: string;
+  fillClass?: string;
+  labelClass?: string;
+}
+
+function StorageBar({
+  usedBytes,
+  allocatedGb,
+  trackClass = "al-storage-track",
+  fillClass = "al-storage-fill",
+  labelClass = "al-storage-row",
+}: StorageBarProps) {
+  const pct =
+    allocatedGb > 0
+      ? Math.min(100, (usedBytes / (allocatedGb * 1024 ** 3)) * 100)
+      : 0;
+  const fillMod = pct > 90 ? " crit" : pct > 70 ? " warn" : "";
+
+  return (
+    <>
+      <div className={labelClass}>
+        <span>{formatBytes(usedBytes)} used</span>
+        <span>{allocatedGb} GB</span>
+      </div>
+      <div className={trackClass}>
+        <div
+          className={fillClass + fillMod}
+          style={{ width: `${Math.min(100, pct)}%` }}
+        />
+      </div>
+    </>
+  );
+}
+
+/* ── STATUS BADGE ── */
+function StatusBadge({ status }: { status: "active" | "scheduled" | "archived" }) {
+  const labels: Record<string, string> = {
+    active: "Active",
+    scheduled: "Scheduled",
+    archived: "Archived",
+  };
+  return (
+    <span className={`al-status-badge ${status}`}>{labels[status]}</span>
+  );
+}
+
+/* ── GRID CARD ── */
+function GridCard({ album, index }: { album: Album; index: number }) {
+  const [c1, c2] = COVER_GRADIENTS[index % COVER_GRADIENTS.length];
+  const status = getStatus(album);
+  const mediaCount = album.media?.[0]?.count ?? 0;
+
+  const coverStyle = album.thumbnail_url
+    ? { backgroundImage: `url(${album.thumbnail_url})` }
+    : { background: `linear-gradient(135deg, ${c1}, ${c2})` };
+
+  return (
+    <div className="al-album-card">
+      <div className="al-album-cover">
+        <div className="al-cover-fill" style={coverStyle} />
+        <div className="al-cover-grad" />
+        <div className="al-cover-top">
+          <StatusBadge status={status} />
+        </div>
+      </div>
+
+      <div className="al-album-body">
+        <div className="al-album-name">{album.title}</div>
+        <div className="al-album-desc">{album.description ?? " "}</div>
+
+        <div className="al-album-meta-row">
+          <div className="al-album-meta">
+            <IconCamera />
+            <strong>{mediaCount.toLocaleString()}</strong> photos
+          </div>
+          <div className="al-album-meta">
+            <IconCalendar />
+            {formatDate(album.open_date)} – {formatDate(album.close_date)}
+          </div>
+        </div>
+
+        <StorageBar
+          usedBytes={album.used_bytes ?? 0}
+          allocatedGb={album.allocated_gb}
+          labelClass="al-storage-row"
+          trackClass="al-storage-track"
+          fillClass="al-storage-fill"
+        />
+      </div>
+
+      <div className="al-album-footer">
+        <Link href={`/albums/${album.id}`} className="al-af-btn gold">
+          Manage
+        </Link>
+        <Link href={`/albums/${album.id}`} className="al-af-btn">
+          QR code
+        </Link>
+        <Link href={`/albums/${album.id}/gallery`} className="al-af-btn">
+          Gallery
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/* ── LIST CARD ── */
+function ListCard({ album, index }: { album: Album; index: number }) {
+  const [c1, c2] = COVER_GRADIENTS[index % COVER_GRADIENTS.length];
+  const status = getStatus(album);
+  const mediaCount = album.media?.[0]?.count ?? 0;
+  const pct =
+    album.allocated_gb > 0
+      ? Math.min(
+          100,
+          ((album.used_bytes ?? 0) / (album.allocated_gb * 1024 ** 3)) * 100
+        )
+      : 0;
+  const fillMod = pct > 90 ? " crit" : pct > 70 ? " warn" : "";
+
+  const coverStyle = album.thumbnail_url
+    ? { backgroundImage: `url(${album.thumbnail_url})`, backgroundSize: "cover", backgroundPosition: "center" }
+    : { background: `linear-gradient(160deg, ${c1}, ${c2})` };
+
+  return (
+    <div className="al-list-card">
+      <div className="al-list-cover">
+        <div className="al-list-cover-fill" style={coverStyle} />
+      </div>
+
+      <div className="al-list-body">
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2, minWidth: 0 }}>
+          <div className="al-list-name">{album.title}</div>
+          <StatusBadge status={status} />
+        </div>
+        <div className="al-list-desc">{album.description ?? " "}</div>
+        <div className="al-list-meta">
+          <div className="al-album-meta">
+            <IconCamera />
+            <strong>{mediaCount.toLocaleString()}</strong> photos
+          </div>
+          <div className="al-album-meta">
+            <IconCalendar />
+            {formatDate(album.open_date)} – {formatDate(album.close_date)}
+          </div>
+        </div>
+      </div>
+
+      <div className="al-list-right">
+        <div className="al-list-storage">
+          <div className="al-list-storage-label">
+            <span>{formatBytes(album.used_bytes ?? 0)}</span>
+            <span>{album.allocated_gb} GB</span>
+          </div>
+          <div className="al-list-storage-track">
+            <div
+              className={"al-list-storage-fill" + fillMod}
+              style={{ width: `${Math.min(100, pct)}%` }}
+            />
+          </div>
+        </div>
+        <div className="al-list-actions">
+          <Link href={`/albums/${album.id}`} className="al-list-action gold">
+            Manage
+          </Link>
+          <Link href={`/albums/${album.id}/gallery`} className="al-list-action">
+            Gallery
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── MAIN CLIENT COMPONENT ── */
+export function AlbumsClient({ albums, totalCount, activeCount }: Props) {
+  const [filter, setFilter] = useState<Filter>("all");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<Sort>("recent");
+  const [view, setView] = useState<View>("grid");
+
+  const counts = useMemo(
+    () => ({
+      all: albums.length,
+      active: albums.filter((a) => getStatus(a) === "active").length,
+      scheduled: albums.filter((a) => getStatus(a) === "scheduled").length,
+      archived: albums.filter((a) => getStatus(a) === "archived").length,
+    }),
+    [albums]
+  );
+
+  const displayed = useMemo(() => {
+    let list =
+      filter === "all"
+        ? [...albums]
+        : albums.filter((a) => getStatus(a) === filter);
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (a) =>
+          a.title.toLowerCase().includes(q) ||
+          (a.description ?? "").toLowerCase().includes(q)
+      );
+    }
+
+    list.sort((a, b) => {
       switch (sort) {
-        case "created_asc":  return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        case "created_desc": return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        case "name_asc":     return a.title.localeCompare(b.title);
-        case "name_desc":    return b.title.localeCompare(a.title);
-        case "date_asc": {
-          const aT = a.open_date ? new Date(a.open_date).getTime() : Infinity;
-          const bT = b.open_date ? new Date(b.open_date).getTime() : Infinity;
-          return aT - bT;
+        case "name":
+          return a.title.localeCompare(b.title);
+        case "media": {
+          const am = a.media?.[0]?.count ?? 0;
+          const bm = b.media?.[0]?.count ?? 0;
+          return bm - am;
         }
-        case "date_desc": {
-          const aT = a.open_date ? new Date(a.open_date).getTime() : -Infinity;
-          const bT = b.open_date ? new Date(b.open_date).getTime() : -Infinity;
-          return bT - aT;
-        }
+        case "storage":
+          return (b.used_bytes ?? 0) - (a.used_bytes ?? 0);
+        case "recent":
+        default:
+          return (
+            new Date(b.created_at).getTime() -
+            new Date(a.created_at).getTime()
+          );
       }
     });
 
     return list;
-  }, [initial, sort, filter]);
+  }, [albums, filter, search, sort]);
+
+  const pills: { key: Filter; label: string }[] = [
+    { key: "all", label: "All" },
+    { key: "active", label: "Active" },
+    { key: "scheduled", label: "Scheduled" },
+    { key: "archived", label: "Archived" },
+  ];
 
   return (
     <>
-      {/* Controls */}
-      <div className="flex flex-wrap items-center gap-3 mb-8">
-        {/* Filter pills */}
-        <div className="flex items-center gap-1.5 bg-surface-container-low rounded-xl p-1">
-          {FILTER_OPTIONS.map(({ value, label }) => (
+      {/* TOPBAR */}
+      <div className="al-topbar">
+        <div>
+          <div className="al-page-title">Albums</div>
+          <div className="al-page-sub">
+            {totalCount} album{totalCount !== 1 ? "s" : ""} &middot; {activeCount} active
+          </div>
+        </div>
+        <div>
+          <Link href="/albums/create" className="al-btn-primary">
+            <IconPlus />
+            Create album
+          </Link>
+        </div>
+      </div>
+
+      {/* TOOLBAR */}
+      <div className="al-toolbar">
+        <div className="al-filter-pills">
+          {pills.map(({ key, label }) => (
             <button
-              key={value}
-              onClick={() => setFilter(value)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
-                filter === value
-                  ? "bg-primary text-white shadow-sm"
-                  : "text-on-surface-variant hover:text-on-surface"
-              }`}
+              key={key}
+              className={`al-pill${filter === key ? " active" : ""}`}
+              onClick={() => setFilter(key)}
             >
               {label}
+              <span className="al-pill-count">{counts[key]}</span>
             </button>
           ))}
         </div>
 
-        {/* Sort select */}
-        <div className="relative">
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as SortKey)}
-            className="appearance-none bg-surface-container-low border border-outline-variant/30 rounded-xl pl-4 pr-9 py-2 text-xs font-medium text-on-surface-variant hover:border-primary focus:border-primary focus:outline-none transition cursor-pointer"
-          >
-            {SORT_OPTIONS.map(({ value, label }) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-on-surface-variant" style={{ fontSize: "16px" }}>
-            unfold_more
-          </span>
-        </div>
+        <div className="al-toolbar-right">
+          {/* Search */}
+          <div className="al-search-wrap">
+            <div className="al-search-icon">
+              <IconSearch />
+            </div>
+            <input
+              className="al-search-input"
+              type="text"
+              placeholder="Search albums…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
 
-        <span className="text-xs text-on-surface-variant ml-auto">
-          {albums.length} {albums.length === 1 ? "album" : "albums"}
-        </span>
+          {/* Sort */}
+          <div className="al-sort-wrap">
+            <select
+              className="al-sort-select"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as Sort)}
+            >
+              <option value="recent">Most recent</option>
+              <option value="name">Name A–Z</option>
+              <option value="media">Most photos</option>
+              <option value="storage">Storage used</option>
+            </select>
+            <div className="al-sort-chev">
+              <IconChevron />
+            </div>
+          </div>
+
+          {/* View toggle */}
+          <div className="al-view-toggle">
+            <button
+              className={`al-view-btn${view === "grid" ? " active" : ""}`}
+              onClick={() => setView("grid")}
+              title="Grid"
+            >
+              <IconGrid />
+            </button>
+            <button
+              className={`al-view-btn${view === "list" ? " active" : ""}`}
+              onClick={() => setView("list")}
+              title="List"
+            >
+              <IconList />
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Grid */}
-      {albums.length === 0 ? (
-        <div className="text-center py-24">
-          <span className="material-symbols-outlined text-outline-variant block mb-4" style={{ fontSize: "48px" }}>
-            filter_list_off
-          </span>
-          <p className="font-noto-serif text-xl font-light text-on-surface">No {filter !== "all" ? filter : ""} albums</p>
-          <button
-            onClick={() => setFilter("all")}
-            className="mt-4 text-sm text-primary hover:underline underline-offset-2"
-          >
-            Clear filter
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-          {albums.map((album, i) => {
-            const gradient = gradients[i % gradients.length];
-            const mediaCount = album.media?.[0]?.count ?? 0;
-            const percent = album.allocated_gb > 0
-              ? Math.min(100, Math.round(((album.used_bytes ?? 0) / (album.allocated_gb * 1024 ** 3)) * 100))
-              : 0;
-
-            return (
-              <Link
-                key={album.id}
-                href={`/albums/${album.id}`}
-                className={`group relative bg-surface-container-lowest rounded-2xl overflow-hidden shadow-[0_12px_40px_rgba(78,68,74,0.06)] transition-all duration-500 hover:-translate-y-2 hover:shadow-xl ${
-                  album.status === "archived" ? "opacity-70 hover:opacity-100" : ""
-                }`}
-              >
-                {/* Cover */}
-                <div className={`aspect-[4/3] relative overflow-hidden bg-gradient-to-br ${gradient} ${
-                  album.status === "archived" ? "grayscale group-hover:grayscale-0 transition-all duration-700" : ""
-                }`}>
-                  {album.thumbnail_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={album.thumbnail_url} alt={album.title} className="absolute inset-0 h-full w-full object-cover" />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="material-symbols-outlined text-white/30" style={{ fontSize: "56px" }}>photo_library</span>
-                    </div>
-                  )}
-                  <div className="absolute top-3 left-3 z-10">
-                    <span className={`px-2.5 py-1 backdrop-blur-md text-[10px] font-bold tracking-widest uppercase rounded-full ${
-                      album.status === "active"
-                        ? "bg-white/80 text-primary"
-                        : "bg-on-surface-variant/80 text-surface"
-                    }`}>
-                      {album.status}
-                    </span>
-                  </div>
-                  <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-
-                {/* Info */}
-                <div className="p-5">
-                  {album.open_date && (
-                    <p className="text-[10px] tracking-[0.2em] text-secondary uppercase font-semibold mb-1">
-                      {formatDate(album.open_date)}
-                    </p>
-                  )}
-                  <h3 className="font-noto-serif text-lg text-on-surface group-hover:text-primary transition-colors truncate">
-                    {album.title}
-                  </h3>
-                  <div className="mt-3">
-                    <div className="flex justify-between mb-1">
-                      <span className="text-[10px] text-on-surface-variant">Storage</span>
-                      <span className="text-[10px] text-on-surface-variant">
-                        {formatBytes(album.used_bytes ?? 0)} / {album.allocated_gb} GB
-                      </span>
-                    </div>
-                    <div className="w-full bg-outline-variant/20 h-1 rounded-full">
-                      <div
-                        className={`h-1 rounded-full transition-all ${percent >= 90 ? "bg-red-400" : "bg-primary-container"}`}
-                        style={{ width: `${percent}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-outline-variant/10 flex items-center gap-1.5 text-[10px] text-on-surface-variant">
-                    <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>photo_library</span>
-                    {mediaCount.toLocaleString()} {mediaCount === 1 ? "item" : "items"}
-                  </div>
-                </div>
+      {/* CONTENT */}
+      <div className="al-content">
+        {/* Empty state — no albums at all */}
+        {albums.length === 0 ? (
+          <div className="al-empty">
+            <div className="al-empty-icon">
+              <IconPhoto />
+            </div>
+            <div className="al-empty-title">No albums yet.</div>
+            <div className="al-empty-sub">
+              Create your first album and share a QR code with your guests.
+              They upload — you collect everything.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+              <Link href="/albums/create" className="al-btn-primary">
+                <IconPlus />
+                Create your first album
               </Link>
-            );
-          })}
-        </div>
-      )}
+              <div className="al-empty-hint">
+                Free on all plans &middot; No app for guests
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="al-results-bar">
+              <div className="al-results-count">
+                <strong>{displayed.length}</strong>{" "}
+                {displayed.length === 1 ? "album" : "albums"}
+              </div>
+            </div>
+
+            {/* No results from filter/search */}
+            {displayed.length === 0 ? (
+              <div className="al-empty">
+                <div className="al-empty-icon">
+                  <IconNoResults />
+                </div>
+                <div className="al-empty-title">No results</div>
+                <div className="al-empty-sub">
+                  No albums match your current search or filter. Try adjusting
+                  your query.
+                </div>
+                <button
+                  className="al-btn-primary"
+                  onClick={() => {
+                    setFilter("all");
+                    setSearch("");
+                  }}
+                >
+                  Clear filter
+                </button>
+              </div>
+            ) : view === "grid" ? (
+              <div className="al-albums-grid">
+                {displayed.map((album, i) => (
+                  <GridCard key={album.id} album={album} index={i} />
+                ))}
+              </div>
+            ) : (
+              <div className="al-albums-list">
+                {displayed.map((album, i) => (
+                  <ListCard key={album.id} album={album} index={i} />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </>
   );
 }
