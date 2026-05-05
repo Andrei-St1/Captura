@@ -801,9 +801,8 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
       if (!res.ok) throw new Error("fetch failed");
       const faces: FaceRecord[] = await res.json();
       const clustered = clusterFaces(faces);
-      setFaceClusters(clustered);
 
-      // Generate face crops — progress bar stays active until this finishes
+      // Build all crops before touching state — prevents a "no faces" flash
       const visible = clustered.filter((c) => c.mediaIds.length >= MIN_CLUSTER_SIZE);
       const newCrops = new Map<string, string>();
       for (const cluster of visible.slice(0, 30)) {
@@ -812,6 +811,9 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
         const crop = await cropToDataUrl(item.file_url, cluster.representative.box);
         if (crop) newCrops.set(cluster.id, crop);
       }
+
+      // All three updates in one batch → single render, no intermediate states
+      setFaceClusters(clustered);
       setFaceCrops(newCrops);
       setFaceStatus("done");
     } catch (err) {
