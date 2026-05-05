@@ -790,14 +790,20 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
 
   const loadFaces = useCallback(async () => {
     setFaceStatus("loading");
+    setFaceClusters([]);
+    setFaceCrops(new Map());
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20_000);
+
     try {
-      const res = await fetch(`/api/faces?albumId=${albumId}`);
+      const res = await fetch(`/api/faces?albumId=${albumId}`, { signal: controller.signal });
       if (!res.ok) throw new Error("fetch failed");
       const faces: FaceRecord[] = await res.json();
       const clustered = clusterFaces(faces);
       setFaceClusters(clustered);
-      setFaceStatus("done");
 
+      // Generate face crops — progress bar stays active until this finishes
       const visible = clustered.filter((c) => c.mediaIds.length >= MIN_CLUSTER_SIZE);
       const newCrops = new Map<string, string>();
       for (const cluster of visible.slice(0, 30)) {
@@ -807,8 +813,16 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
         if (crop) newCrops.set(cluster.id, crop);
       }
       setFaceCrops(newCrops);
-    } catch {
-      setFaceStatus("error");
+      setFaceStatus("done");
+    } catch (err) {
+      // AbortError = 20s timeout → show "no faces found"
+      if ((err as { name?: string }).name === "AbortError") {
+        setFaceStatus("done");
+      } else {
+        setFaceStatus("error");
+      }
+    } finally {
+      clearTimeout(timeoutId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [albumId, itemIds]);
@@ -1264,10 +1278,10 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
                   {/* Hover overlay gradient */}
                   <div className="og-tile-overlay" />
 
-                  {/* Checkbox */}
+                  {/* Checkbox — clicking always enters selection mode */}
                   <div
                     className="og-tile-check"
-                    onClick={(e) => { e.stopPropagation(); toggleSelect(item.id); }}
+                    onClick={(e) => { e.stopPropagation(); if (!selecting) setSelecting(true); toggleSelect(item.id); }}
                   >
                     {isSelected && <IconCheck />}
                   </div>
