@@ -5,17 +5,16 @@ import { useState, useEffect, useRef } from "react";
 async function extractFrame(src: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const v = document.createElement("video");
-    v.crossOrigin = "anonymous";
-    v.muted      = true;
-    v.playsInline = true;
-    v.preload    = "metadata";
+    v.crossOrigin  = "anonymous";
+    v.muted        = true;
+    v.playsInline  = true;
+    v.preload      = "auto"; // "metadata" alone often isn't enough to render a frame
 
-    v.addEventListener("loadedmetadata", () => {
-      // Seek to 5% of duration, capped at 2s — avoids black opening frames
-      v.currentTime = Math.min(2, (v.duration || 0) * 0.05);
-    }, { once: true });
+    let done = false;
 
-    v.addEventListener("seeked", () => {
+    function capture() {
+      if (done) return;
+      done = true;
       try {
         const MAX = 720;
         const w = v.videoWidth  || 320;
@@ -31,6 +30,20 @@ async function extractFrame(src: string): Promise<string> {
         v.src = "";
         reject(e);
       }
+    }
+
+    // After metadata: seek to first frame
+    v.addEventListener("loadedmetadata", () => {
+      v.currentTime = 0.001; // non-zero ensures seeked fires on all browsers
+    }, { once: true });
+
+    // Primary path: seeked fires → capture
+    v.addEventListener("seeked", capture, { once: true });
+
+    // Fallback: some formats (MOV, HEVC) don't fire seeked reliably —
+    // capture as soon as the first frame's data is available
+    v.addEventListener("loadeddata", () => {
+      setTimeout(capture, 200);
     }, { once: true });
 
     v.addEventListener("error", () => { v.src = ""; reject(new Error("load failed")); }, { once: true });
