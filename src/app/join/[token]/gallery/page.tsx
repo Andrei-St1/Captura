@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { GalleryGrid } from "./GalleryGrid";
 import { JoinNav } from "../JoinNav";
+import { requireAlbumPin } from "@/lib/pin";
 
 export default async function GalleryPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -10,7 +11,7 @@ export default async function GalleryPage({ params }: { params: Promise<{ token:
 
   const { data: qr } = await supabase
     .from("qr_codes")
-    .select("id, enabled, expires_at, albums(id, title, status, show_gallery)")
+    .select("id, enabled, expires_at, albums(id, title, status, show_gallery, pin_required, pin_hash)")
     .eq("token", token)
     .single();
 
@@ -18,6 +19,10 @@ export default async function GalleryPage({ params }: { params: Promise<{ token:
 
   const album = qr.albums as any;
   if (!album || album.status === "deleted") notFound();
+
+  if (album.pin_required && album.pin_hash) {
+    await requireAlbumPin(album.id, album.pin_hash, token);
+  }
 
   if (!album.show_gallery) {
     return (

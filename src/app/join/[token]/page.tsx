@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { requireAlbumPin } from "@/lib/pin";
 
 type AlbumStatus = "not_open" | "open" | "closed" | "archived" | "qr_disabled";
 
@@ -48,13 +49,17 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
 
   const { data: qr } = await supabase
     .from("qr_codes")
-    .select("id, token, enabled, expires_at, albums(id, title, description, location, cover_url, open_date, close_date, status, show_gallery)")
+    .select("id, token, enabled, expires_at, albums(id, title, description, location, cover_url, open_date, close_date, status, show_gallery, pin_required, pin_hash)")
     .eq("token", token)
     .single();
 
   if (!qr) notFound();
   const album = qr.albums as any;
   if (!album || album.status === "deleted") notFound();
+
+  if (album.pin_required && album.pin_hash) {
+    await requireAlbumPin(album.id, album.pin_hash, token);
+  }
 
   const { count: mediaCount } = await supabase
     .from("media")

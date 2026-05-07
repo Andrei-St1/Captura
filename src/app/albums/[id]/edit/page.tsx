@@ -17,7 +17,7 @@ export default async function EditAlbumPage({
   // Fetch album (owner only)
   const { data: album } = await supabase
     .from("albums")
-    .select("id, title, open_date, close_date, allocated_gb, show_gallery, thumbnail_url")
+    .select("id, title, open_date, close_date, allocated_gb, show_gallery, thumbnail_url, pin_required")
     .eq("id", id)
     .eq("owner_id", user.id)
     .single();

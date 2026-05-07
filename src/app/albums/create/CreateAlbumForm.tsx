@@ -39,6 +39,8 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
   const [openDate, setOpenDate]     = useState("");
   const [closeDate, setCloseDate]   = useState("");
   const [showGallery, setShowGallery] = useState(true);
+  const [pinRequired, setPinRequired] = useState(false);
+  const [pin, setPin]                 = useState("");
   const [inputGb, setInputGb]       = useState(Math.min(10, Math.max(1, remaining)));
 
   const [coverFile, setCoverFile]         = useState<File | null>(null);
@@ -79,6 +81,8 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
       fd.set("title", title.trim());
       fd.set("allocated_gb", String(inputGb));
       fd.set("show_gallery", showGallery ? "true" : "false");
+      fd.set("pin_required", pinRequired ? "true" : "false");
+      if (pinRequired && pin) fd.set("pin", pin);
       if (openDate)  fd.set("open_date", openDate);
       if (closeDate) fd.set("close_date", closeDate);
       const result = await createAlbum(fd);
@@ -380,6 +384,36 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
                         <span className="ca-toggle-knob" />
                       </button>
                     </div>
+
+                    <div className="ca-toggle-field">
+                      <div>
+                        <div className="ca-toggle-label">Require PIN</div>
+                        <div className="ca-toggle-desc">Guests must enter a 4-digit PIN before accessing the album.</div>
+                      </div>
+                      <button
+                        type="button"
+                        className={`ca-toggle${pinRequired ? " on" : ""}`}
+                        onClick={() => { setPinRequired(v => !v); setPin(""); }}
+                      >
+                        <span className="ca-toggle-knob" />
+                      </button>
+                    </div>
+
+                    {pinRequired && (
+                      <div className="ca-field">
+                        <label>4-digit PIN <span className="ca-req">*</span></label>
+                        <input
+                          className="ca-input"
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={4}
+                          placeholder="e.g. 1234"
+                          value={pin}
+                          onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                        />
+                        <div className="ca-field-hint">Guests enter this before seeing the album.</div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="ca-section-nav">

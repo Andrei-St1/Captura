@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { r2, R2_BUCKET } from "@/lib/r2";
 import { generateToken } from "@/lib/qr";
+import { hashPin } from "@/lib/pin";
 
 export async function createAlbum(formData: FormData) {
   const supabase = await createClient();
@@ -61,6 +62,9 @@ export async function createAlbum(formData: FormData) {
   const openDate = (formData.get("open_date") as string | null) || null;
   const closeDate = (formData.get("close_date") as string | null) || null;
   const showGallery = formData.get("show_gallery") === "true";
+  const pinRequired = formData.get("pin_required") === "true";
+  const pinValue    = ((formData.get("pin") as string) ?? "").trim();
+  const pinHash     = pinRequired && /^\d{4}$/.test(pinValue) ? hashPin(pinValue) : null;
 
   const { data: album, error } = await supabase
     .from("albums")
@@ -71,6 +75,8 @@ export async function createAlbum(formData: FormData) {
       close_date: closeDate,
       allocated_gb: allocatedGb,
       show_gallery: showGallery,
+      pin_required: pinRequired && !!pinHash,
+      pin_hash: pinHash,
       status: "active",
     })
     .select("id")
@@ -141,6 +147,20 @@ export async function updateAlbum(formData: FormData) {
   const openDate = (formData.get("open_date") as string | null) || null;
   const closeDate = (formData.get("close_date") as string | null) || null;
   const showGallery = formData.get("show_gallery") === "true";
+  const pinRequired = formData.get("pin_required") === "true";
+  const pinValue    = ((formData.get("pin") as string) ?? "").trim();
+
+  // Keep existing hash if no new PIN entered; clear if PIN toggled off
+  let pinHash: string | null = null;
+  if (pinRequired) {
+    if (/^\d{4}$/.test(pinValue)) {
+      pinHash = hashPin(pinValue);
+    } else {
+      // No new PIN entered — keep existing (fetch it)
+      const { data: cur } = await supabase.from("albums").select("pin_hash").eq("id", id).single();
+      pinHash = cur?.pin_hash ?? null;
+    }
+  }
 
   const { error } = await supabase
     .from("albums")
@@ -150,6 +170,8 @@ export async function updateAlbum(formData: FormData) {
       close_date: closeDate,
       allocated_gb: newAllocatedGb,
       show_gallery: showGallery,
+      pin_required: pinRequired && !!pinHash,
+      pin_hash: pinHash,
     })
     .eq("id", id)
     .eq("owner_id", user.id);

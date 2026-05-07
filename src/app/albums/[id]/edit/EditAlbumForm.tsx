@@ -12,6 +12,7 @@ interface Album {
   allocated_gb: number;
   show_gallery: boolean;
   thumbnail_url: string | null;
+  pin_required: boolean;
 }
 
 interface Props {
@@ -29,6 +30,8 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showGallery, setShowGallery] = useState(album.show_gallery);
+  const [pinRequired, setPinRequired] = useState(album.pin_required);
+  const [pin, setPin]                 = useState("");
   const [inputGb, setInputGb] = useState(album.allocated_gb);
   const [coverPreview, setCoverPreview] = useState<string | null>(album.thumbnail_url ?? null);
   const [coverUploading, setCoverUploading] = useState(false);
@@ -59,6 +62,8 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
     setError(null);
     setLoading(true);
     formData.set("show_gallery", showGallery ? "true" : "false");
+    formData.set("pin_required", pinRequired ? "true" : "false");
+    if (pin) formData.set("pin", pin);
     const result = await updateAlbum(formData);
     if (result?.error) {
       setError(result.error);
@@ -263,6 +268,42 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
                       <span className="ea-toggle-knob" />
                     </button>
                   </div>
+
+                  <div className="ea-toggle-field">
+                    <div>
+                      <p className="ea-toggle-label">Require PIN</p>
+                      <p className="ea-toggle-desc">
+                        Guests must enter a 4-digit PIN before accessing the album.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className={`ea-toggle${pinRequired ? " on" : ""}`}
+                      onClick={() => { setPinRequired((v) => !v); setPin(""); }}
+                    >
+                      <span className="ea-toggle-knob" />
+                    </button>
+                  </div>
+
+                  {pinRequired && (
+                    <div className="ea-field">
+                      <label className="ea-label">
+                        {album.pin_required ? "Change PIN" : "Set PIN"} <span className="ea-req">*</span>
+                      </label>
+                      <input
+                        className="ea-input"
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={4}
+                        placeholder={album.pin_required ? "Enter new PIN to change" : "4-digit PIN"}
+                        value={pin}
+                        onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                      />
+                      {album.pin_required && (
+                        <p className="ea-field-hint">Leave empty to keep the current PIN.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </section>
 
