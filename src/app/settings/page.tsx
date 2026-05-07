@@ -180,6 +180,8 @@ const CSS = `
     padding: 32px 40px 60px;
     display: flex; flex-direction: column; gap: 20px;
     max-width: 720px;
+    margin: 0 auto;
+    width: 100%;
   }
 
   /* ── Section ── */

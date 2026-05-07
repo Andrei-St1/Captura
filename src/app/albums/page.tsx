@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { logout } from "@/app/auth/actions";
-import { createPortalSession } from "@/app/stripe/actions";
 import { AlbumsClient } from "./AlbumsClient";
+import { AppSidebar } from "@/components/AppSidebar";
+import { getSubscriptionLimits } from "@/lib/subscription";
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:wght@300;400;500&display=swap');
@@ -46,166 +46,6 @@ const CSS = `
   color: var(--al-text);
   font-family: var(--al-sans);
   font-weight: 300;
-}
-
-/* ── SIDEBAR ── */
-.al-sidebar {
-  width: var(--al-sidebar-w);
-  flex-shrink: 0;
-  background: var(--al-bg2);
-  border-right: 1px solid var(--al-border);
-  display: flex;
-  flex-direction: column;
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  z-index: 50;
-  overflow-y: auto;
-}
-
-.al-sidebar-logo {
-  padding: 28px 24px 20px;
-  border-bottom: 1px solid var(--al-border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.al-logo {
-  font-family: var(--al-serif);
-  font-size: 20px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  color: var(--al-gold);
-  text-decoration: none;
-}
-
-.al-plan-badge {
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  padding: 3px 8px;
-  border-radius: 4px;
-  background: var(--al-gold-glow);
-  color: var(--al-gold);
-  border: 1px solid oklch(76% 0.13 82 / 0.2);
-}
-
-.al-sidebar-nav {
-  flex: 1;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.al-nav-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  border-radius: 8px;
-  font-size: 13px;
-  color: var(--al-muted);
-  text-decoration: none;
-  transition: background .15s, color .15s;
-  cursor: pointer;
-  border: none;
-  background: none;
-  width: 100%;
-  text-align: left;
-  font-family: var(--al-sans);
-  font-weight: 300;
-  line-height: 1.5;
-}
-
-.al-nav-item svg {
-  width: 16px;
-  height: 16px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  flex-shrink: 0;
-}
-
-.al-nav-item:hover {
-  background: var(--al-bg3);
-  color: var(--al-text);
-}
-
-.al-nav-item.active {
-  background: var(--al-bg3);
-  color: var(--al-text);
-}
-
-.al-nav-item.active svg {
-  stroke: var(--al-gold);
-}
-
-.al-nav-badge {
-  margin-left: auto;
-  font-size: 10px;
-  font-weight: 500;
-  background: var(--al-bg4);
-  color: var(--al-muted);
-  padding: 1px 7px;
-  border-radius: 10px;
-}
-
-.al-nav-item.active .al-nav-badge {
-  background: var(--al-gold-glow);
-  color: var(--al-gold);
-}
-
-.al-nav-div {
-  height: 1px;
-  background: var(--al-border);
-  margin: 8px 0;
-}
-
-.al-sidebar-footer {
-  padding: 16px 16px 20px;
-  border-top: 1px solid var(--al-border);
-}
-
-.al-user-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.al-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--al-gold-glow);
-  border: 1px solid oklch(76% 0.13 82 / 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--al-serif);
-  font-size: 14px;
-  color: var(--al-gold);
-  flex-shrink: 0;
-}
-
-.al-user-name {
-  font-size: 13px;
-  font-weight: 400;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.al-user-email {
-  font-size: 11px;
-  color: var(--al-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* ── MAIN ── */
@@ -891,14 +731,8 @@ export default async function AlbumsPage() {
 
   const email = user.email ?? "";
 
-  const { data: sub } = await supabase
-    .from("subscriptions")
-    .select("plans(name)")
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .single();
-
-  const planName = (sub?.plans as any)?.name ?? "";
+  const limits  = await getSubscriptionLimits(user.id);
+  const { plan, usage } = limits;
 
   const { data: albums } = await supabase
     .from("albums")
@@ -932,72 +766,12 @@ export default async function AlbumsPage() {
       <style>{CSS}</style>
       <div className="al-root">
         {/* SIDEBAR */}
-        <aside className="al-sidebar">
-          <div className="al-sidebar-logo">
-            <Link href="/" className="al-logo">Captura</Link>
-            {planName && <span className="al-plan-badge">{planName}</span>}
-          </div>
-
-          <nav className="al-sidebar-nav">
-            <Link href="/dashboard" className="al-nav-item">
-              <svg viewBox="0 0 16 16">
-                <rect x="1" y="1" width="6" height="6" rx="1" />
-                <rect x="9" y="1" width="6" height="6" rx="1" />
-                <rect x="1" y="9" width="6" height="6" rx="1" />
-                <rect x="9" y="9" width="6" height="6" rx="1" />
-              </svg>
-              Dashboard
-            </Link>
-
-            <Link href="/albums" className="al-nav-item active">
-              <svg viewBox="0 0 16 16">
-                <rect x="2" y="2" width="12" height="12" rx="2" />
-                <circle cx="8" cy="8" r="2.5" />
-              </svg>
-              Albums
-              <span className="al-nav-badge">{albumList.length}</span>
-            </Link>
-
-            <Link href="/settings" className="al-nav-item">
-              <svg viewBox="0 0 16 16">
-                <circle cx="8" cy="8" r="2.5" />
-                <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.2 3.2l1.4 1.4M11.4 11.4l1.4 1.4" />
-              </svg>
-              Settings
-            </Link>
-
-            <div className="al-nav-div" />
-
-            <form action={createPortalSession}>
-              <button type="submit" className="al-nav-item">
-                <svg viewBox="0 0 16 16">
-                  <rect x="1" y="3" width="14" height="10" rx="2" />
-                  <path d="M1 7h14" />
-                </svg>
-                Billing
-              </button>
-            </form>
-
-            <form action={logout}>
-              <button type="submit" className="al-nav-item">
-                <svg viewBox="0 0 16 16">
-                  <path d="M10 8H2M6 5l-3 3 3 3M12 2h-2a2 2 0 00-2 2v8a2 2 0 002 2h2" />
-                </svg>
-                Sign out
-              </button>
-            </form>
-          </nav>
-
-          <div className="al-sidebar-footer">
-            <div className="al-user-row">
-              <div className="al-avatar">{initials}</div>
-              <div>
-                <div className="al-user-name">{displayName}</div>
-                <div className="al-user-email">{email}</div>
-              </div>
-            </div>
-          </div>
-        </aside>
+        <AppSidebar
+          user={{ displayName, initials, email }}
+          plan={plan}
+          usage={{ usedStorageGb: usage.usedStorageGb, storagePercent: usage.storagePercent }}
+          storageGb={plan?.storageGb ?? null}
+        />
 
         {/* MAIN */}
         <div className="al-main">
