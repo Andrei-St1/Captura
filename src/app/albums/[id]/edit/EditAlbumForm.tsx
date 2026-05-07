@@ -17,7 +17,7 @@ interface Album {
 interface Props {
   album: Album;
   planStorageGb: number;
-  allocatedGbOthers: number; // total allocated by OTHER albums (excluding this one)
+  allocatedGbOthers: number;
 }
 
 function toDatetimeLocal(iso: string | null): string {
@@ -34,7 +34,7 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
   const [coverUploading, setCoverUploading] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
-  const remaining = planStorageGb - allocatedGbOthers; // max this album can have
+  const remaining = planStorageGb - allocatedGbOthers;
   const usedByOthersPercent = Math.round((allocatedGbOthers / planStorageGb) * 100);
   const thisPercent = Math.min(100 - usedByOthersPercent, Math.round((inputGb / planStorageGb) * 100));
 
@@ -67,231 +67,549 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
   }
 
   return (
-    <div className="min-h-screen bg-surface font-manrope text-on-surface">
+    <>
+      <style>{CSS}</style>
+      <div className="ea-root">
 
-      {/* Navbar */}
-      <nav className="fixed top-0 w-full z-50 bg-surface/70 backdrop-blur-xl shadow-[0_12px_40px_rgba(78,68,74,0.06)]">
-        <div className="flex justify-between items-center px-8 h-16 w-full max-w-screen-2xl mx-auto">
-          <Link href="/" className="font-noto-serif text-xl font-light tracking-tighter text-primary">Captura</Link>
-          <Link href={`/albums/${album.id}`} className="flex items-center gap-2 text-sm text-on-surface-variant hover:text-primary transition">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m12 19-7-7 7-7" /><path d="M19 12H5" />
-            </svg>
-            Back to album
-          </Link>
-        </div>
-      </nav>
-
-      <main className="pt-28 pb-20 px-6">
-        <div className="mx-auto max-w-2xl">
-
-          <div className="mb-10">
-            <h1 className="font-noto-serif text-4xl font-light text-on-surface tracking-tight">
-              Edit <span className="italic text-primary">{album.title}</span>
-            </h1>
-            <p className="mt-3 text-on-surface-variant font-light">
-              Update your album details. The QR code and join link stay the same.
-            </p>
+        {/* Navbar */}
+        <nav className="ea-nav">
+          <div className="ea-nav-inner">
+            <Link href="/" className="ea-logo">Captura</Link>
+            <Link href={`/albums/${album.id}`} className="ea-back">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <path d="M10 3L5 8l5 5" />
+              </svg>
+              Back to album
+            </Link>
           </div>
+        </nav>
 
-          {error && (
-            <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-              {error}
+        <main className="ea-main">
+          <div className="ea-container">
+
+            <div className="ea-header">
+              <h1 className="ea-title">Edit <em>{album.title}</em></h1>
+              <p className="ea-subtitle">Update your album details. The QR code and join link stay the same.</p>
             </div>
-          )}
 
-          <form action={handleSubmit} className="space-y-8">
-            <input type="hidden" name="id" value={album.id} />
+            {error && <div className="ea-error-banner">{error}</div>}
 
-            {/* Basic info */}
-            <section className="rounded-2xl bg-surface-container-lowest ring-1 ring-outline-variant/30 shadow-sm overflow-hidden">
-              <div className="bg-surface-container-low px-6 py-4 border-b border-outline-variant/20">
-                <h2 className="font-noto-serif text-lg font-light text-on-surface">Basic info</h2>
-              </div>
-              <div className="p-6 space-y-5">
-                <div>
-                  <label htmlFor="title" className="mb-1.5 block text-sm font-medium text-on-surface-variant">
-                    Album title <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    id="title" name="title" type="text" required
-                    defaultValue={album.title}
-                    className="w-full rounded-xl border border-outline-variant/40 bg-surface px-4 py-3 text-on-surface placeholder-outline text-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
+            <form action={handleSubmit} className="ea-form">
+              <input type="hidden" name="id" value={album.id} />
+
+              {/* Basic info */}
+              <section className="ea-section">
+                <div className="ea-section-head">
+                  <h2 className="ea-section-title">Basic info</h2>
                 </div>
-
-                <div className="rounded-xl bg-surface-container-low px-4 py-3 text-xs text-on-surface-variant">
-                  Personalize the guest welcome page (cover photo, description, location) from the album detail page.
-                </div>
-              </div>
-            </section>
-
-            {/* Card thumbnail */}
-            <section className="rounded-2xl bg-surface-container-lowest ring-1 ring-outline-variant/30 shadow-sm overflow-hidden">
-              <div className="bg-surface-container-low px-6 py-4 border-b border-outline-variant/20">
-                <div>
-                  <h2 className="font-noto-serif text-lg font-light text-on-surface">Card thumbnail</h2>
-                  <p className="text-xs text-on-surface-variant mt-0.5">Shown on the dashboard album card. Different from the guest welcome page cover.</p>
-                </div>
-              </div>
-              <div className="p-6">
-                {coverPreview ? (
-                  <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden group">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={coverPreview} alt="Thumbnail" className="w-full h-full object-cover" />
-                    {coverUploading && (
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <span className="text-white text-sm font-medium">Uploading…</span>
-                      </div>
-                    )}
-                    {!coverUploading && (
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                        <label className="flex items-center gap-1.5 rounded-xl bg-white/20 backdrop-blur-sm px-4 py-2 text-sm font-semibold text-white hover:bg-white/30 transition cursor-pointer">
-                          <span className="material-symbols-outlined text-base">edit</span>
-                          Change
-                          <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverChange} />
-                        </label>
-                        <button
-                          type="button"
-                          onClick={removeCover}
-                          className="flex items-center gap-1.5 rounded-xl bg-white/20 backdrop-blur-sm px-4 py-2 text-sm font-semibold text-white hover:bg-red-500/70 transition"
-                        >
-                          <span className="material-symbols-outlined text-base">delete</span>
-                          Remove
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <label className="flex flex-col items-center justify-center gap-3 w-full aspect-[4/3] rounded-xl border-2 border-dashed border-outline-variant/40 cursor-pointer hover:border-primary hover:bg-surface-container transition-colors text-center p-6">
-                    <span className="material-symbols-outlined text-outline-variant" style={{ fontSize: "40px" }}>add_photo_alternate</span>
-                    <div>
-                      <p className="text-sm font-medium text-on-surface-variant">Click to upload a thumbnail</p>
-                      <p className="text-xs text-outline mt-1">JPG, PNG or WebP — shown on album cards</p>
-                    </div>
-                    <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverChange} />
-                  </label>
-                )}
-              </div>
-            </section>
-
-            {/* Dates */}
-            <section className="rounded-2xl bg-surface-container-lowest ring-1 ring-outline-variant/30 shadow-sm overflow-hidden">
-              <div className="bg-surface-container-low px-6 py-4 border-b border-outline-variant/20">
-                <h2 className="font-noto-serif text-lg font-light text-on-surface">Dates</h2>
-              </div>
-              <div className="p-6 grid gap-5 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="open_date" className="mb-1.5 block text-sm font-medium text-on-surface-variant">Open date</label>
-                  <input
-                    id="open_date" name="open_date" type="datetime-local"
-                    defaultValue={toDatetimeLocal(album.open_date)}
-                    className="w-full rounded-xl border border-outline-variant/40 bg-surface px-4 py-3 text-on-surface text-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="close_date" className="mb-1.5 block text-sm font-medium text-on-surface-variant">Close date</label>
-                  <input
-                    id="close_date" name="close_date" type="datetime-local"
-                    defaultValue={toDatetimeLocal(album.close_date)}
-                    className="w-full rounded-xl border border-outline-variant/40 bg-surface px-4 py-3 text-on-surface text-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
-              </div>
-            </section>
-
-            {/* Storage */}
-            <section className="rounded-2xl bg-surface-container-lowest ring-1 ring-outline-variant/30 shadow-sm overflow-hidden">
-              <div className="bg-surface-container-low px-6 py-4 border-b border-outline-variant/20">
-                <h2 className="font-noto-serif text-lg font-light text-on-surface">Storage allocation</h2>
-              </div>
-              <div className="p-6 space-y-5">
-
-                <div className="rounded-xl bg-surface-container-low p-4 space-y-3">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="font-medium text-on-surface">Your storage pool</span>
-                    <span className="text-on-surface-variant">{planStorageGb} GB total</span>
-                  </div>
-                  <div className="w-full bg-outline-variant/20 rounded-full h-3 overflow-hidden">
-                    <div className="h-full flex">
-                      <div className="h-full bg-primary-container rounded-l-full transition-all" style={{ width: `${usedByOthersPercent}%` }} />
-                      <div className="h-full bg-primary/60 transition-all" style={{ width: `${thisPercent}%` }} />
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-4 text-xs text-on-surface-variant">
-                    <span className="flex items-center gap-1.5">
-                      <span className="inline-block h-2.5 w-2.5 rounded-full bg-primary-container" />
-                      Other albums — {allocatedGbOthers} GB
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="inline-block h-2.5 w-2.5 rounded-full bg-primary/60" />
-                      This album — {inputGb} GB
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="inline-block h-2.5 w-2.5 rounded-full bg-outline-variant/30" />
-                      Free — {Math.max(0, remaining - inputGb)} GB
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label htmlFor="allocated_gb" className="text-sm font-medium text-on-surface-variant">
-                      Allocate to this album (GB) <span className="text-red-400">*</span>
+                <div className="ea-section-body">
+                  <div className="ea-field">
+                    <label htmlFor="title" className="ea-label">
+                      Album title <span className="ea-req">*</span>
                     </label>
-                    <span className="text-xs font-semibold text-primary">{remaining} GB available</span>
+                    <input
+                      id="title" name="title" type="text" required
+                      defaultValue={album.title}
+                      className="ea-input"
+                    />
                   </div>
-                  <input
-                    id="allocated_gb" name="allocated_gb" type="number"
-                    min={1} max={remaining} required
-                    value={inputGb}
-                    onChange={(e) => setInputGb(Math.max(1, Math.min(remaining, parseInt(e.target.value) || 1)))}
-                    className="w-full rounded-xl border border-outline-variant/40 bg-surface px-4 py-3 text-on-surface text-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                  <p className="mt-1.5 text-xs text-outline">Enter between 1 and {remaining} GB.</p>
-                </div>
-              </div>
-            </section>
-
-            {/* Settings */}
-            <section className="rounded-2xl bg-surface-container-lowest ring-1 ring-outline-variant/30 shadow-sm overflow-hidden">
-              <div className="bg-surface-container-low px-6 py-4 border-b border-outline-variant/20">
-                <h2 className="font-noto-serif text-lg font-light text-on-surface">Settings</h2>
-              </div>
-              <div className="p-6">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-on-surface">Gallery visibility</p>
-                    <p className="mt-1 text-xs text-outline leading-relaxed">
-                      When enabled, guests can browse all uploads. When disabled, guests only see their own.
-                    </p>
+                  <div className="ea-hint-box">
+                    Personalize the guest welcome page (cover photo, description, location) from the album detail page.
                   </div>
-                  <button
-                    type="button" role="switch" aria-checked={showGallery}
-                    onClick={() => setShowGallery((v) => !v)}
-                    className={`relative mt-0.5 shrink-0 h-6 w-11 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 ${showGallery ? "bg-primary" : "bg-outline-variant"}`}
-                  >
-                    <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${showGallery ? "translate-x-5" : "translate-x-0"}`} />
-                  </button>
                 </div>
-              </div>
-            </section>
+              </section>
 
-            {/* Submit */}
-            <div className="flex items-center justify-end gap-4 pt-2">
-              <Link href={`/albums/${album.id}`} className="rounded-xl px-6 py-3 text-sm font-medium text-on-surface-variant hover:text-on-surface transition">
-                Cancel
-              </Link>
-              <button
-                type="submit" disabled={loading}
-                className="rounded-xl bg-gradient-to-r from-primary to-primary-container px-8 py-3 text-sm font-semibold text-white shadow-md hover:scale-[1.02] transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
-              >
-                {loading ? "Saving…" : "Save changes"}
-              </button>
-            </div>
-          </form>
-        </div>
-      </main>
-    </div>
+              {/* Card thumbnail */}
+              <section className="ea-section">
+                <div className="ea-section-head">
+                  <h2 className="ea-section-title">Card thumbnail</h2>
+                  <p className="ea-section-sub">Shown on the dashboard album card. Different from the guest welcome page cover.</p>
+                </div>
+                <div className="ea-section-body">
+                  {coverPreview ? (
+                    <div className="ea-thumb-wrap">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={coverPreview} alt="Thumbnail" className="ea-thumb-img" />
+                      {coverUploading && (
+                        <div className="ea-thumb-overlay">
+                          <span className="ea-thumb-uploading">Uploading…</span>
+                        </div>
+                      )}
+                      {!coverUploading && (
+                        <div className="ea-thumb-hover">
+                          <label className="ea-thumb-btn">
+                            Change
+                            <input ref={coverInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleCoverChange} />
+                          </label>
+                          <button type="button" className="ea-thumb-btn ea-thumb-btn-remove" onClick={removeCover}>
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <label className="ea-upload-area">
+                      <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+                        <rect x="4" y="4" width="32" height="32" rx="4" />
+                        <circle cx="20" cy="17" r="5" />
+                        <path d="M4 30l8-8 6 6 6-8 12 10" />
+                      </svg>
+                      <div>
+                        <p className="ea-upload-label">Click to upload a thumbnail</p>
+                        <p className="ea-upload-sub">JPG, PNG or WebP — shown on album cards</p>
+                      </div>
+                      <input ref={coverInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleCoverChange} />
+                    </label>
+                  )}
+                </div>
+              </section>
+
+              {/* Dates */}
+              <section className="ea-section">
+                <div className="ea-section-head">
+                  <h2 className="ea-section-title">Dates</h2>
+                </div>
+                <div className="ea-section-body">
+                  <div className="ea-date-grid">
+                    <div className="ea-field">
+                      <label htmlFor="open_date" className="ea-label">Open date</label>
+                      <input
+                        id="open_date" name="open_date" type="datetime-local"
+                        defaultValue={toDatetimeLocal(album.open_date)}
+                        className="ea-input"
+                      />
+                    </div>
+                    <div className="ea-field">
+                      <label htmlFor="close_date" className="ea-label">Close date</label>
+                      <input
+                        id="close_date" name="close_date" type="datetime-local"
+                        defaultValue={toDatetimeLocal(album.close_date)}
+                        className="ea-input"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Storage */}
+              <section className="ea-section">
+                <div className="ea-section-head">
+                  <h2 className="ea-section-title">Storage allocation</h2>
+                </div>
+                <div className="ea-section-body">
+
+                  <div className="ea-storage-pool">
+                    <div className="ea-storage-pool-row">
+                      <span className="ea-storage-pool-label">Your storage pool</span>
+                      <span className="ea-storage-pool-total">{planStorageGb} GB total</span>
+                    </div>
+                    <div className="ea-pool-track">
+                      <div className="ea-pool-fill-others" style={{ width: `${usedByOthersPercent}%` }} />
+                      <div className="ea-pool-fill-this" style={{ width: `${thisPercent}%` }} />
+                    </div>
+                    <div className="ea-pool-legend">
+                      <span className="ea-legend-item">
+                        <span className="ea-legend-dot ea-legend-dot-others" />
+                        Other albums — {allocatedGbOthers} GB
+                      </span>
+                      <span className="ea-legend-item">
+                        <span className="ea-legend-dot ea-legend-dot-this" />
+                        This album — {inputGb} GB
+                      </span>
+                      <span className="ea-legend-item">
+                        <span className="ea-legend-dot ea-legend-dot-free" />
+                        Free — {Math.max(0, remaining - inputGb)} GB
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="ea-field">
+                    <div className="ea-storage-label-row">
+                      <label htmlFor="allocated_gb" className="ea-label">
+                        Allocate to this album (GB) <span className="ea-req">*</span>
+                      </label>
+                      <span className="ea-storage-avail">{remaining} GB available</span>
+                    </div>
+                    <input
+                      id="allocated_gb" name="allocated_gb" type="number"
+                      min={1} max={remaining} required
+                      value={inputGb}
+                      onChange={(e) => setInputGb(Math.max(1, Math.min(remaining, parseInt(e.target.value) || 1)))}
+                      className="ea-input"
+                    />
+                    <p className="ea-field-hint">Enter between 1 and {remaining} GB.</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Settings */}
+              <section className="ea-section">
+                <div className="ea-section-head">
+                  <h2 className="ea-section-title">Settings</h2>
+                </div>
+                <div className="ea-section-body">
+                  <div className="ea-toggle-field">
+                    <div>
+                      <p className="ea-toggle-label">Gallery visibility</p>
+                      <p className="ea-toggle-desc">
+                        When enabled, guests can browse all uploads. When disabled, guests only see their own.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className={`ea-toggle${showGallery ? " on" : ""}`}
+                      onClick={() => setShowGallery((v) => !v)}
+                    >
+                      <span className="ea-toggle-knob" />
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              {/* Submit */}
+              <div className="ea-footer">
+                <Link href={`/albums/${album.id}`} className="ea-btn-cancel">Cancel</Link>
+                <button type="submit" disabled={loading} className="ea-btn-save">
+                  {loading ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </main>
+      </div>
+    </>
   );
 }
+
+const CSS = `
+  .ea-root {
+    min-height: 100vh;
+    background: oklch(97% 0.008 80);
+    color: oklch(18% 0.015 265);
+    font-family: 'DM Sans', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ── Nav ── */
+  .ea-nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: oklch(97% 0.008 80 / 0.88);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid oklch(80% 0.010 80);
+  }
+  .ea-nav-inner {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 24px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .ea-logo {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: oklch(44% 0.16 72);
+    text-decoration: none;
+  }
+  .ea-back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: oklch(46% 0.010 265);
+    text-decoration: none;
+    transition: color .15s;
+  }
+  .ea-back:hover { color: oklch(18% 0.015 265); }
+
+  /* ── Main ── */
+  .ea-main {
+    padding: 48px 24px 80px;
+  }
+  .ea-container {
+    max-width: 680px;
+    margin: 0 auto;
+  }
+
+  /* ── Header ── */
+  .ea-header { margin-bottom: 36px; }
+  .ea-title {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 36px;
+    font-weight: 400;
+    line-height: 1.15;
+    margin-bottom: 10px;
+  }
+  .ea-title em { font-style: italic; color: oklch(44% 0.16 72); }
+  .ea-subtitle { font-size: 14px; color: oklch(46% 0.010 265); line-height: 1.65; }
+
+  /* ── Error banner ── */
+  .ea-error-banner {
+    margin-bottom: 24px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    background: oklch(62% 0.20 25 / 0.08);
+    border: 1px solid oklch(62% 0.20 25 / 0.25);
+    color: oklch(52% 0.20 25);
+    font-size: 13px;
+  }
+
+  /* ── Form ── */
+  .ea-form { display: flex; flex-direction: column; gap: 20px; }
+
+  /* ── Section ── */
+  .ea-section {
+    background: oklch(93% 0.010 80);
+    border: 1px solid oklch(80% 0.010 80);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .ea-section-head {
+    padding: 18px 24px;
+    border-bottom: 1px solid oklch(80% 0.010 80);
+    background: oklch(89% 0.012 80);
+  }
+  .ea-section-title {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 18px;
+    font-weight: 400;
+    color: oklch(18% 0.015 265);
+  }
+  .ea-section-sub {
+    font-size: 12px;
+    color: oklch(46% 0.010 265);
+    margin-top: 3px;
+    line-height: 1.5;
+  }
+  .ea-section-body { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+
+  /* ── Fields ── */
+  .ea-field { display: flex; flex-direction: column; gap: 7px; }
+  .ea-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: oklch(46% 0.010 265);
+  }
+  .ea-req { color: oklch(52% 0.20 25); }
+  .ea-input {
+    width: 100%;
+    background: oklch(97% 0.008 80);
+    border: 1px solid oklch(80% 0.010 80);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    font-size: 14px;
+    color: oklch(18% 0.015 265);
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+    -webkit-appearance: none;
+    color-scheme: light;
+    box-sizing: border-box;
+  }
+  .ea-input:focus {
+    border-color: oklch(65% 0.012 80);
+    box-shadow: 0 0 0 3px oklch(44% 0.16 72 / 0.10);
+  }
+  .ea-field-hint { font-size: 12px; color: oklch(58% 0.010 265); }
+
+  .ea-hint-box {
+    padding: 12px 14px;
+    background: oklch(89% 0.012 80);
+    border: 1px solid oklch(80% 0.010 80);
+    border-radius: 10px;
+    font-size: 12px;
+    color: oklch(46% 0.010 265);
+    line-height: 1.55;
+  }
+
+  .ea-date-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* ── Thumbnail ── */
+  .ea-thumb-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .ea-thumb-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ea-thumb-overlay {
+    position: absolute; inset: 0;
+    background: oklch(0% 0 0 / 0.5);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ea-thumb-uploading { color: #fff; font-size: 13px; font-weight: 600; }
+  .ea-thumb-hover {
+    position: absolute; inset: 0;
+    background: oklch(0% 0 0 / 0.4);
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    opacity: 0;
+    transition: opacity .2s;
+  }
+  .ea-thumb-wrap:hover .ea-thumb-hover { opacity: 1; }
+  .ea-thumb-btn {
+    display: flex; align-items: center;
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: oklch(100% 0 0 / 0.2);
+    backdrop-filter: blur(8px);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    transition: background .15s;
+  }
+  .ea-thumb-btn:hover { background: oklch(100% 0 0 / 0.3); }
+  .ea-thumb-btn-remove:hover { background: oklch(52% 0.20 25 / 0.7); }
+
+  .ea-upload-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border-radius: 12px;
+    border: 2px dashed oklch(80% 0.010 80);
+    cursor: pointer;
+    text-align: center;
+    padding: 24px;
+    color: oklch(58% 0.010 265);
+    transition: border-color .2s, background .2s;
+    box-sizing: border-box;
+  }
+  .ea-upload-area:hover {
+    border-color: oklch(44% 0.16 72);
+    background: oklch(44% 0.16 72 / 0.04);
+  }
+  .ea-upload-label { font-size: 13px; font-weight: 500; color: oklch(46% 0.010 265); }
+  .ea-upload-sub { font-size: 12px; color: oklch(58% 0.010 265); margin-top: 3px; }
+
+  /* ── Storage pool ── */
+  .ea-storage-pool {
+    background: oklch(89% 0.012 80);
+    border: 1px solid oklch(80% 0.010 80);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .ea-storage-pool-row { display: flex; justify-content: space-between; align-items: center; }
+  .ea-storage-pool-label { font-size: 13px; font-weight: 500; color: oklch(18% 0.015 265); }
+  .ea-storage-pool-total { font-size: 12px; color: oklch(46% 0.010 265); }
+  .ea-pool-track {
+    height: 10px;
+    background: oklch(80% 0.010 80);
+    border-radius: 99px;
+    overflow: hidden;
+    display: flex;
+  }
+  .ea-pool-fill-others {
+    height: 100%;
+    background: oklch(44% 0.16 72 / 0.4);
+    transition: width .4s;
+  }
+  .ea-pool-fill-this {
+    height: 100%;
+    background: oklch(44% 0.16 72);
+    transition: width .4s;
+  }
+  .ea-pool-legend { display: flex; flex-wrap: wrap; gap: 12px; }
+  .ea-legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: oklch(46% 0.010 265); }
+  .ea-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .ea-legend-dot-others { background: oklch(44% 0.16 72 / 0.4); }
+  .ea-legend-dot-this { background: oklch(44% 0.16 72); }
+  .ea-legend-dot-free { background: oklch(80% 0.010 80); }
+
+  .ea-storage-label-row { display: flex; justify-content: space-between; align-items: center; }
+  .ea-storage-avail { font-size: 12px; font-weight: 600; color: oklch(44% 0.16 72); }
+
+  /* ── Toggle ── */
+  .ea-toggle-field {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .ea-toggle-label { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+  .ea-toggle-desc { font-size: 12px; color: oklch(46% 0.010 265); line-height: 1.5; }
+  .ea-toggle {
+    flex-shrink: 0;
+    width: 44px; height: 24px;
+    border-radius: 12px;
+    background: oklch(80% 0.010 80);
+    border: none; cursor: pointer;
+    position: relative;
+    transition: background .25s;
+    margin-top: 2px;
+  }
+  .ea-toggle.on { background: oklch(50% 0.16 155); }
+  .ea-toggle-knob {
+    position: absolute; top: 3px; left: 3px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: white;
+    transition: transform .25s;
+    box-shadow: 0 1px 4px oklch(0% 0 0 / 0.25);
+    display: block;
+  }
+  .ea-toggle.on .ea-toggle-knob { transform: translateX(20px); }
+
+  /* ── Footer ── */
+  .ea-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding-top: 8px;
+  }
+  .ea-btn-cancel {
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: oklch(46% 0.010 265);
+    text-decoration: none;
+    transition: color .15s;
+  }
+  .ea-btn-cancel:hover { color: oklch(18% 0.015 265); }
+  .ea-btn-save {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 10px 28px;
+    background: oklch(44% 0.16 72);
+    color: #fff;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none; cursor: pointer;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    transition: opacity .2s, transform .15s;
+  }
+  .ea-btn-save:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
+  .ea-btn-save:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    .ea-main { padding: 32px 16px 60px; }
+    .ea-title { font-size: 28px; }
+    .ea-section-body { padding: 18px 16px; }
+    .ea-section-head { padding: 14px 16px; }
+    .ea-date-grid { grid-template-columns: 1fr; }
+    .ea-footer { flex-direction: column-reverse; align-items: stretch; }
+    .ea-btn-save { justify-content: center; }
+    .ea-btn-cancel { text-align: center; }
+  }
+`;
