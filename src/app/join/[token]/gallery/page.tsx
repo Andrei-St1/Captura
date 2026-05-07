@@ -21,14 +21,19 @@ export default async function GalleryPage({ params }: { params: Promise<{ token:
 
   if (!album.show_gallery) {
     return (
-      <div className="min-h-screen bg-surface flex items-center justify-center px-4 font-manrope">
-        <div className="w-full max-w-sm rounded-3xl bg-surface-container-lowest shadow-xl p-8 text-center ring-1 ring-outline-variant/20">
-          <span className="material-symbols-outlined text-outline-variant block mb-4" style={{ fontSize: "48px" }}>lock</span>
-          <p className="font-noto-serif text-xl text-on-surface">Gallery is private</p>
-          <p className="mt-2 text-sm text-on-surface-variant">The album owner has disabled public gallery viewing.</p>
-          <Link href={`/join/${token}`} className="mt-6 inline-block text-sm font-semibold text-primary hover:underline">← Back to album</Link>
+      <>
+        <style>{CSS}</style>
+        <div className="gl-root" style={{ alignItems: "center", justifyContent: "center" }}>
+          <div className="gl-private-box">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{ color: "oklch(58% 0.010 265)" }}>
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            <p className="gl-private-title">Gallery is private</p>
+            <p className="gl-private-body">The album owner has disabled public gallery viewing.</p>
+            <Link href={`/join/${token}`} className="gl-private-back">← Back to album</Link>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -41,50 +46,206 @@ export default async function GalleryPage({ params }: { params: Promise<{ token:
   const items = media ?? [];
 
   return (
-    <div className="min-h-screen bg-surface font-manrope" style={{ background: "linear-gradient(135deg, #ede9fe 0%, #f5d0fe 45%, #fecdd3 80%, #fff1f2 100%)" }}>
-      <div className="pointer-events-none fixed -top-32 -left-32 h-96 w-96 rounded-full bg-violet-300/20 blur-3xl" />
-      <div className="pointer-events-none fixed -bottom-32 -right-32 h-96 w-96 rounded-full bg-rose-300/20 blur-3xl" />
+    <>
+      <style>{CSS}</style>
+      <div className="gl-root">
 
-      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-violet-100">
-        <div className="mx-auto max-w-4xl px-4 py-4 flex items-center justify-between">
-          <div>
-            <Link href={`/join/${token}`} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-violet-600 transition mb-1">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {/* ── Header: 3-column grid so nav sits exactly in the middle ── */}
+        <header className="gl-header">
+          <div className="gl-header-left">
+            <Link href={`/join/${token}`} className="gl-back">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="m12 19-7-7 7-7" /><path d="M19 12H5" />
               </svg>
               Back
             </Link>
-            <h1 className="font-noto-serif text-lg font-light text-slate-900">{album.title}</h1>
+            <span className="gl-album-title">{album.title}</span>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-slate-500">{items.length} {items.length === 1 ? "file" : "files"}</span>
-            <JoinNav token={token} showGallery={true} />
-          </div>
-        </div>
-      </div>
 
-      <div className="relative mx-auto max-w-4xl px-4 py-8 pb-24 md:pb-8">
-        {items.length === 0 ? (
-          <div className="text-center py-24">
-            <div className="inline-flex items-center justify-center h-20 w-20 rounded-2xl bg-white/70 mb-5 shadow-sm">
-              <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-                <rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+          {/* center — desktop tabs land here */}
+          <JoinNav token={token} showGallery={true} />
+
+          <div className="gl-header-right">
+            <span className="gl-count">{items.length} {items.length === 1 ? "file" : "files"}</span>
+          </div>
+        </header>
+
+        {/* ── Content ── */}
+        <main className="gl-main">
+          {items.length === 0 ? (
+            <div className="gl-empty">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "oklch(65% 0.010 265)" }}>
+                <rect width="18" height="18" x="3" y="3" rx="2" />
+                <circle cx="9" cy="9" r="2" />
+                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
               </svg>
+              <p className="gl-empty-title">Nothing here yet</p>
+              <p className="gl-empty-body">Be the first to add a memory to this album.</p>
+              <Link href={`/join/${token}/upload`} className="gl-empty-cta">Add yours →</Link>
             </div>
-            <p className="font-noto-serif text-xl font-light text-slate-700">Nothing here yet</p>
-            <p className="mt-2 text-sm text-slate-500">Be the first to add a memory to this album.</p>
-            <Link href={`/join/${token}/upload`} className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white hover:bg-violet-500 transition shadow-lg shadow-violet-200">
-              Add yours →
-            </Link>
-          </div>
-        ) : (
-          <GalleryGrid items={items} />
-        )}
-      </div>
+          ) : (
+            <GalleryGrid items={items} />
+          )}
+        </main>
 
-      <p className="pb-8 text-center text-xs text-slate-400">
-        Powered by <Link href="/" className="font-semibold text-violet-600 hover:underline">Captura</Link>
-      </p>
-    </div>
+        <p className="gl-powered">
+          Powered by <Link href="/">Captura</Link>
+        </p>
+      </div>
+    </>
   );
 }
+
+const CSS = `
+  .gl-root {
+    min-height: 100vh;
+    background: oklch(97% 0.008 80);
+    color: oklch(18% 0.015 265);
+    font-family: 'DM Sans', system-ui, sans-serif;
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  .gl-header {
+    position: sticky; top: 0; z-index: 40;
+    background: oklch(97% 0.008 80 / 0.88);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid oklch(80% 0.010 80);
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 0 24px;
+    height: 64px;
+    gap: 16px;
+  }
+
+  .gl-header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .gl-back {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; color: oklch(46% 0.010 265);
+    text-decoration: none; transition: color .15s;
+  }
+  .gl-back:hover { color: oklch(18% 0.015 265); }
+
+  .gl-album-title {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 17px; font-weight: 400;
+    color: oklch(18% 0.015 265);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .gl-header-right {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+  }
+
+  .gl-count {
+    font-size: 13px;
+    color: oklch(46% 0.010 265);
+  }
+
+  /* ── Main ── */
+  .gl-main {
+    flex: 1;
+    max-width: 900px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 28px 16px 100px;  /* 100px bottom = room for mobile nav */
+  }
+
+  /* ── Empty state ── */
+  .gl-empty {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 80px 20px;
+    text-align: center;
+    gap: 10px;
+  }
+  .gl-empty-title {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 26px; font-weight: 400;
+    color: oklch(18% 0.015 265);
+    margin-top: 8px;
+  }
+  .gl-empty-body {
+    font-size: 14px;
+    color: oklch(46% 0.010 265);
+    line-height: 1.6;
+    max-width: 320px;
+  }
+  .gl-empty-cta {
+    margin-top: 12px;
+    display: inline-flex; align-items: center;
+    padding: 11px 28px;
+    background: oklch(44% 0.16 72);
+    color: oklch(97% 0.008 80);
+    border-radius: 10px;
+    font-size: 13px; font-weight: 600;
+    text-decoration: none;
+    transition: opacity .2s, transform .15s;
+  }
+  .gl-empty-cta:hover { opacity: .88; transform: translateY(-1px); }
+
+  /* ── Private box ── */
+  .gl-private-box {
+    background: oklch(93% 0.010 80);
+    border: 1px solid oklch(80% 0.010 80);
+    border-radius: 20px;
+    padding: 48px 32px;
+    text-align: center;
+    max-width: 380px;
+    width: 100%;
+    margin: 0 24px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .gl-private-title {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 24px; font-weight: 400;
+    color: oklch(18% 0.015 265);
+  }
+  .gl-private-body {
+    font-size: 13px; color: oklch(46% 0.010 265); line-height: 1.6;
+  }
+  .gl-private-back {
+    margin-top: 8px;
+    font-size: 13px; font-weight: 600;
+    color: oklch(44% 0.16 72);
+    text-decoration: none;
+  }
+  .gl-private-back:hover { text-decoration: underline; }
+
+  /* ── Powered ── */
+  .gl-powered {
+    padding: 16px;
+    text-align: center;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: oklch(65% 0.010 265);
+  }
+  .gl-powered a { color: oklch(44% 0.16 72); text-decoration: none; }
+  .gl-powered a:hover { text-decoration: underline; }
+
+  /* ── Mobile ── */
+  @media (max-width: 768px) {
+    .gl-header {
+      grid-template-columns: 1fr 1fr;
+      height: auto;
+      padding: 12px 16px;
+    }
+    /* On mobile the center JoinNav tabs are hidden (CSS in JoinNav handles this) */
+    /* Just show left and right columns */
+    .gl-header > :nth-child(2) { display: none; }
+    .gl-header-right { grid-column: 2; }
+    .gl-main { padding-bottom: 100px; }
+  }
+`;
