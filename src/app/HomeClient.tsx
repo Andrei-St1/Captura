@@ -182,8 +182,9 @@ function CameraAnimation() {
 }
 
 export function HomeClient({ isLoggedIn }: { isLoggedIn: boolean }) {
-  const [scrolled, setScrolled] = useState(false);
-  const [theme, setTheme] = useState<"dark" | "light">("light");
+  const [scrolled, setScrolled]   = useState(false);
+  const [theme, setTheme]         = useState<"dark" | "light">("light");
+  const [menuOpen, setMenuOpen]   = useState(false);
   useReveal();
 
   useEffect(() => {
@@ -196,6 +197,17 @@ export function HomeClient({ isLoggedIn }: { isLoggedIn: boolean }) {
     const onScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle("menu-open", menuOpen);
+    return () => document.body.classList.remove("menu-open");
+  }, [menuOpen]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMenuOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   function toggleTheme() {
@@ -259,14 +271,51 @@ export function HomeClient({ isLoggedIn }: { isLoggedIn: boolean }) {
         .hp-thumb:nth-child(5){animation:hp-thumbPop 0.4s ease 1.6s both}
         .hp-thumb:nth-child(6){animation:hp-thumbPop 0.4s ease 1.8s both}
         .hp-scroll-line { width:1px; height:40px; background: linear-gradient(to bottom, var(--gold-dim), transparent); animation: hp-scrollPulse 2s ease-in-out infinite; }
-        .hp-nav { position:fixed; top:0; left:0; right:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:20px 48px; backdrop-filter:blur(16px); background:var(--nav-bg); border-bottom:1px solid transparent; transition:border-color 0.3s, background 0.3s; }
-        .hp-nav.scrolled { border-bottom-color: var(--border); }
-        .hp-nav-link { color:var(--muted); font-size:14px; text-decoration:none; letter-spacing:0.04em; transition:color 0.2s; }
-        .hp-nav-link:hover { color:var(--text); }
-        .hp-nav-cta { background:var(--gold); color:var(--bg); padding:9px 22px; border-radius:6px; font-size:13px; font-weight:500; text-decoration:none; letter-spacing:0.04em; transition:opacity 0.2s; }
-        .hp-nav-cta:hover { opacity:0.85; }
-        .hp-theme-btn { width:36px; height:36px; border-radius:8px; background:var(--bg2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--muted); flex-shrink:0; transition:background 0.2s; }
+        /* ── NAV ── */
+        .hp-nav { position:fixed; top:18px; left:50%; transform:translateX(-50%); z-index:100; display:flex; align-items:center; gap:14px; padding:8px 8px 8px 22px; backdrop-filter:blur(20px) saturate(140%); -webkit-backdrop-filter:blur(20px) saturate(140%); background:var(--nav-bg); border:1px solid var(--border); border-radius:100px; box-shadow:0 1px 0 oklch(100% 0 0 / 0.04) inset, 0 10px 30px oklch(0% 0 0 / 0.18); transition:top 0.3s, box-shadow 0.3s, background 0.3s; width:max-content; max-width:calc(100vw - 32px); }
+        .hp-nav.scrolled { top:10px; box-shadow:0 1px 0 oklch(100% 0 0 / 0.04) inset, 0 14px 40px oklch(0% 0 0 / 0.28); }
+        .hp-nav-logo { display:flex; align-items:center; gap:8px; font-family:'Cormorant Garamond',Georgia,serif; font-size:19px; font-weight:500; letter-spacing:0.08em; color:var(--gold); text-decoration:none; padding-right:14px; border-right:1px solid var(--border); white-space:nowrap; }
+        .hp-nav-logo-mark { width:22px; height:22px; border-radius:50%; background:radial-gradient(circle at 30% 30%, var(--gold), var(--gold-dim)); box-shadow:0 0 0 2px var(--gold-glow), inset 0 0 0 2px oklch(100% 0 0 / 0.15); flex-shrink:0; position:relative; }
+        .hp-nav-logo-mark::after { content:''; position:absolute; inset:6px; border-radius:50%; background:var(--bg2); box-shadow:inset 0 0 0 1.5px var(--gold); }
+        .hp-nav-links { display:flex; gap:4px; list-style:none; align-items:center; }
+        .hp-nav-links a { position:relative; color:var(--muted); font-size:13px; text-decoration:none; letter-spacing:0.02em; padding:8px 14px; border-radius:100px; transition:color 0.2s, background 0.2s; display:inline-flex; align-items:center; }
+        .hp-nav-links a::before { content:''; position:absolute; left:50%; bottom:4px; width:0; height:1.5px; background:var(--gold); border-radius:2px; transform:translateX(-50%); transition:width 0.25s ease; }
+        .hp-nav-links a:hover { color:var(--text); background:oklch(100% 0 0 / 0.04); }
+        .hp-nav-links a:hover::before { width:18px; }
+        .hp-root[data-theme="light"] .hp-nav-links a:hover { background:oklch(0% 0 0 / 0.04); }
+        .hp-nav-divider { width:1px; height:22px; background:var(--border); margin:0 2px; flex-shrink:0; }
+        .hp-theme-btn { width:36px; height:36px; border-radius:8px; background:var(--bg2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--muted); flex-shrink:0; transition:background 0.2s; position:relative; overflow:hidden; }
         .hp-theme-btn:hover { background:var(--bg3); color:var(--text); }
+        .hp-nav-cta { display:inline-flex; align-items:center; gap:6px; background:var(--gold); color:var(--bg); padding:9px 18px 9px 20px; border-radius:100px; font-size:13px; font-weight:500; text-decoration:none; letter-spacing:0.02em; transition:transform 0.2s, box-shadow 0.2s; box-shadow:0 4px 14px oklch(58% 0.16 72 / 0.35); white-space:nowrap; }
+        .hp-nav-cta:hover { transform:translateY(-1px); box-shadow:0 8px 22px oklch(58% 0.16 72 / 0.45); }
+        .hp-nav-cta svg { transition:transform 0.2s; }
+        .hp-nav-cta:hover svg { transform:translateX(3px); }
+        /* ── BURGER ── */
+        .hp-nav-burger { display:none; width:36px; height:36px; border-radius:50%; background:var(--bg2); border:1px solid var(--border); cursor:pointer; align-items:center; justify-content:center; color:var(--text); flex-shrink:0; padding:0; position:relative; }
+        .hp-nav-burger span { position:absolute; left:50%; width:16px; height:1.5px; background:currentColor; border-radius:2px; transform:translateX(-50%); transition:transform 0.3s, opacity 0.2s, top 0.3s; }
+        .hp-nav-burger span:nth-child(1) { top:13px; }
+        .hp-nav-burger span:nth-child(2) { top:17.25px; }
+        .hp-nav-burger span:nth-child(3) { top:21.5px; }
+        body.menu-open .hp-nav-burger span:nth-child(1) { top:17.25px; transform:translateX(-50%) rotate(45deg); }
+        body.menu-open .hp-nav-burger span:nth-child(2) { opacity:0; }
+        body.menu-open .hp-nav-burger span:nth-child(3) { top:17.25px; transform:translateX(-50%) rotate(-45deg); }
+        /* ── MOBILE MENU ── */
+        .hp-mobile-menu { position:fixed; inset:0; z-index:95; background:var(--bg); backdrop-filter:blur(20px); display:flex; flex-direction:column; padding:100px 32px 40px; opacity:0; pointer-events:none; transform:translateY(-12px); transition:opacity 0.3s, transform 0.3s; }
+        body.menu-open .hp-mobile-menu { opacity:1; pointer-events:auto; transform:translateY(0); }
+        .hp-mobile-links { display:flex; flex-direction:column; list-style:none; gap:4px; }
+        .hp-mobile-links li { opacity:0; transform:translateY(8px); transition:opacity 0.4s, transform 0.4s; }
+        body.menu-open .hp-mobile-links li { opacity:1; transform:translateY(0); }
+        body.menu-open .hp-mobile-links li:nth-child(1) { transition-delay:0.08s; }
+        body.menu-open .hp-mobile-links li:nth-child(2) { transition-delay:0.13s; }
+        body.menu-open .hp-mobile-links li:nth-child(3) { transition-delay:0.18s; }
+        body.menu-open .hp-mobile-links li:nth-child(4) { transition-delay:0.23s; }
+        .hp-mobile-links a { display:flex; align-items:center; justify-content:space-between; padding:22px 4px; font-family:'Cormorant Garamond',Georgia,serif; font-size:32px; font-weight:400; letter-spacing:-0.01em; color:var(--text); text-decoration:none; border-bottom:1px solid var(--border); transition:color 0.2s, padding 0.25s; }
+        .hp-mobile-links a:hover { color:var(--gold); padding-left:12px; }
+        .hp-mobile-links a svg { width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:1.5; opacity:0.5; flex-shrink:0; }
+        .hp-mobile-footer { margin-top:auto; display:flex; flex-direction:column; gap:14px; opacity:0; transform:translateY(8px); transition:opacity 0.4s 0.32s, transform 0.4s 0.32s; }
+        body.menu-open .hp-mobile-footer { opacity:1; transform:translateY(0); }
+        .hp-mobile-cta { display:flex; align-items:center; justify-content:center; gap:8px; background:var(--gold); color:var(--bg); padding:18px; border-radius:100px; font-size:15px; font-weight:500; text-decoration:none; box-shadow:0 8px 24px oklch(58% 0.16 72 / 0.35); }
+        .hp-mobile-cta svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2; }
         .hp-anim-stage { width:100%; max-width:900px; height:420px; position:relative; background:var(--bg2); border:1px solid var(--border); border-radius:24px; overflow:hidden; display:flex; align-items:center; justify-content:space-between; padding:0 80px; }
         .hp-camera-body { width:110px; height:80px; background:var(--bg3); border:2px solid var(--border); border-radius:14px; position:relative; display:flex; align-items:center; justify-content:center; transition:box-shadow 0.4s; }
         .hp-camera-top { position:absolute; top:-14px; left:20px; width:24px; height:14px; background:var(--bg3); border:2px solid var(--border); border-bottom:none; border-radius:4px 4px 0 0; }
@@ -292,8 +341,13 @@ export function HomeClient({ isLoggedIn }: { isLoggedIn: boolean }) {
         .hp-faq-item { border-top:1px solid var(--border); }
         .hp-badge { border:1px solid var(--border); color:var(--muted); }
         @media (max-width: 960px) {
-          .hp-nav { padding: 16px 24px; }
-          .hp-nav-links { display: none; }
+          .hp-nav { padding:6px 6px 6px 16px; gap:8px; top:12px; }
+          .hp-nav-logo { font-size:16px; padding-right:10px; }
+          .hp-nav-logo-mark { width:18px; height:18px; }
+          .hp-nav-links { display:none; }
+          .hp-nav-divider { display:none; }
+          .hp-nav-cta { display:none; }
+          .hp-nav-burger { display:flex; }
           .hp-anim-stage { height: 280px; padding: 0 40px; }
           .hp-steps-grid { grid-template-columns: 1fr 1fr !important; }
           .hp-features-grid { grid-template-columns: 1fr 1fr !important; }
@@ -303,7 +357,7 @@ export function HomeClient({ isLoggedIn }: { isLoggedIn: boolean }) {
           .hp-hero-section { padding: 100px 20px 60px !important; }
         }
         @media (max-width: 640px) {
-          .hp-nav { padding: 14px 20px; }
+          .hp-nav { top:10px; }
           .hp-anim-stage { height: 220px; padding: 0 24px; }
           .hp-hero-card-inner { flex-direction: column !important; gap: 16px !important; }
           .hp-hero-thumbs { display: none !important; }
@@ -324,28 +378,86 @@ export function HomeClient({ isLoggedIn }: { isLoggedIn: boolean }) {
 
       {/* NAV */}
       <nav className={`hp-nav${scrolled ? " scrolled" : ""}`}>
-        <Link href="/" className="hp-serif" style={{ fontSize: 22, fontWeight: 500, letterSpacing: "0.08em", color: "var(--gold)", textDecoration: "none" }}>Captura</Link>
-        <ul className="hp-nav-links" style={{ display: "flex", gap: 32, listStyle: "none" }}>
-          <li><a href="#how" className="hp-nav-link">How it works</a></li>
-          <li><a href="#pricing" className="hp-nav-link">Pricing</a></li>
-          {!isLoggedIn && <li><Link href="/login" className="hp-nav-link">Sign in</Link></li>}
+        <Link href="/" className="hp-nav-logo">
+          <span className="hp-nav-logo-mark" />
+          Captura
+        </Link>
+
+        <ul className="hp-nav-links">
+          <li><a href="#how">How it works</a></li>
+          <li><a href="#pricing">Pricing</a></li>
+          {!isLoggedIn && <li><Link href="/login">Sign in</Link></li>}
         </ul>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button className="hp-theme-btn" onClick={toggleTheme} aria-label="Toggle theme" style={{ position: "relative", overflow: "hidden" }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ position: "absolute", transition: "opacity 0.25s, transform 0.25s", opacity: isLight ? 0 : 1, transform: isLight ? "scale(0.6)" : "scale(1)" }}>
-              <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-            </svg>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ position: "absolute", transition: "opacity 0.25s, transform 0.25s", opacity: isLight ? 1 : 0, transform: isLight ? "scale(1)" : "scale(0.6)" }}>
-              <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
-            </svg>
-          </button>
+
+        <div className="hp-nav-divider" />
+
+        <button className="hp-theme-btn" onClick={toggleTheme} aria-label="Toggle theme">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ position: "absolute", transition: "opacity 0.25s, transform 0.25s", opacity: isLight ? 0 : 1, transform: isLight ? "scale(0.6)" : "scale(1)" }}>
+            <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ position: "absolute", transition: "opacity 0.25s, transform 0.25s", opacity: isLight ? 1 : 0, transform: isLight ? "scale(1)" : "scale(0.6)" }}>
+            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+          </svg>
+        </button>
+
+        {isLoggedIn ? (
+          <Link href="/dashboard" className="hp-nav-cta">
+            Dashboard
+            <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+          </Link>
+        ) : (
+          <Link href="/register" className="hp-nav-cta">
+            Get started
+            <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+          </Link>
+        )}
+
+        <button className="hp-nav-burger" onClick={() => setMenuOpen(v => !v)} aria-label="Menu">
+          <span /><span /><span />
+        </button>
+      </nav>
+
+      {/* MOBILE MENU */}
+      <div className="hp-mobile-menu">
+        <ul className="hp-mobile-links">
+          <li>
+            <a href="#how" onClick={() => setMenuOpen(false)}>
+              How it works
+              <svg viewBox="0 0 16 16"><path d="M5 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </a>
+          </li>
+          <li>
+            <a href="#pricing" onClick={() => setMenuOpen(false)}>
+              Pricing
+              <svg viewBox="0 0 16 16"><path d="M5 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </a>
+          </li>
+          {!isLoggedIn && (
+            <li>
+              <Link href="/login" onClick={() => setMenuOpen(false)}>
+                Sign in
+                <svg viewBox="0 0 16 16"><path d="M5 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </Link>
+            </li>
+          )}
+        </ul>
+        <div className="hp-mobile-footer">
+          <div style={{ fontSize: 12, color: "var(--muted)", letterSpacing: "0.06em" }}>
+            Try it free · No card required
+          </div>
           {isLoggedIn ? (
-            <Link href="/dashboard" className="hp-nav-cta">Dashboard</Link>
+            <Link href="/dashboard" className="hp-mobile-cta" onClick={() => setMenuOpen(false)}>
+              Go to Dashboard
+              <svg viewBox="0 0 16 16"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </Link>
           ) : (
-            <Link href="/register" className="hp-nav-cta">Get started free</Link>
+            <Link href="/register" className="hp-mobile-cta" onClick={() => setMenuOpen(false)}>
+              Get started free
+              <svg viewBox="0 0 16 16"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </Link>
           )}
         </div>
-      </nav>
+      </div>
 
       {/* HERO */}
       <section className="hp-hero-section" style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "120px 24px 80px", position: "relative", overflow: "hidden" }}>
