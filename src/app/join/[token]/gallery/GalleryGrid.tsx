@@ -218,7 +218,7 @@ const LIGHTBOX_CSS = `
 
   /* ── Lightbox ── */
   .gl-overlay {
-    position: fixed; inset: 0; z-index: 500;
+    position: fixed; inset: 0; z-index: 10000;
     background: oklch(6% 0.005 265 / 0.95);
     backdrop-filter: blur(6px);
     display: flex; align-items: center; justify-content: center;

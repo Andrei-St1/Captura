@@ -386,33 +386,39 @@ const panelCss = `
   background: none;
 }
 
-/* ── grid ── */
+/* ── masonry grid ── */
 .og-grid-wrap { padding: 18px; }
 .og-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  columns: 4;
+  column-gap: 12px;
 }
 
 /* ── tile ── */
 .og-tile {
   position: relative;
-  aspect-ratio: 1/1;
+  break-inside: avoid;
+  display: block;
+  margin-bottom: 12px;
   border-radius: 12px;
   overflow: hidden;
   cursor: pointer;
   background: var(--og-bg3);
 }
-.og-tile img,
-.og-tile video {
+.og-tile img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
   display: block;
   transition: transform .35s ease;
 }
-.og-tile:hover img,
-.og-tile:hover video { transform: scale(1.04); }
+.og-tile:hover img { transform: scale(1.04); }
+.og-tile-video-ph {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: linear-gradient(135deg, oklch(22% 0.02 265), oklch(15% 0.01 265));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 .og-tile-overlay {
   position: absolute;
@@ -527,18 +533,6 @@ const panelCss = `
   font-size: 14px;
 }
 
-/* ── lightbox ── */
-.og-lightbox {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  background: oklch(8% 0.012 265 / 0.94);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-  backdrop-filter: blur(8px);
-}
 .og-lb-close {
   position: absolute;
   top: 20px;
@@ -677,15 +671,42 @@ const panelCss = `
   color: var(--og-muted2);
 }
 
+/* ── lightbox ── */
+.og-lightbox {
+  position: fixed; inset: 0; z-index: 10000;
+  background: oklch(8% 0.012 265 / 0.96);
+  display: flex; align-items: center; justify-content: center;
+  padding: 40px;
+  backdrop-filter: blur(8px);
+}
+.og-lb-topbar {
+  position: absolute; top: 0; left: 0; right: 0;
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px 20px;
+}
+.og-lb-save {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 8px;
+  background: oklch(44% 0.16 72);
+  color: #fff; font-size: 12px; font-weight: 600;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  border: none; cursor: pointer;
+  transition: opacity .15s;
+}
+.og-lb-save:hover:not(:disabled) { opacity: .85; }
+.og-lb-save:disabled { opacity: .5; cursor: not-allowed; }
+
 @media (max-width: 768px) {
   .og-toolbar { padding: 14px; }
   .og-sub { padding: 12px 14px; }
   .og-grid-wrap { padding: 10px; }
-  .og-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .og-grid { columns: 2; column-gap: 8px; }
+  .og-tile { margin-bottom: 8px; }
   .og-face-chip { width: 34px; height: 34px; }
   .og-face-chip img { width: 34px; height: 34px; }
   .og-lb-arrow { width: 40px; height: 40px; }
   .og-lightbox { padding: 16px; }
+  .og-lb-topbar { padding: 10px 14px; }
 }
 `;
 
@@ -935,17 +956,20 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
   }
 
   /* ── lightbox navigation ── */
-  function lbPrev(e: React.MouseEvent) {
-    e.stopPropagation();
+  const lbTouchX = useRef(0);
+
+  function lbNavigate(dir: 1 | -1) {
     if (!lightbox) return;
     const idx = displayItems.findIndex((i) => i.id === lightbox.id);
-    setLightbox(displayItems[(idx - 1 + displayItems.length) % displayItems.length]);
+    setLightbox(displayItems[(idx + dir + displayItems.length) % displayItems.length]);
   }
-  function lbNext(e: React.MouseEvent) {
-    e.stopPropagation();
-    if (!lightbox) return;
-    const idx = displayItems.findIndex((i) => i.id === lightbox.id);
-    setLightbox(displayItems[(idx + 1) % displayItems.length]);
+  function lbPrev(e: React.MouseEvent) { e.stopPropagation(); lbNavigate(-1); }
+  function lbNext(e: React.MouseEvent) { e.stopPropagation(); lbNavigate(1); }
+  function lbTouchStart(e: React.TouchEvent) { lbTouchX.current = e.touches[0].clientX; }
+  function lbTouchEnd(e: React.TouchEvent) {
+    const delta = e.changedTouches[0].clientX - lbTouchX.current;
+    if (Math.abs(delta) < 40) return;
+    lbNavigate(delta < 0 ? 1 : -1);
   }
 
   /* ── sub-toolbar status text ── */
@@ -1269,8 +1293,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
                   {/* Media */}
                   {item.file_type === "video" ? (
                     <>
-                      {/* Static placeholder — avoids black bars and browser recording indicators */}
-                      <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, oklch(22% 0.02 265), oklch(15% 0.01 265))" }} />
+                      <div className="og-tile-video-ph" />
                       <div className="og-video-badge"><IconPlay /></div>
                     </>
                   ) : (
@@ -1340,10 +1363,26 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
       {/* ── Lightbox ── */}
       {lightbox && (
         <div className="og-lightbox" onClick={() => setLightbox(null)}>
-          {/* Close */}
-          <button className="og-lb-close" onClick={() => setLightbox(null)}>
-            <IconClose size={18} />
-          </button>
+
+          {/* Top bar: close · caption · save */}
+          <div className="og-lb-topbar" onClick={(e) => e.stopPropagation()}>
+            <button className="og-lb-close" style={{ position: "static" }} onClick={() => setLightbox(null)}>
+              <IconClose size={18} />
+            </button>
+            <div className="og-lb-caption" style={{ position: "static", transform: "none", flex: 1, textAlign: "left", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {lightbox.uploader_name && <>{lightbox.uploader_name} · </>}
+              {timeAgo(lightbox.created_at)}
+              {displayItems.length > 1 && <> · {lbIdx + 1} / {displayItems.length}</>}
+            </div>
+            <button
+              className="og-lb-save"
+              disabled={downloading}
+              onClick={() => triggerDownload([lightbox.id])}
+            >
+              <IconDownload />
+              {downloading ? "Saving…" : "Save"}
+            </button>
+          </div>
 
           {/* Prev */}
           {displayItems.length > 1 && (
@@ -1352,22 +1391,17 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
             </button>
           )}
 
-          {/* Media */}
-          <div onClick={(e) => e.stopPropagation()}>
+          {/* Media — swipeable */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={lbTouchStart}
+            onTouchEnd={lbTouchEnd}
+          >
             {lightbox.file_type === "video" ? (
-              <video
-                src={lightbox.file_url}
-                controls
-                autoPlay
-                className="og-lb-img"
-              />
+              <video src={lightbox.file_url} controls autoPlay className="og-lb-img" />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={lightbox.file_url}
-                alt={lightbox.uploader_name ?? "Photo"}
-                className="og-lb-img"
-              />
+              <img src={lightbox.file_url} alt={lightbox.uploader_name ?? "Photo"} className="og-lb-img" />
             )}
           </div>
 
@@ -1377,13 +1411,6 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
               <IconChevronRight />
             </button>
           )}
-
-          {/* Caption */}
-          <div className="og-lb-caption">
-            {lightbox.uploader_name && <>{lightbox.uploader_name} · </>}
-            {timeAgo(lightbox.created_at)}
-            {displayItems.length > 1 && <> · {lbIdx + 1} of {displayItems.length}</>}
-          </div>
         </div>
       )}
     </>
