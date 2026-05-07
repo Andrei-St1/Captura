@@ -5,6 +5,9 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { detectAndSaveFaces } from "@/lib/faceDetect";
 import { maybeConvertHeic } from "@/lib/convertHeic";
 
+// Give Vercel enough time for large video uploads
+export const maxDuration = 300;
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -46,25 +49,37 @@ export async function POST(request: NextRequest) {
 
     // Build R2 path
     const timestamp = Date.now();
-    const arrayBuffer = await file.arrayBuffer();
-    let buffer: Buffer = Buffer.from(new Uint8Array(arrayBuffer));
-    let mimeType = file.type;
+    let mimeType = file.type || "application/octet-stream";
     let fileName = file.name;
+    const fileType = mimeType.startsWith("video/") ? "video" : "image";
 
-    ({ buffer, mimeType, fileName } = await maybeConvertHeic(buffer, mimeType, fileName));
+    let body: Buffer | File;
+    let contentLength: number;
+
+    if (fileType === "video") {
+      // Stream video directly to R2 — never load into memory
+      body = file;
+      contentLength = file.size;
+    } else {
+      // Images need full buffer (HEIC conversion may change size/type)
+      const arrayBuffer = await file.arrayBuffer();
+      let buffer = Buffer.from(new Uint8Array(arrayBuffer));
+      ({ buffer, mimeType, fileName } = await maybeConvertHeic(buffer, mimeType, fileName));
+      body = buffer;
+      contentLength = buffer.length;
+    }
 
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
     const filePath = `albums/${albumId}/${timestamp}-${safeName}`;
-    const fileType = mimeType.startsWith("video/") ? "video" : "image";
 
     // Upload to R2
     await r2.send(
       new PutObjectCommand({
         Bucket: R2_BUCKET,
         Key: filePath,
-        Body: buffer,
+        Body: body,
         ContentType: mimeType,
-        ContentLength: buffer.length,
+        ContentLength: contentLength,
       })
     );
 
@@ -77,7 +92,7 @@ export async function POST(request: NextRequest) {
       file_url: fileUrl,
       file_path: filePath,
       file_type: fileType,
-      file_size: buffer.length,
+      file_size: contentLength,
       mime_type: mimeType,
     }).select("id").single();
 
@@ -92,7 +107,7 @@ export async function POST(request: NextRequest) {
     // Update album used_bytes
     await supabase
       .from("albums")
-      .update({ used_bytes: usedBytes + buffer.length })
+      .update({ used_bytes: usedBytes + contentLength })
       .eq("id", albumId);
 
     return NextResponse.json({ success: true, fileUrl, fileType });
