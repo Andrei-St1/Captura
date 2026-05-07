@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { UploadClient } from "./UploadClient";
+import { JoinNav } from "../JoinNav";
 
 export default async function UploadPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -9,7 +10,7 @@ export default async function UploadPage({ params }: { params: Promise<{ token: 
 
   const { data: qr } = await supabase
     .from("qr_codes")
-    .select("id, enabled, expires_at, albums(id, title, status, open_date, close_date)")
+    .select("id, enabled, expires_at, albums(id, title, status, open_date, close_date, show_gallery)")
     .eq("token", token)
     .single();
 
@@ -36,10 +37,11 @@ export default async function UploadPage({ params }: { params: Promise<{ token: 
           </svg>
           Back
         </Link>
+        <JoinNav token={token} showGallery={album.show_gallery} />
         <Link href="/" className="font-noto-serif text-base font-light tracking-tight text-primary">Captura</Link>
       </header>
 
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-12">
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-12 pb-24 md:pb-12">
         <div className="w-full max-w-md">
           <div className="mb-8 text-center">
             <span className="text-[10px] uppercase tracking-[0.3em] text-on-surface-variant block mb-3">Contributing to</span>
