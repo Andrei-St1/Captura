@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { VideoThumb } from "@/components/VideoThumb";
 
 interface MediaItem {
   id: string;
@@ -73,11 +74,24 @@ export function GalleryGrid({ items }: { items: MediaItem[] }) {
             style={{ marginBottom: "8px" }}
           >
             {item.file_type === "video" ? (
-              <div className="gl-video-thumb">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
-                  <polygon points="5 3 19 12 5 21 5 3" />
-                </svg>
-              </div>
+              <>
+                <VideoThumb
+                  src={item.file_url}
+                  imgClassName="gl-img"
+                  placeholder={
+                    <div className="gl-video-thumb">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                      </svg>
+                    </div>
+                  }
+                />
+                <div className="gl-play-badge">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+                    <polygon points="5 3 19 12 5 21 5 3" />
+                  </svg>
+                </div>
+              </>
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -214,6 +228,17 @@ const LIGHTBOX_CSS = `
     background: linear-gradient(135deg, oklch(16% 0.03 265), oklch(22% 0.04 265));
     display: flex; align-items: center; justify-content: center;
     border-radius: 10px;
+  }
+
+  .gl-play-badge {
+    position: absolute;
+    bottom: 8px; right: 8px;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: oklch(0% 0 0 / 0.55);
+    backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
   }
 
   /* ── Lightbox ── */

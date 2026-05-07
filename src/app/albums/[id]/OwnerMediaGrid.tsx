@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { VideoThumb } from "@/components/VideoThumb";
 import { deleteMedia, deleteMediaBulk } from "@/app/albums/actions";
 
 /* ─── CopyButton ─────────────────────────────────────────────────────────── */
@@ -1293,7 +1294,11 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
                   {/* Media */}
                   {item.file_type === "video" ? (
                     <>
-                      <div className="og-tile-video-ph" />
+                      <VideoThumb
+                        src={item.file_url}
+                        imgStyle={{ width: "100%", height: "auto", display: "block" }}
+                        placeholder={<div className="og-tile-video-ph" />}
+                      />
                       <div className="og-video-badge"><IconPlay /></div>
                     </>
                   ) : (
