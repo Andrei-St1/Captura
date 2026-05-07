@@ -41,6 +41,7 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
   const [showGallery, setShowGallery] = useState(true);
   const [pinRequired, setPinRequired] = useState(false);
   const [pin, setPin]                 = useState("");
+  const [faceFinder, setFaceFinder]   = useState(false);
   const [inputGb, setInputGb]       = useState(Math.min(10, Math.max(1, remaining)));
 
   const [coverFile, setCoverFile]         = useState<File | null>(null);
@@ -83,6 +84,7 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
       fd.set("show_gallery", showGallery ? "true" : "false");
       fd.set("pin_required", pinRequired ? "true" : "false");
       if (pinRequired && pin) fd.set("pin", pin);
+      fd.set("face_finder_enabled", faceFinder ? "true" : "false");
       if (openDate)  fd.set("open_date", openDate);
       if (closeDate) fd.set("close_date", closeDate);
       const result = await createAlbum(fd);
@@ -414,6 +416,20 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
                         <div className="ca-field-hint">Guests enter this before seeing the album.</div>
                       </div>
                     )}
+
+                    <div className="ca-toggle-field">
+                      <div>
+                        <div className="ca-toggle-label">Face Finder</div>
+                        <div className="ca-toggle-desc">Allow guests to filter photos by face — they tap a face bubble to see only photos featuring that person.</div>
+                      </div>
+                      <button
+                        type="button"
+                        className={`ca-toggle${faceFinder ? " on" : ""}`}
+                        onClick={() => setFaceFinder(v => !v)}
+                      >
+                        <span className="ca-toggle-knob" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="ca-section-nav">

@@ -65,6 +65,7 @@ export async function createAlbum(formData: FormData) {
   const pinRequired = formData.get("pin_required") === "true";
   const pinValue    = ((formData.get("pin") as string) ?? "").trim();
   const pinHash     = pinRequired && /^\d{4}$/.test(pinValue) ? hashPin(pinValue) : null;
+  const faceFinderEnabled = formData.get("face_finder_enabled") === "true";
 
   const { data: album, error } = await supabase
     .from("albums")
@@ -77,6 +78,7 @@ export async function createAlbum(formData: FormData) {
       show_gallery: showGallery,
       pin_required: pinRequired && !!pinHash,
       pin_hash: pinHash,
+      face_finder_enabled: faceFinderEnabled,
       status: "active",
     })
     .select("id")

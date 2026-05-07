@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { VideoThumb } from "@/components/VideoThumb";
+import { FaceFilter } from "@/app/albums/[id]/gallery/FaceFilter";
 
 interface MediaItem {
   id: string;
@@ -39,15 +40,24 @@ async function downloadFile(id: string) {
   URL.revokeObjectURL(url);
 }
 
-export function GalleryGrid({ items }: { items: MediaItem[] }) {
+interface GalleryGridProps {
+  items: MediaItem[];
+  albumId?: string;
+  faceFinderEnabled?: boolean;
+}
+
+export function GalleryGrid({ items, albumId, faceFinderEnabled }: GalleryGridProps) {
   const [lightbox, setLightbox]       = useState<MediaItem | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [filteredIds, setFilteredIds] = useState<Set<string> | null>(null);
   const touchStartX = { current: 0 };
+
+  const visibleItems = filteredIds ? items.filter((i) => filteredIds.has(i.id)) : items;
 
   function navigate(dir: 1 | -1) {
     if (!lightbox) return;
-    const idx = items.findIndex((i) => i.id === lightbox.id);
-    setLightbox(items[(idx + dir + items.length) % items.length]);
+    const idx = visibleItems.findIndex((i) => i.id === lightbox.id);
+    setLightbox(visibleItems[(idx + dir + visibleItems.length) % visibleItems.length]);
   }
 
   function onTouchStart(e: React.TouchEvent) {
@@ -64,9 +74,13 @@ export function GalleryGrid({ items }: { items: MediaItem[] }) {
     <>
       <style>{LIGHTBOX_CSS}</style>
 
+      {faceFinderEnabled && albumId && (
+        <FaceFilter items={items} albumId={albumId} onFilter={setFilteredIds} />
+      )}
+
       {/* ── Masonry grid ── */}
       <div className="columns-2 sm:columns-3 md:columns-4" style={{ columnGap: "8px" }}>
-        {items.map((item) => (
+        {visibleItems.map((item) => (
           <div
             key={item.id}
             onClick={() => setLightbox(item)}
@@ -169,14 +183,14 @@ export function GalleryGrid({ items }: { items: MediaItem[] }) {
             </div>
 
             {/* Prev / Next */}
-            {items.length > 1 && (
+            {visibleItems.length > 1 && (
               <>
                 <button
                   className="gl-arrow gl-arrow-left"
                   onClick={(e) => {
                     e.stopPropagation();
-                    const idx = items.findIndex((i) => i.id === lightbox.id);
-                    setLightbox(items[(idx - 1 + items.length) % items.length]);
+                    const idx = visibleItems.findIndex((i) => i.id === lightbox.id);
+                    setLightbox(visibleItems[(idx - 1 + visibleItems.length) % visibleItems.length]);
                   }}
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="m15 18-6-6 6-6" /></svg>
@@ -185,8 +199,8 @@ export function GalleryGrid({ items }: { items: MediaItem[] }) {
                   className="gl-arrow gl-arrow-right"
                   onClick={(e) => {
                     e.stopPropagation();
-                    const idx = items.findIndex((i) => i.id === lightbox.id);
-                    setLightbox(items[(idx + 1) % items.length]);
+                    const idx = visibleItems.findIndex((i) => i.id === lightbox.id);
+                    setLightbox(visibleItems[(idx + 1) % visibleItems.length]);
                   }}
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="m9 18 6-6-6-6" /></svg>

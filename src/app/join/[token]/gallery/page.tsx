@@ -11,7 +11,7 @@ export default async function GalleryPage({ params }: { params: Promise<{ token:
 
   const { data: qr } = await supabase
     .from("qr_codes")
-    .select("id, enabled, expires_at, albums(id, title, status, show_gallery, pin_required, pin_hash)")
+    .select("id, enabled, expires_at, albums(id, title, status, show_gallery, pin_required, pin_hash, face_finder_enabled)")
     .eq("token", token)
     .single();
 
@@ -92,7 +92,7 @@ export default async function GalleryPage({ params }: { params: Promise<{ token:
               <Link href={`/join/${token}/upload`} className="gl-empty-cta">Add yours →</Link>
             </div>
           ) : (
-            <GalleryGrid items={items} />
+            <GalleryGrid items={items} albumId={album.id} faceFinderEnabled={!!album.face_finder_enabled} />
           )}
         </main>
 
