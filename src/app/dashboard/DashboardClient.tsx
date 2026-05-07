@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { logout } from "@/app/auth/actions";
 import { createPortalSession } from "@/app/stripe/actions";
 import { getAlbumQRCodesForDashboard } from "@/app/albums/qr-actions";
+import { AppSidebar } from "@/components/AppSidebar";
 
 interface Album {
   id: string;
@@ -54,55 +54,6 @@ function getAlbumStatus(album: Album): "open" | "closed" | "scheduled" {
   return "open";
 }
 
-function IconDashboard({ active }: { active?: boolean }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? "var(--gold)" : "currentColor"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="1" y="1" width="6" height="6" rx="1" />
-      <rect x="9" y="1" width="6" height="6" rx="1" />
-      <rect x="1" y="9" width="6" height="6" rx="1" />
-      <rect x="9" y="9" width="6" height="6" rx="1" />
-    </svg>
-  );
-}
-
-function IconAlbums({ active }: { active?: boolean }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? "var(--gold)" : "currentColor"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="4" width="12" height="10" rx="1.5" />
-      <path d="M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" />
-      <circle cx="8" cy="9" r="2" />
-    </svg>
-  );
-}
-
-function IconSettings({ active }: { active?: boolean }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? "var(--gold)" : "currentColor"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="8" cy="8" r="2.5" />
-      <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.22 3.22l1.42 1.42M11.36 11.36l1.42 1.42M3.22 12.78l1.42-1.42M11.36 4.64l1.42-1.42" />
-    </svg>
-  );
-}
-
-function IconBilling({ active }: { active?: boolean }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={active ? "var(--gold)" : "currentColor"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="1" y="3" width="14" height="10" rx="1.5" />
-      <path d="M1 6h14" />
-      <path d="M4 10h3" />
-    </svg>
-  );
-}
-
-function IconSignOut() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 14H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h4" />
-      <path d="M11 11l3-3-3-3" />
-      <path d="M14 8H6" />
-    </svg>
-  );
-}
 
 function IconCheck() {
   return (
@@ -347,6 +298,7 @@ export default function DashboardClient({
           margin-bottom: 14px;
         }
 
+        .db-mobile-avatar { display: none; }
         .db-avatar {
           width: 34px;
           height: 34px;
@@ -1124,6 +1076,20 @@ export default function DashboardClient({
           .db-topbar {
             padding: 14px 20px;
           }
+          .db-mobile-avatar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px; height: 34px;
+            border-radius: 50%;
+            background: var(--gold-glow);
+            border: 1.5px solid var(--gold);
+            font-size: 12px; font-weight: 700;
+            color: var(--gold-dim);
+            text-transform: uppercase;
+            text-decoration: none;
+            flex-shrink: 0;
+          }
           .db-content {
             padding: 24px 20px 60px;
           }
@@ -1259,74 +1225,12 @@ export default function DashboardClient({
 
       <div className="db-root">
         {/* ── Sidebar ──────────────────────────────────────────────────────── */}
-        <aside className="db-sidebar">
-          <div className="db-sidebar-logo">
-            <span className="db-sidebar-logo-text">Captura</span>
-            <span className="db-plan-badge">{plan?.name ?? "Free"}</span>
-          </div>
-
-          <nav className="db-sidebar-nav">
-            <Link href="/dashboard" className="db-nav-item active">
-              <IconDashboard active />
-              Dashboard
-            </Link>
-            <Link href="/albums" className="db-nav-item">
-              <IconAlbums />
-              Albums
-            </Link>
-            <Link href="/settings" className="db-nav-item">
-              <IconSettings />
-              Settings
-            </Link>
-
-            <div className="db-nav-divider" />
-
-            <form action={createPortalSession} style={{ width: "100%" }}>
-              <button type="submit" className="db-nav-item">
-                <IconBilling />
-                Billing
-              </button>
-            </form>
-
-            <form action={logout} style={{ width: "100%" }}>
-              <button type="submit" className="db-nav-item">
-                <IconSignOut />
-                Sign out
-              </button>
-            </form>
-          </nav>
-
-          <div className="db-sidebar-footer">
-            <div className="db-user-row">
-              <div className="db-avatar">{user.initials}</div>
-              <div style={{ overflow: "hidden" }}>
-                <div className="db-user-name">{user.displayName}</div>
-                <div className="db-user-email">{user.email}</div>
-              </div>
-            </div>
-            <div className="db-storage-label">
-              <span>Storage</span>
-              <span>{usage.storagePercent}%</span>
-            </div>
-            <div className="db-storage-track">
-              <div
-                className="db-storage-fill"
-                style={{
-                  width: `${usage.storagePercent}%`,
-                  background:
-                    usage.storagePercent >= 90
-                      ? "var(--red)"
-                      : usage.storagePercent >= 70
-                      ? "var(--amber)"
-                      : "var(--gold)",
-                }}
-              />
-            </div>
-            <div style={{ fontSize: 11, color: "var(--muted2)", marginTop: 5 }}>
-              {usage.usedStorageGb} GB / {plan?.storageGb ?? "—"} GB
-            </div>
-          </div>
-        </aside>
+        <AppSidebar
+          user={user}
+          plan={plan}
+          usage={usage}
+          storageGb={plan?.storageGb ?? null}
+        />
 
         {/* ── Main ─────────────────────────────────────────────────────────── */}
         <div className="db-main">
@@ -1341,12 +1245,17 @@ export default function DashboardClient({
                 {activeAlbumsCount === 1 ? "album" : "albums"}
               </div>
             </div>
-            <Link href="/albums/create" className="db-new-album-btn">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M8 3v10M3 8h10" />
-              </svg>
-              New album
-            </Link>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Link href="/settings" className="db-mobile-avatar" title="Settings">
+                {user.initials}
+              </Link>
+              <Link href="/albums/create" className="db-new-album-btn">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M8 3v10M3 8h10" />
+                </svg>
+                New album
+              </Link>
+            </div>
           </header>
 
           {/* ── Content ────────────────────────────────────────────────────── */}
