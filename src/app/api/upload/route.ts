@@ -62,8 +62,7 @@ export async function POST(request: NextRequest) {
       contentLength = file.size;
     } else {
       // Images need full buffer (HEIC conversion may change size/type)
-      const arrayBuffer = await file.arrayBuffer() as ArrayBuffer;
-      let buffer = Buffer.from(arrayBuffer);
+      let buffer: Buffer = Buffer.from(new Uint8Array(await file.arrayBuffer()));
       ({ buffer, mimeType, fileName } = await maybeConvertHeic(buffer, mimeType, fileName));
       body = buffer;
       contentLength = buffer.length;
