@@ -151,6 +151,7 @@ export async function updateAlbum(formData: FormData) {
   const showGallery = formData.get("show_gallery") === "true";
   const pinRequired = formData.get("pin_required") === "true";
   const pinValue    = ((formData.get("pin") as string) ?? "").trim();
+  const faceFinderEnabled = formData.get("face_finder_enabled") === "true";
 
   // Keep existing hash if no new PIN entered; clear if PIN toggled off
   let pinHash: string | null = null;
@@ -174,6 +175,7 @@ export async function updateAlbum(formData: FormData) {
       show_gallery: showGallery,
       pin_required: pinRequired && !!pinHash,
       pin_hash: pinHash,
+      face_finder_enabled: faceFinderEnabled,
     })
     .eq("id", id)
     .eq("owner_id", user.id);

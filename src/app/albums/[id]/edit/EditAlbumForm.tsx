@@ -13,6 +13,7 @@ interface Album {
   show_gallery: boolean;
   thumbnail_url: string | null;
   pin_required: boolean;
+  face_finder_enabled: boolean;
 }
 
 interface Props {
@@ -32,6 +33,7 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
   const [showGallery, setShowGallery] = useState(album.show_gallery);
   const [pinRequired, setPinRequired] = useState(album.pin_required);
   const [pin, setPin]                 = useState("");
+  const [faceFinder, setFaceFinder]   = useState(album.face_finder_enabled);
   const [inputGb, setInputGb] = useState(album.allocated_gb);
   const [coverPreview, setCoverPreview] = useState<string | null>(album.thumbnail_url ?? null);
   const [coverUploading, setCoverUploading] = useState(false);
@@ -64,6 +66,7 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
     formData.set("show_gallery", showGallery ? "true" : "false");
     formData.set("pin_required", pinRequired ? "true" : "false");
     if (pin) formData.set("pin", pin);
+    formData.set("face_finder_enabled", faceFinder ? "true" : "false");
     const result = await updateAlbum(formData);
     if (result?.error) {
       setError(result.error);
@@ -304,6 +307,22 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
                       )}
                     </div>
                   )}
+
+                  <div className="ea-toggle-field">
+                    <div>
+                      <p className="ea-toggle-label">Face Finder</p>
+                      <p className="ea-toggle-desc">
+                        Allow guests to filter photos by face — they tap a face bubble to see only photos featuring that person.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className={`ea-toggle${faceFinder ? " on" : ""}`}
+                      onClick={() => setFaceFinder((v) => !v)}
+                    >
+                      <span className="ea-toggle-knob" />
+                    </button>
+                  </div>
                 </div>
               </section>
 
