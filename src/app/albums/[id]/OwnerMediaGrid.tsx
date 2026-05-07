@@ -1390,7 +1390,23 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
             <button
               className="og-lb-save"
               disabled={downloading}
-              onClick={() => triggerDownload([lightbox.id])}
+              onClick={async () => {
+                setDownloading(true);
+                const res = await fetch(`/api/download-file?mediaId=${lightbox.id}`);
+                if (res.ok) {
+                  const blob = await res.blob();
+                  const url  = URL.createObjectURL(blob);
+                  const a    = document.createElement("a");
+                  const cd   = res.headers.get("content-disposition") ?? "";
+                  a.href = url;
+                  a.download = cd.match(/filename="([^"]+)"/)?.[1] ?? "photo";
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                }
+                setDownloading(false);
+              }}
             >
               <IconDownload />
               {downloading ? "Saving…" : "Save"}

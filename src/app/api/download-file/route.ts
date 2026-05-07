@@ -9,26 +9,20 @@ export async function GET(request: NextRequest) {
 
   const service = createServiceClient();
 
-  // Fetch media + album in one query, validate gallery is public
   const { data: media } = await service
     .from("media")
-    .select("id, file_path, file_type, created_at, albums(show_gallery)")
+    .select("id, file_path, file_type, created_at")
     .eq("id", mediaId)
     .single();
 
   if (!media) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
-  const album = media.albums as any;
-  if (!album?.show_gallery) {
-    return NextResponse.json({ error: "Gallery is private." }, { status: 403 });
-  }
-
   try {
     const cmd = new GetObjectCommand({ Bucket: R2_BUCKET, Key: media.file_path });
     const response = await r2.send(cmd);
 
-    const ext  = media.file_path.split(".").pop() ?? (media.file_type === "video" ? "mp4" : "jpg");
-    const date = new Date(media.created_at).toISOString().slice(0, 10);
+    const ext      = media.file_path.split(".").pop() ?? (media.file_type === "video" ? "mp4" : "jpg");
+    const date     = new Date(media.created_at).toISOString().slice(0, 10);
     const filename = `captura_${date}.${ext}`;
 
     const chunks: Uint8Array[] = [];

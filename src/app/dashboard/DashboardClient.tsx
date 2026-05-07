@@ -758,126 +758,141 @@ export default function DashboardClient({
         .db-album-card {
           background: var(--bg2);
           border: 1px solid var(--border);
-          border-radius: 16px;
+          border-radius: 14px;
           overflow: hidden;
-          text-decoration: none;
           color: var(--text);
-          transition: transform 0.2s, box-shadow 0.2s;
+          transition: border-color 0.2s, transform 0.2s;
           display: flex;
           flex-direction: column;
+          cursor: pointer;
         }
 
         .db-album-card:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 12px 40px oklch(0% 0 0 / 0.10);
+          border-color: oklch(72% 0.010 80);
+          transform: translateY(-2px);
         }
 
+        /* ── Cover ── */
         .db-album-cover {
-          height: 160px;
+          height: 168px;
           position: relative;
           overflow: hidden;
           flex-shrink: 0;
         }
 
-        .db-album-cover img {
+        .db-cover-fill {
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          background-size: cover;
+          background-position: center;
+          transition: transform 0.4s;
         }
 
-        .db-album-cover-placeholder {
-          width: 100%;
-          height: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+        .db-album-card:hover .db-cover-fill { transform: scale(1.05); }
+
+        .db-cover-grad {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(to top, var(--bg2) 0%, transparent 55%);
         }
 
-        .db-album-cover-placeholder svg {
-          opacity: 0.35;
+        .db-cover-top {
+          position: absolute;
+          top: 12px; left: 12px; right: 12px;
+          display: flex; justify-content: space-between; align-items: flex-start;
         }
 
         .db-badge {
-          position: absolute;
-          top: 12px;
-          left: 12px;
           font-size: 10px;
-          font-weight: 700;
-          letter-spacing: 0.08em;
+          font-weight: 500;
+          letter-spacing: 0.07em;
           text-transform: uppercase;
-          padding: 3px 9px;
-          border-radius: 20px;
+          padding: 4px 10px;
+          border-radius: 100px;
+          display: flex; align-items: center; gap: 5px;
           backdrop-filter: blur(8px);
         }
-
-        .db-badge-open {
-          background: var(--green-bg);
-          color: var(--green);
-          border: 1px solid var(--green-b);
+        .db-badge::before {
+          content: '';
+          width: 5px; height: 5px; border-radius: 50%;
+          background: currentColor;
         }
 
-        .db-badge-closed {
-          background: oklch(0% 0 0 / 0.35);
-          color: #fff;
-          border: 1px solid oklch(100% 0 0 / 0.15);
-        }
+        .db-badge-open      { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-b); }
+        .db-badge-closed    { background: oklch(85% 0.012 80 / 0.9); color: var(--muted); border: 1px solid var(--border); }
+        .db-badge-scheduled { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-b); }
 
-        .db-badge-scheduled {
-          background: var(--blue-bg);
-          color: var(--blue);
-          border: 1px solid var(--blue-b);
-        }
-
-        .db-album-info {
-          padding: 18px 20px 16px;
+        /* ── Body ── */
+        .db-album-body {
+          padding: 16px 18px 18px;
           flex: 1;
           display: flex;
           flex-direction: column;
-          gap: 12px;
+          gap: 10px;
         }
 
         .db-album-name {
-          font-size: 15px;
-          font-weight: 600;
-          color: var(--text);
+          font-family: var(--serif);
+          font-size: 18px;
+          font-weight: 400;
+          color: var(--gold);
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
         }
 
-        .db-album-meta {
-          font-size: 12px;
-          color: var(--muted2);
+        .db-album-meta-row {
+          display: flex; gap: 14px; flex-wrap: wrap;
         }
 
+        .db-album-meta {
+          display: flex; align-items: center; gap: 5px;
+          font-size: 11px; color: var(--muted);
+        }
+
+        .db-album-meta svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+        .db-album-meta strong { color: var(--text); font-weight: 400; }
+
         .db-album-storage-row {
-          display: flex;
-          justify-content: space-between;
-          font-size: 11px;
-          color: var(--muted2);
-          margin-bottom: 5px;
+          display: flex; justify-content: space-between;
+          font-size: 11px; color: var(--muted2); margin-bottom: 5px;
         }
 
         .db-album-storage-track {
-          height: 4px;
-          background: var(--bg4);
-          border-radius: 99px;
-          overflow: hidden;
+          height: 3px; background: var(--border); border-radius: 2px; overflow: hidden;
         }
 
         .db-album-storage-fill {
-          height: 100%;
-          border-radius: 99px;
-          background: var(--gold);
-          transition: width 0.4s;
+          height: 100%; border-radius: 2px; transition: width 0.4s;
         }
 
-        .db-album-actions {
-          display: flex;
-          gap: 8px;
-          margin-top: auto;
+        /* ── Footer ── */
+        .db-album-footer {
+          padding: 11px 18px;
+          border-top: 1px solid var(--border);
+          display: flex; gap: 6px;
         }
 
+        .db-af-btn {
+          flex: 1; text-align: center;
+          font-size: 12px; padding: 7px;
+          border-radius: 6px;
+          border: 1px solid var(--border);
+          color: var(--muted);
+          cursor: pointer; background: none; text-decoration: none;
+          transition: border-color 0.15s, color 0.15s;
+          white-space: nowrap; display: block;
+          font-family: var(--sans);
+        }
+        .db-af-btn:hover { border-color: oklch(65% 0.012 80); color: var(--text); }
+        .db-af-btn.gold {
+          background: var(--gold-glow);
+          border-color: oklch(44% 0.16 72 / 0.22);
+          color: var(--gold);
+        }
+        .db-af-btn.gold:hover { background: oklch(44% 0.16 72 / 0.18); }
+
+        /* kept for modal buttons */
         .db-action-btn {
           flex: 1;
           padding: 7px 10px;
@@ -1585,106 +1600,75 @@ export default function DashboardClient({
                   );
                   const usedGb = parseFloat((album.used_bytes / 1024 ** 3).toFixed(2));
 
+                  const fmtDate = (iso: string | null) =>
+                    iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—";
+
                   return (
                     <div
                       key={album.id}
                       className="db-album-card"
-                      style={{ cursor: "pointer" }}
                       onClick={() => router.push(`/albums/${album.id}`)}
                     >
-                      <div
-                        className="db-album-cover"
-                        style={{
-                          background: `linear-gradient(135deg, ${from}, ${to})`,
-                        }}
-                      >
-                        {album.thumbnail_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={album.thumbnail_url} alt={album.title} />
-                        ) : (
-                          <div className="db-album-cover-placeholder">
-                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                              <rect x="4" y="8" width="40" height="32" rx="3" />
-                              <path d="M4 32l12-12 9 9 7-7 12 11" />
-                              <circle cx="16" cy="18" r="3.5" />
-                            </svg>
-                          </div>
-                        )}
-                        <span
-                          className={`db-badge ${
-                            status === "open"
-                              ? "db-badge-open"
-                              : status === "scheduled"
-                              ? "db-badge-scheduled"
-                              : "db-badge-closed"
-                          }`}
-                        >
-                          {status}
-                        </span>
+                      {/* Cover */}
+                      <div className="db-album-cover">
+                        <div
+                          className="db-cover-fill"
+                          style={album.thumbnail_url
+                            ? { backgroundImage: `url(${album.thumbnail_url})` }
+                            : { background: `linear-gradient(135deg, ${from}, ${to})` }
+                          }
+                        />
+                        <div className="db-cover-grad" />
+                        <div className="db-cover-top">
+                          <span className={`db-badge db-badge-${status === "open" ? "open" : status === "scheduled" ? "scheduled" : "closed"}`}>
+                            {status}
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="db-album-info">
-                        <div>
-                          <div className="db-album-name">{album.title}</div>
+                      {/* Body */}
+                      <div className="db-album-body">
+                        <div className="db-album-name">{album.title}</div>
+
+                        <div className="db-album-meta-row">
                           <div className="db-album-meta">
-                            {album.mediaCount.toLocaleString()} {album.mediaCount === 1 ? "item" : "items"}
+                            <svg viewBox="0 0 12 12"><rect x="1" y="2" width="10" height="8" rx="1"/><circle cx="6" cy="6" r="2"/></svg>
+                            <strong>{album.mediaCount.toLocaleString()}</strong> photos
+                          </div>
+                          <div className="db-album-meta">
+                            <svg viewBox="0 0 12 12"><rect x="1" y="1" width="10" height="10" rx="1"/><path d="M1 5h10M4 1v4"/></svg>
+                            {fmtDate(album.open_date)} – {fmtDate(album.close_date)}
                           </div>
                         </div>
 
                         <div>
                           <div className="db-album-storage-row">
-                            <span>Storage</span>
-                            <span>
-                              {usedGb} / {album.allocated_gb} GB
-                            </span>
+                            <span>{usedGb} GB used</span>
+                            <span>{album.allocated_gb} GB</span>
                           </div>
                           <div className="db-album-storage-track">
-                            <div
-                              className="db-album-storage-fill"
-                              style={{
-                                width: `${pct}%`,
-                                background:
-                                  pct >= 90
-                                    ? "var(--red)"
-                                    : pct >= 70
-                                    ? "var(--amber)"
-                                    : "var(--gold)",
-                              }}
-                            />
+                            <div className="db-album-storage-fill" style={{
+                              width: `${pct}%`,
+                              background: pct >= 90 ? "var(--red)" : pct >= 70 ? "var(--amber)" : "var(--gold-dim)",
+                            }} />
                           </div>
                         </div>
+                      </div>
 
-                        <div className="db-album-actions">
-                          <button
-                            className="db-action-btn db-action-btn-primary"
-                            onClick={(e) => { e.stopPropagation(); router.push(`/albums/${album.id}`); }}
-                          >
-                            Manage
-                          </button>
-                          <button
-                            className="db-action-btn"
-                            title="QR Code"
-                            onClick={(e) => { e.stopPropagation(); openQR(album.id, album.title); }}
-                          >
-                            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                              <rect x="1" y="1" width="4" height="4" rx="0.5" />
-                              <rect x="8" y="1" width="4" height="4" rx="0.5" />
-                              <rect x="1" y="8" width="4" height="4" rx="0.5" />
-                              <path d="M8 8h1v1H8zM10 8h3M8 10h2M10 10v3" />
-                            </svg>
-                            QR
-                          </button>
-                          <button
-                            className="db-action-btn"
-                            title="Download"
-                            onClick={(e) => { e.stopPropagation(); setDownloadModal({ albumId: album.id, albumTitle: album.title }); setDownloadError(null); }}
-                          >
-                            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M6.5 1v8M3.5 6l3 3 3-3" />
-                              <path d="M1 10.5h11" />
-                            </svg>
-                          </button>
-                        </div>
+                      {/* Footer */}
+                      <div className="db-album-footer">
+                        <button className="db-af-btn gold"
+                          onClick={(e) => { e.stopPropagation(); router.push(`/albums/${album.id}`); }}>
+                          Manage
+                        </button>
+                        <button className="db-af-btn"
+                          onClick={(e) => { e.stopPropagation(); openQR(album.id, album.title); }}>
+                          QR code
+                        </button>
+                        <button className="db-af-btn"
+                          onClick={(e) => { e.stopPropagation(); router.push(`/albums/${album.id}/gallery`); }}>
+                          Gallery
+                        </button>
                       </div>
                     </div>
                   );
