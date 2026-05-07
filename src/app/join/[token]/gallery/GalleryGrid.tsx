@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { VideoThumb } from "@/components/VideoThumb";
-import { FaceFilter } from "@/app/albums/[id]/gallery/FaceFilter";
 
+/* ─── Types ──────────────────────────────────────────────────────────────── */
 interface MediaItem {
   id: string;
   file_url: string;
@@ -13,6 +13,112 @@ interface MediaItem {
   created_at: string;
 }
 
+interface GalleryGridProps {
+  items: MediaItem[];
+  albumId?: string;
+  faceFinderEnabled?: boolean;
+}
+
+/* ─── Face-filter types & constants ─────────────────────────────────────── */
+const CLUSTER_THRESHOLD = 1.1;
+const MIN_CLUSTER_SIZE = 2;
+
+interface FaceRecord {
+  id: string;
+  mediaId: string;
+  descriptor: number[];
+  box: { x: number; y: number; w: number; h: number };
+}
+
+interface FaceCluster {
+  id: string;
+  mediaIds: string[];
+  representative: FaceRecord;
+  centroid: number[];
+}
+
+/* ─── Face-filter helpers ────────────────────────────────────────────────── */
+function euclidean(a: number[], b: number[]): number {
+  let s = 0;
+  for (let i = 0; i < a.length; i++) s += (a[i] - b[i]) ** 2;
+  return Math.sqrt(s);
+}
+
+function clusterFaces(faces: FaceRecord[]): FaceCluster[] {
+  const clusters: FaceCluster[] = [];
+  for (const face of faces) {
+    let best: FaceCluster | null = null;
+    let bestDist = CLUSTER_THRESHOLD;
+    for (const c of clusters) {
+      const d = euclidean(face.descriptor, c.centroid);
+      if (d < bestDist) { bestDist = d; best = c; }
+    }
+    if (best) {
+      best.mediaIds.push(face.mediaId);
+      const n = best.mediaIds.length;
+      best.centroid = best.centroid.map((v, i) => v + (face.descriptor[i] - v) / n);
+    } else {
+      clusters.push({
+        id: crypto.randomUUID(),
+        mediaIds: [face.mediaId],
+        representative: face,
+        centroid: [...face.descriptor],
+      });
+    }
+  }
+  return clusters.sort((a, b) => b.mediaIds.length - a.mediaIds.length);
+}
+
+async function loadImg(url: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url + (url.includes("?") ? "&" : "?") + "_cb=" + Date.now();
+  });
+}
+
+async function cropToDataUrl(
+  url: string,
+  box: { x: number; y: number; w: number; h: number }
+): Promise<string | null> {
+  const img = await loadImg(url);
+  if (!img) return null;
+  const size = 72;
+  const canvas = document.createElement("canvas");
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  const iw = img.naturalWidth, ih = img.naturalHeight;
+  const faceSize = Math.max(box.w * iw, box.h * ih);
+  const cx = (box.x + box.w / 2) * iw;
+  const cy = (box.y + box.h / 2) * ih - faceSize * 0.15;
+  const half = faceSize * 1.05;
+  const sx = Math.max(0, Math.min(iw - half * 2, cx - half));
+  const sy = Math.max(0, Math.min(ih - half * 2, cy - half));
+  const side = Math.min(half * 2, iw - sx, ih - sy);
+  ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+  return canvas.toDataURL("image/jpeg", 0.9);
+}
+
+/* ─── Icon helpers ───────────────────────────────────────────────────────── */
+function IconFace() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/>
+    </svg>
+  );
+}
+function IconClose({ size = 16 }: { size?: number }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/>
+    </svg>
+  );
+}
+
+/* ─── Helpers ────────────────────────────────────────────────────────────── */
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-GB", {
     day: "numeric", month: "short", year: "numeric",
@@ -40,20 +146,107 @@ async function downloadFile(id: string) {
   URL.revokeObjectURL(url);
 }
 
-interface GalleryGridProps {
-  items: MediaItem[];
-  albumId?: string;
-  faceFinderEnabled?: boolean;
-}
-
+/* ─── Component ──────────────────────────────────────────────────────────── */
 export function GalleryGrid({ items, albumId, faceFinderEnabled }: GalleryGridProps) {
   const [lightbox, setLightbox]       = useState<MediaItem | null>(null);
   const [downloading, setDownloading] = useState(false);
-  const [filteredIds, setFilteredIds] = useState<Set<string> | null>(null);
   const touchStartX = { current: 0 };
 
-  const visibleItems = filteredIds ? items.filter((i) => filteredIds.has(i.id)) : items;
+  /* ── face-filter state ── */
+  type FaceStatus = "idle" | "loading" | "done" | "error";
+  const [faceStatus, setFaceStatus]       = useState<FaceStatus>("idle");
+  const [faceEnabled, setFaceEnabled]     = useState(false);
+  const [showFaceConfirm, setShowFaceConfirm] = useState(false);
+  const [faceClusters, setFaceClusters]   = useState<FaceCluster[]>([]);
+  const [faceCrops, setFaceCrops]         = useState<Map<string, string>>(new Map());
+  const [selectedFace, setSelectedFace]   = useState<string | null>(null);
+  const [filteredIds, setFilteredIds]     = useState<Set<string> | null>(null);
 
+  const visibleItems = filteredIds ? items.filter((i) => filteredIds.has(i.id)) : items;
+  const imageItems   = items.filter((i) => i.file_type === "image");
+  const itemIds      = imageItems.map((i) => i.id).join(",");
+  const loadFacesRef = useRef<(() => Promise<void>) | null>(null);
+
+  const loadFaces = useCallback(async () => {
+    if (!albumId) return;
+    setFaceStatus("loading");
+    setFaceClusters([]);
+    setFaceCrops(new Map());
+    const controller = new AbortController();
+    const timeoutId  = setTimeout(() => controller.abort(), 20_000);
+    try {
+      const res = await fetch(`/api/faces?albumId=${albumId}`, { signal: controller.signal });
+      if (!res.ok) throw new Error("fetch failed");
+      const faces: FaceRecord[] = await res.json();
+      const clustered = clusterFaces(faces);
+      const visible   = clustered.filter((c) => c.mediaIds.length >= MIN_CLUSTER_SIZE);
+      const newCrops  = new Map<string, string>();
+      for (const cluster of visible.slice(0, 30)) {
+        const item = imageItems.find((i) => i.id === cluster.representative.mediaId);
+        if (!item) continue;
+        const crop = await cropToDataUrl(item.file_url, cluster.representative.box);
+        if (crop) newCrops.set(cluster.id, crop);
+      }
+      setFaceClusters(clustered);
+      setFaceCrops(newCrops);
+      setFaceStatus("done");
+    } catch (err) {
+      if ((err as { name?: string }).name === "AbortError") {
+        setFaceStatus("done");
+      } else {
+        setFaceStatus("error");
+      }
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [albumId, itemIds]);
+
+  loadFacesRef.current = loadFaces;
+
+  useEffect(() => {
+    if (!faceEnabled) return;
+    if (imageItems.length === 0) {
+      setFaceClusters([]);
+      setFaceCrops(new Map());
+      setFaceStatus("idle");
+      return;
+    }
+    loadFacesRef.current?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemIds, faceEnabled]);
+
+  function handleFaceEnable() {
+    setShowFaceConfirm(false);
+    setFaceEnabled(true);
+    loadFaces();
+  }
+
+  function handleFaceDisable() {
+    setFaceEnabled(false);
+    setSelectedFace(null);
+    setFilteredIds(null);
+    setFaceStatus("idle");
+    setFaceClusters([]);
+    setFaceCrops(new Map());
+  }
+
+  function handleFaceChipClick(clusterId: string) {
+    if (selectedFace === clusterId) {
+      setSelectedFace(null);
+      setFilteredIds(null);
+    } else {
+      setSelectedFace(clusterId);
+      const c = faceClusters.find((c) => c.id === clusterId);
+      if (c) setFilteredIds(new Set(c.mediaIds));
+    }
+  }
+
+  const visibleClusters = faceClusters.filter(
+    (c) => c.mediaIds.length >= MIN_CLUSTER_SIZE && faceCrops.has(c.id)
+  );
+
+  /* ── lightbox nav ── */
   function navigate(dir: 1 | -1) {
     if (!lightbox) return;
     const idx = visibleItems.findIndex((i) => i.id === lightbox.id);
@@ -66,16 +259,138 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled }: GalleryGridPr
 
   function onTouchEnd(e: React.TouchEvent) {
     const delta = e.changedTouches[0].clientX - touchStartX.current;
-    if (Math.abs(delta) < 40) return;   // ignore taps
+    if (Math.abs(delta) < 40) return;
     navigate(delta < 0 ? 1 : -1);
   }
 
   return (
     <>
-      <style>{LIGHTBOX_CSS}</style>
+      <style>{CSS}</style>
 
-      {faceFinderEnabled && albumId && (
-        <FaceFilter items={items} albumId={albumId} onFilter={setFilteredIds} />
+      {/* ── Face confirm modal ── */}
+      {showFaceConfirm && (
+        <div className="og-modal-backdrop" onClick={() => setShowFaceConfirm(false)}>
+          <div className="og-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="og-face-modal-icon">
+              <div className="og-face-modal-icon-wrap">
+                <IconFace />
+              </div>
+              <div className="og-face-modal-text">
+                <h3>Enable face filter</h3>
+                <p style={{ marginBottom: 0 }}>
+                  Captura will group photos by the faces that appear in them. This may take a few moments depending on album size.
+                  <span className="og-face-modal-hint">Results are saved — next visit will be instant.</span>
+                </p>
+              </div>
+            </div>
+            <div className="og-modal-btns">
+              <button onClick={() => setShowFaceConfirm(false)}>Cancel</button>
+              <button className="primary" onClick={handleFaceEnable}>Enable</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Toolbar (face finder) ── */}
+      {faceFinderEnabled && albumId && imageItems.length > 0 && (
+        <div className="og-toolbar">
+          <div className="og-toolbar-left">
+
+            {/* idle */}
+            {!faceEnabled && faceStatus === "idle" && (
+              <button className="og-face-btn" onClick={() => setShowFaceConfirm(true)}>
+                <IconFace />
+                Filter by face
+              </button>
+            )}
+
+            {/* loading */}
+            {faceStatus === "loading" && (
+              <>
+                <button className="og-face-btn active">
+                  <IconFace />
+                  Scanning faces…
+                </button>
+                <div className="og-fp-track">
+                  <div className="og-fp-fill" />
+                </div>
+              </>
+            )}
+
+            {/* done — no clusters */}
+            {faceStatus === "done" && visibleClusters.length === 0 && (
+              <>
+                <button className="og-face-btn active">
+                  <IconFace />
+                  No faces found
+                </button>
+                <button className="og-disable-btn" onClick={handleFaceDisable}>
+                  <IconClose size={13} /> Disable
+                </button>
+              </>
+            )}
+
+            {/* done — clusters */}
+            {faceStatus === "done" && visibleClusters.length > 0 && (
+              <>
+                <button
+                  className={`og-face-btn${faceEnabled ? " active" : ""}`}
+                  onClick={handleFaceDisable}
+                  title="Click to disable face filter"
+                >
+                  <IconFace />
+                  Filter by face
+                </button>
+
+                {selectedFace !== null && (
+                  <button
+                    className="og-all-chip"
+                    onClick={() => { setSelectedFace(null); setFilteredIds(null); }}
+                  >
+                    <IconClose size={11} /> All
+                  </button>
+                )}
+
+                {visibleClusters.map((cluster) => {
+                  const count = new Set(cluster.mediaIds).size;
+                  return (
+                    <button
+                      key={cluster.id}
+                      className={`og-face-chip${selectedFace === cluster.id ? " selected" : ""}`}
+                      onClick={() => handleFaceChipClick(cluster.id)}
+                      title={`${count} photo${count !== 1 ? "s" : ""}`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={faceCrops.get(cluster.id)!} alt="face" />
+                      <span className="og-face-chip-count">{count > 99 ? "99+" : count}</span>
+                    </button>
+                  );
+                })}
+
+                <button className="og-disable-btn" onClick={handleFaceDisable}>
+                  <IconClose size={13} /> Disable
+                </button>
+              </>
+            )}
+
+            {/* error */}
+            {faceStatus === "error" && (
+              <>
+                <button className="og-face-btn" onClick={() => loadFaces()}>
+                  <IconFace />
+                  Retry face scan
+                </button>
+                <button className="og-disable-btn" onClick={handleFaceDisable}>
+                  <IconClose size={13} /> Dismiss
+                </button>
+              </>
+            )}
+          </div>
+
+          <div className="og-toolbar-right">
+            {visibleItems.length} {visibleItems.length === 1 ? "photo" : "photos"}
+          </div>
+        </div>
       )}
 
       {/* ── Masonry grid ── */}
@@ -214,9 +529,262 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled }: GalleryGridPr
   );
 }
 
-const LIGHTBOX_CSS = `
+const CSS = `
   @keyframes gl-spin { to { transform: rotate(360deg); } }
   @keyframes gl-fadein { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes loading-bar {
+    0%   { transform: translateX(-100%); }
+    50%  { transform: translateX(60%); }
+    100% { transform: translateX(160%); }
+  }
+
+  /* ── og-toolbar styles (face finder) ── */
+  :root {
+    --og-bg:       oklch(97% 0.008 80);
+    --og-bg2:      oklch(94% 0.010 80);
+    --og-bg3:      oklch(90% 0.012 80);
+    --og-border:   oklch(86% 0.010 80);
+    --og-border2:  oklch(78% 0.010 80);
+    --og-text:     oklch(18% 0.015 265);
+    --og-muted:    oklch(46% 0.010 265);
+    --og-muted2:   oklch(58% 0.010 265);
+    --og-gold:     oklch(44% 0.16 72);
+    --og-gold-dim: oklch(36% 0.13 72);
+    --og-gold-glow:oklch(44% 0.16 72 / 0.10);
+    --og-gold-b:   oklch(44% 0.16 72 / 0.22);
+  }
+
+  .og-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px;
+    border: 1px solid var(--og-border);
+    border-radius: 14px;
+    margin-bottom: 18px;
+    background: var(--og-bg);
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .og-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex: 1;
+  }
+  .og-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--og-muted);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .og-face-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border-radius: 9px;
+    border: 1px solid var(--og-border);
+    background: var(--og-bg);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--og-text);
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+  .og-face-btn:hover {
+    border-color: var(--og-gold-b);
+    background: var(--og-gold-glow);
+  }
+  .og-face-btn.active {
+    border-color: var(--og-gold);
+    background: var(--og-gold-glow);
+    color: var(--og-gold);
+  }
+  .og-fp-track {
+    flex: 1;
+    height: 4px;
+    background: var(--og-bg3);
+    border-radius: 2px;
+    overflow: hidden;
+    min-width: 100px;
+    max-width: 180px;
+  }
+  .og-fp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--og-gold-dim), var(--og-gold));
+    border-radius: 2px;
+    animation: loading-bar 1.4s ease-in-out infinite;
+    width: 40%;
+  }
+  .og-face-chip {
+    position: relative;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    overflow: visible;
+    transition: border-color .15s, transform .15s;
+    flex-shrink: 0;
+    background: none;
+    padding: 0;
+  }
+  .og-face-chip:hover { transform: scale(1.06); }
+  .og-face-chip.selected { border-color: var(--og-gold); }
+  .og-face-chip img {
+    width: 38px;
+    height: 38px;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+  }
+  .og-face-chip-count {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 16px;
+    height: 16px;
+    background: var(--og-text);
+    color: var(--og-bg);
+    border-radius: 50%;
+    font-size: 9px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid var(--og-bg);
+    pointer-events: none;
+  }
+  .og-all-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--og-border);
+    background: var(--og-bg);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--og-text);
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+  .og-all-chip:hover {
+    border-color: var(--og-gold-b);
+    background: var(--og-gold-glow);
+  }
+  .og-disable-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--og-border);
+    background: none;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--og-muted);
+    cursor: pointer;
+    transition: border-color .15s, color .15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+  .og-disable-btn:hover {
+    border-color: var(--og-border2);
+    color: var(--og-text);
+  }
+
+  /* ── face confirm modal ── */
+  .og-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background: oklch(0% 0 0 / 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    backdrop-filter: blur(4px);
+  }
+  .og-modal {
+    background: white;
+    border-radius: 18px;
+    padding: 28px;
+    max-width: 380px;
+    width: 100%;
+    box-shadow: 0 24px 80px oklch(0% 0 0 / 0.25);
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+  .og-modal h3 {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--og-text);
+    margin-bottom: 8px;
+  }
+  .og-modal p {
+    font-size: 13px;
+    color: var(--og-muted);
+    margin-bottom: 22px;
+    line-height: 1.55;
+  }
+  .og-modal-btns {
+    display: flex;
+    gap: 10px;
+  }
+  .og-modal-btns button {
+    flex: 1;
+    padding: 10px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid oklch(86% 0.010 80);
+    background: oklch(97% 0.008 80);
+    color: var(--og-text);
+    transition: background .15s, border-color .15s;
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+  .og-modal-btns button:hover { background: oklch(94% 0.010 80); }
+  .og-modal-btns button.primary {
+    background: var(--og-gold);
+    color: white;
+    border-color: var(--og-gold);
+  }
+  .og-modal-btns button.primary:hover { background: var(--og-gold-dim); border-color: var(--og-gold-dim); }
+  .og-face-modal-icon {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .og-face-modal-icon-wrap {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--og-gold-glow);
+    border: 1px solid var(--og-gold-b);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .og-face-modal-text h3 { margin-bottom: 4px; }
+  .og-face-modal-hint {
+    display: block;
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--og-muted2);
+  }
 
   /* ── Masonry item ── */
   .gl-item {
@@ -274,7 +842,6 @@ const LIGHTBOX_CSS = `
     padding: 0 8px 8px;
   }
 
-  /* ── Top bar ── */
   .gl-topbar {
     display: flex;
     align-items: center;
@@ -319,7 +886,6 @@ const LIGHTBOX_CSS = `
   .gl-save-btn:hover:not(:disabled) { opacity: .85; }
   .gl-save-btn:disabled { opacity: .5; cursor: not-allowed; }
 
-  /* ── Media ── */
   .gl-media-wrap {
     flex: 1;
     display: flex; align-items: center; justify-content: center;
@@ -335,7 +901,6 @@ const LIGHTBOX_CSS = `
     display: block;
   }
 
-  /* ── Arrows ── */
   .gl-arrow {
     position: absolute;
     top: 50%; transform: translateY(-50%);
@@ -354,5 +919,11 @@ const LIGHTBOX_CSS = `
   @media (max-width: 900px) {
     .gl-arrow-left  { left: 4px; }
     .gl-arrow-right { right: 4px; }
+  }
+
+  @media (max-width: 768px) {
+    .og-toolbar { padding: 14px; }
+    .og-face-chip { width: 34px; height: 34px; }
+    .og-face-chip img { width: 34px; height: 34px; }
   }
 `;
