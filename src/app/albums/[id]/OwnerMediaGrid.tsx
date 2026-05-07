@@ -21,8 +21,16 @@ function CopyButton({ url }: { url: string }) {
     } catch { /* silently fail */ }
   }
   return (
-    <button onClick={handleCopy}
-      className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary/90 transition">
+    <button onClick={handleCopy} style={{
+      display: "inline-flex", alignItems: "center", gap: "6px",
+      padding: "8px 16px", borderRadius: "10px",
+      background: "oklch(44% 0.16 72)", color: "#fff",
+      fontSize: "12px", fontWeight: 600,
+      fontFamily: "var(--sans, 'DM Sans', system-ui, sans-serif)",
+      border: "none", cursor: "pointer",
+      transition: "opacity .15s",
+    }} onMouseOver={e => (e.currentTarget.style.opacity = ".85")}
+       onMouseOut={e  => (e.currentTarget.style.opacity = "1")}>
       {copied ? (
         <><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> Copied!</>
       ) : (
