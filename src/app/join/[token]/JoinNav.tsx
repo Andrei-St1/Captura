@@ -66,13 +66,13 @@ export function JoinNav({ token, showGallery }: Props) {
           borderTop: `1px solid ${border}`,
           justifyContent: "space-around",
           alignItems: "center",
-          padding: "6px 0 calc(6px + env(safe-area-inset-bottom, 0px))",
+          padding: "4px 0 calc(4px + env(safe-area-inset-bottom, 0px))",
         }}>
           <BottomTab href={`/join/${token}/upload`} active={isUpload} label="Upload">
-            <CamIcon size={24} active={isUpload} />
+            <CamIcon size={20} active={isUpload} />
           </BottomTab>
           <BottomTab href={`/join/${token}/gallery`} active={isGallery} label="Gallery">
-            <GridIcon size={24} active={isGallery} />
+            <GridIcon size={20} active={isGallery} />
           </BottomTab>
         </nav>,
         document.body
@@ -104,11 +104,11 @@ function BottomTab({ href, active, label, children }: { href: string; active: bo
   return (
     <Link href={href} style={{
       display: "flex", flexDirection: "column", alignItems: "center", gap: "3px",
-      padding: "6px 36px", borderRadius: "10px",
+      padding: "4px 32px", borderRadius: "8px",
       textDecoration: "none",
       color: active ? gold : dim,
       fontFamily: "'DM Sans', system-ui, sans-serif",
-      fontSize: "11px", fontWeight: 500,
+      fontSize: "10px", fontWeight: 500,
       WebkitTapHighlightColor: "transparent",
       transition: "color .15s",
     }}>
