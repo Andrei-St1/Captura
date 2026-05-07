@@ -62,8 +62,11 @@ export default async function GalleryPage({ params }: { params: Promise<{ token:
             <span className="gl-album-title">{album.title}</span>
           </div>
 
-          {/* center — desktop tabs land here */}
-          <JoinNav token={token} showGallery={true} />
+          {/* center — desktop: JoinNav tabs; mobile: album title */}
+          <div className="gl-header-center">
+            <span className="gl-title-mobile">{album.title}</span>
+            <JoinNav token={token} showGallery={true} />
+          </div>
 
           <div className="gl-header-right">
             <span className="gl-count">{items.length} {items.length === 1 ? "file" : "files"}</span>
@@ -136,11 +139,28 @@ const CSS = `
   }
   .gl-back:hover { color: oklch(18% 0.015 265); }
 
+  .gl-header-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   .gl-album-title {
     font-family: 'Cormorant Garamond', Georgia, serif;
     font-size: 17px; font-weight: 400;
     color: oklch(18% 0.015 265);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* mobile-only title in center column */
+  .gl-title-mobile {
+    display: none;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 16px; font-weight: 400;
+    color: oklch(18% 0.015 265);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 160px;
+    text-align: center;
   }
 
   .gl-header-right {
@@ -237,15 +257,10 @@ const CSS = `
 
   /* ── Mobile ── */
   @media (max-width: 768px) {
-    .gl-header {
-      grid-template-columns: 1fr 1fr;
-      height: auto;
-      padding: 12px 16px;
-    }
-    /* On mobile the center JoinNav tabs are hidden (CSS in JoinNav handles this) */
-    /* Just show left and right columns */
-    .gl-header > :nth-child(2) { display: none; }
-    .gl-header-right { grid-column: 2; }
+    .gl-header { padding: 0 16px; height: 52px; }
+    .gl-header-left { flex-direction: row; align-items: center; gap: 4px; }
+    .gl-album-title { display: none; }      /* hide title from left column */
+    .gl-title-mobile { display: block; }    /* show title in center column */
     .gl-main { padding-bottom: 100px; }
   }
 `;
