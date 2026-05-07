@@ -57,45 +57,83 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
 
     setIsUploading(true);
     try {
-      await Promise.all(pending.map(async (item) => {
-        setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "uploading", progress: 50 } : f));
-        try {
-          const fd = new FormData();
-          fd.append("file", item.file);
-          fd.append("albumId", albumId);
-
-          const res = await fetch("/api/upload", { method: "POST", body: fd });
-
-          // Read body as text first — if server returns HTML (error page) res.json() would throw
-          const text = await res.text();
-          let result: { error?: string; success?: boolean; fileUrl?: string; fileType?: string };
-          try {
-            result = JSON.parse(text);
-          } catch {
-            // Server returned non-JSON (likely a platform error page)
-            const preview = text.slice(0, 120).replace(/<[^>]+>/g, "").trim();
-            setFiles((prev) => prev.map((f) => f.id === item.id ? {
-              ...f, status: "error", progress: 0,
-              error: `Server error ${res.status}: ${preview || "no details"}`,
-            } : f));
-            console.error("[upload] non-JSON response", res.status, text.slice(0, 500));
-            return;
-          }
-
-          if (!res.ok || result.error) {
-            setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "error", error: result.error ?? `HTTP ${res.status}`, progress: 0 } : f));
-          } else {
-            setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "done", progress: 100 } : f));
-          }
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          console.error("[upload] fetch threw:", msg);
-          setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "error", error: `Network error: ${msg}`, progress: 0 } : f));
-        }
-      }));
+      await Promise.all(pending.map((item) => uploadOne(item)));
     } finally {
       setIsUploading(false);
       setAllDone(true);
+    }
+  }
+
+  async function uploadOne(item: FileItem) {
+    const setErr = (error: string) =>
+      setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "error", error, progress: 0 } : f));
+    const setProgress = (progress: number) =>
+      setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, progress } : f));
+
+    try {
+      setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "uploading", progress: 10 } : f));
+
+      // ── Step 1: get presigned URL ──────────────────────────────────────────
+      const presignRes = await fetch("/api/presign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          albumId,
+          fileName: item.file.name,
+          mimeType: item.file.type || "application/octet-stream",
+          fileSize: item.file.size,
+        }),
+      });
+
+      const presignText = await presignRes.text();
+      let presign: { presignedUrl?: string; filePath?: string; fileUrl?: string; error?: string };
+      try { presign = JSON.parse(presignText); }
+      catch { return setErr(`Server error ${presignRes.status}: ${presignText.slice(0, 100)}`); }
+
+      if (!presignRes.ok || presign.error) return setErr(presign.error ?? `Presign failed (${presignRes.status})`);
+
+      setProgress(30);
+
+      // ── Step 2: PUT directly to R2 (bypasses Vercel entirely) ─────────────
+      const r2Res = await fetch(presign.presignedUrl!, {
+        method: "PUT",
+        headers: { "Content-Type": item.file.type || "application/octet-stream" },
+        body: item.file,
+      });
+
+      if (!r2Res.ok) {
+        const body = await r2Res.text();
+        return setErr(`Storage error ${r2Res.status}: ${body.slice(0, 100)}`);
+      }
+
+      setProgress(85);
+
+      // ── Step 3: confirm — save DB record ───────────────────────────────────
+      const confirmRes = await fetch("/api/upload-confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          albumId,
+          filePath: presign.filePath,
+          fileUrl: presign.fileUrl,
+          mimeType: item.file.type || "application/octet-stream",
+          fileSize: item.file.size,
+        }),
+      });
+
+      const confirmText = await confirmRes.text();
+      let confirm: { success?: boolean; error?: string };
+      try { confirm = JSON.parse(confirmText); }
+      catch { return setErr(`Confirm error ${confirmRes.status}`); }
+
+      if (!confirmRes.ok || confirm.error) return setErr(confirm.error ?? "Confirm failed");
+
+      setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "done", progress: 100 } : f));
+
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[upload] threw:", msg);
+      setErr(`Network error: ${msg}`);
     }
   }
 
