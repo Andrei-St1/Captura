@@ -65,15 +65,32 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
           fd.append("albumId", albumId);
 
           const res = await fetch("/api/upload", { method: "POST", body: fd });
-          const result = await res.json();
+
+          // Read body as text first — if server returns HTML (error page) res.json() would throw
+          const text = await res.text();
+          let result: { error?: string; success?: boolean; fileUrl?: string; fileType?: string };
+          try {
+            result = JSON.parse(text);
+          } catch {
+            // Server returned non-JSON (likely a platform error page)
+            const preview = text.slice(0, 120).replace(/<[^>]+>/g, "").trim();
+            setFiles((prev) => prev.map((f) => f.id === item.id ? {
+              ...f, status: "error", progress: 0,
+              error: `Server error ${res.status}: ${preview || "no details"}`,
+            } : f));
+            console.error("[upload] non-JSON response", res.status, text.slice(0, 500));
+            return;
+          }
 
           if (!res.ok || result.error) {
-            setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "error", error: result.error ?? "Upload failed.", progress: 0 } : f));
+            setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "error", error: result.error ?? `HTTP ${res.status}`, progress: 0 } : f));
           } else {
             setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "done", progress: 100 } : f));
           }
-        } catch {
-          setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "error", error: "Unexpected error.", progress: 0 } : f));
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error("[upload] fetch threw:", msg);
+          setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "error", error: `Network error: ${msg}`, progress: 0 } : f));
         }
       }));
     } finally {

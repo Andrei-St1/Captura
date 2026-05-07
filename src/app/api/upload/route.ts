@@ -20,6 +20,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing file or albumId." }, { status: 400 });
     }
 
+    console.log("[upload] received:", {
+      name: file.name, type: file.type, size: file.size, albumId,
+    });
+
     const supabase = createServiceClient();
 
     // Verify album is active + open + has space
@@ -56,8 +60,11 @@ export async function POST(request: NextRequest) {
     let body: Buffer;
     let contentLength: number;
 
+    console.log("[upload] album ok, reading buffer...");
+
     // Load into buffer — request.formData() has already buffered the whole body anyway
     let buffer: Buffer = Buffer.from(new Uint8Array(await file.arrayBuffer()));
+    console.log("[upload] buffer ready, size:", buffer.length);
 
     if (fileType === "image") {
       ({ buffer, mimeType, fileName } = await maybeConvertHeic(buffer, mimeType, fileName));
@@ -69,6 +76,7 @@ export async function POST(request: NextRequest) {
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
     const filePath = `albums/${albumId}/${timestamp}-${safeName}`;
 
+    console.log("[upload] uploading to R2:", filePath);
     // Upload to R2
     await r2.send(
       new PutObjectCommand({
@@ -80,6 +88,7 @@ export async function POST(request: NextRequest) {
       })
     );
 
+    console.log("[upload] R2 done, inserting DB record...");
     const fileUrl = `${R2_PUBLIC_URL}/${filePath}`;
 
     // Insert media record + get ID back
@@ -107,9 +116,10 @@ export async function POST(request: NextRequest) {
       .update({ used_bytes: usedBytes + contentLength })
       .eq("id", albumId);
 
+    console.log("[upload] done:", fileUrl);
     return NextResponse.json({ success: true, fileUrl, fileType });
   } catch (err) {
-    console.error("Upload error:", err);
+    console.error("[upload] FATAL:", err);
     return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 500 });
   }
 }
