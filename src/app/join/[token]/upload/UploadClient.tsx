@@ -22,7 +22,6 @@ function formatBytes(bytes: number) {
 }
 
 export function UploadClient({ albumId, albumTitle, token }: { albumId: string; albumTitle: string; token: string }) {
-  const [uploaderName, setUploaderName] = useState("");
   const [files, setFiles] = useState<FileItem[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [allDone, setAllDone] = useState(false);
@@ -64,7 +63,6 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
           const fd = new FormData();
           fd.append("file", item.file);
           fd.append("albumId", albumId);
-          if (uploaderName.trim()) fd.append("uploaderName", uploaderName.trim());
 
           const res = await fetch("/api/upload", { method: "POST", body: fd });
           const result = await res.json();
@@ -126,20 +124,6 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
 
   return (
     <div className="space-y-4">
-
-      {/* Name */}
-      <div>
-        <label className="mb-1.5 block text-xs uppercase tracking-widest text-on-surface-variant">
-          Your name <span className="normal-case tracking-normal text-outline">(optional)</span>
-        </label>
-        <input
-          type="text"
-          value={uploaderName}
-          onChange={(e) => setUploaderName(e.target.value)}
-          placeholder="e.g. John Smith"
-          className="w-full rounded-xl border border-outline-variant/40 bg-surface-container-lowest px-4 py-3 text-on-surface placeholder-outline text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15 transition shadow-sm"
-        />
-      </div>
 
       {/* Drop zone */}
       <div
