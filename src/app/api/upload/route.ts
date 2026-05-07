@@ -53,20 +53,18 @@ export async function POST(request: NextRequest) {
     let fileName = file.name;
     const fileType = mimeType.startsWith("video/") ? "video" : "image";
 
-    let body: Buffer | File;
+    let body: Buffer;
     let contentLength: number;
 
-    if (fileType === "video") {
-      // Stream video directly to R2 — never load into memory
-      body = file;
-      contentLength = file.size;
-    } else {
-      // Images need full buffer (HEIC conversion may change size/type)
-      let buffer: Buffer = Buffer.from(new Uint8Array(await file.arrayBuffer()));
+    // Load into buffer — request.formData() has already buffered the whole body anyway
+    let buffer: Buffer = Buffer.from(new Uint8Array(await file.arrayBuffer()));
+
+    if (fileType === "image") {
       ({ buffer, mimeType, fileName } = await maybeConvertHeic(buffer, mimeType, fileName));
-      body = buffer;
-      contentLength = buffer.length;
     }
+
+    body = buffer;
+    contentLength = buffer.length;
 
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
     const filePath = `albums/${albumId}/${timestamp}-${safeName}`;
