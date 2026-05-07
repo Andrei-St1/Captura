@@ -195,10 +195,10 @@ export async function deleteAlbum(albumId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Unauthorized" };
 
-  // Verify ownership + get cover_url
+  // Verify ownership + get both image fields
   const { data: album } = await supabase
     .from("albums")
-    .select("id, cover_url")
+    .select("id, cover_url, thumbnail_url")
     .eq("id", albumId)
     .eq("owner_id", user.id)
     .single();
@@ -206,7 +206,16 @@ export async function deleteAlbum(albumId: string) {
   if (!album) return { error: "Album not found." };
 
   const service = createServiceClient();
-  const appUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_URL ?? "";
+  const publicBase = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
+  const r2Base    = process.env.R2_PUBLIC_URL ?? publicBase;
+
+  function urlToKey(url: string): string | null {
+    for (const base of [r2Base, publicBase]) {
+      if (base && url.startsWith(base + "/")) return url.slice(base.length + 1);
+    }
+    // Fallback: treat everything after the first slash-separated host as key
+    try { return new URL(url).pathname.replace(/^\//, ""); } catch { return null; }
+  }
 
   // Delete all media files from R2
   const { data: mediaFiles } = await service
@@ -222,10 +231,11 @@ export async function deleteAlbum(albumId: string) {
     );
   }
 
-  // Delete cover from R2
-  if (album.cover_url && appUrl) {
-    const coverPath = album.cover_url.replace(appUrl + "/", "");
-    await r2.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: coverPath })).catch(() => {});
+  // Delete cover + thumbnail from R2
+  for (const url of [album.cover_url, (album as any).thumbnail_url]) {
+    if (!url) continue;
+    const key = urlToKey(url);
+    if (key) await r2.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: key })).catch(() => {});
   }
 
   // Delete DB records (faces → media → qr_codes → album)

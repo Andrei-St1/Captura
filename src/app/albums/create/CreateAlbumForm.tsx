@@ -985,14 +985,28 @@ const CSS = `
   @media (max-width: 768px) {
     .ca-sidebar { display: none; }
     .ca-main { margin-left: 0; }
-    .ca-topbar { padding: 12px 20px; gap: 10px; }
+    .ca-topbar { padding: 12px 16px; gap: 8px; }
     .ca-back-text { display: none; }
     .ca-topbar-crumb { display: none; }
     .ca-topbar-div { display: none; }
-    .ca-form-main { padding: 28px 20px 60px; }
-    .ca-progress { overflow-x: auto; padding-bottom: 4px; }
+    .ca-topbar-actions .ca-btn-outline { display: none; }
+    .ca-topbar-actions .ca-btn-primary { padding: 8px 14px; font-size: 12px; }
+    .ca-form-main { padding: 24px 16px 60px; }
+    .ca-progress { justify-content: center; gap: 0; margin-bottom: 28px; }
+    .ca-ps-item { gap: 4px; }
+    .ca-ps-label { display: none; }
+    .ca-ps-line { min-width: 32px; margin: 0 2px; }
     .ca-date-grid { grid-template-columns: 1fr; }
     .ca-section-title { font-size: 24px; }
-    .ca-error-banner { margin: 12px 20px 0; }
+    .ca-error-banner { margin: 12px 16px 0; }
+    .ca-storage-big { font-size: 30px; }
+    .ca-section-nav { flex-direction: column; gap: 10px; }
+    .ca-section-nav > span { display: none; }
+    .ca-section-nav .ca-btn-back,
+    .ca-section-nav .ca-btn-next,
+    .ca-section-nav .ca-btn-primary { width: 100%; justify-content: center; box-sizing: border-box; }
+    .ca-success { padding: 60px 20px; }
+    .ca-success-actions { flex-direction: column; align-items: stretch; }
+    .ca-success-actions > * { width: 100%; justify-content: center; text-align: center; box-sizing: border-box; }
   }
 `;
