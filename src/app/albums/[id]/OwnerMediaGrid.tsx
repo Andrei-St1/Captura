@@ -792,7 +792,8 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   /* ── download ── */
-  const [downloading, setDownloading] = useState(false);
+  const [downloading, setDownloading]   = useState(false);
+  const [saving,     setSaving]         = useState(false);
 
   /* ── delete ── */
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -1389,27 +1390,30 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
             </div>
             <button
               className="og-lb-save"
-              disabled={downloading}
+              disabled={saving}
               onClick={async () => {
-                setDownloading(true);
-                const res = await fetch(`/api/download-file?mediaId=${lightbox.id}`);
-                if (res.ok) {
+                setSaving(true);
+                try {
+                  const id  = lightbox.id;
+                  const res = await fetch(`/api/download-file?mediaId=${id}`);
+                  if (!res.ok) return;
                   const blob = await res.blob();
                   const url  = URL.createObjectURL(blob);
                   const a    = document.createElement("a");
                   const cd   = res.headers.get("content-disposition") ?? "";
-                  a.href = url;
+                  a.href     = url;
                   a.download = cd.match(/filename="([^"]+)"/)?.[1] ?? "photo";
                   document.body.appendChild(a);
                   a.click();
                   document.body.removeChild(a);
                   URL.revokeObjectURL(url);
+                } finally {
+                  setSaving(false);
                 }
-                setDownloading(false);
               }}
             >
               <IconDownload />
-              {downloading ? "Saving…" : "Save"}
+              {saving ? "Saving…" : "Save"}
             </button>
           </div>
 
