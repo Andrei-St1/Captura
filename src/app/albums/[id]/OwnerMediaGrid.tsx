@@ -69,6 +69,7 @@ interface FaceRecord {
   mediaId: string;
   descriptor: number[];
   box: { x: number; y: number; w: number; h: number };
+  fileUrl?: string | null;
 }
 
 interface FaceCluster {
@@ -876,9 +877,10 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
       const visible = clustered.filter((c) => c.mediaIds.length >= MIN_CLUSTER_SIZE);
       const newCrops = new Map<string, string>();
       for (const cluster of visible.slice(0, 30)) {
-        const item = imageItems.find((i) => i.id === cluster.representative.mediaId);
-        if (!item) continue;
-        const crop = await cropToDataUrl(item.file_url, cluster.representative.box);
+        const rep = cluster.representative;
+        const url = rep.fileUrl ?? imageItems.find((i) => i.id === rep.mediaId)?.file_url;
+        if (!url) continue;
+        const crop = await cropToDataUrl(url, rep.box);
         if (crop) newCrops.set(cluster.id, crop);
       }
 

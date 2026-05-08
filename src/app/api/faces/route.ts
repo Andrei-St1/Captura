@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   const service = createServiceClient();
   const { data: faces } = await service
     .from("album_faces")
-    .select("id, media_id, descriptor, box_x, box_y, box_w, box_h")
+    .select("id, media_id, descriptor, box_x, box_y, box_w, box_h, media(file_url)")
     .eq("album_id", albumId);
 
   const result = (faces ?? []).map((f) => ({
@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
     mediaId: f.media_id,
     descriptor: f.descriptor as number[],
     box: { x: f.box_x, y: f.box_y, w: f.box_w, h: f.box_h },
+    fileUrl: (f.media as { file_url: string } | null)?.file_url ?? null,
   }));
 
   return NextResponse.json(result);
