@@ -326,6 +326,7 @@ export default async function AlbumPage({
           border-color: var(--ap-border);
         }
         .ap-btn-ghost:hover { border-color: var(--ap-border2); }
+        .ap-btn:disabled { opacity: .6; cursor: not-allowed; }
         .ap-btn-danger {
           background: var(--ap-bg);
           color: var(--ap-red);

@@ -194,6 +194,9 @@ const CSS = `
     border-color: var(--gp-border);
   }
   .gp-btn-ghost:hover { border-color: var(--gp-border2); }
+  .gp-btn-primary { background: var(--gp-gold); color: white; border-color: transparent; }
+  .gp-btn-primary:hover { background: var(--gp-gold-dim); }
+  .gp-btn-primary:disabled { opacity: .6; cursor: not-allowed; }
 
   /* ── Pagination ── */
   .gp-pagination {
