@@ -56,6 +56,8 @@ interface Props {
   albumId: string;
   albumTitle: string;
   firstQR?: { dataUrl: string; joinUrl: string; label: string } | null;
+  page?: number;
+  totalPages?: number;
 }
 
 /* ─── Face-filter types & constants ─────────────────────────────────────── */
@@ -705,6 +707,42 @@ const panelCss = `
 .og-lb-save:hover:not(:disabled) { opacity: .85; }
 .og-lb-save:disabled { opacity: .5; cursor: not-allowed; }
 
+.og-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 20px 22px;
+  border-top: 1px solid var(--og-border);
+}
+.og-page-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--og-border);
+  background: var(--og-bg);
+  color: var(--og-text);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: border-color .15s, background .15s;
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+.og-page-btn:not(.disabled):hover {
+  border-color: var(--og-border2);
+  background: var(--og-bg2);
+}
+.og-page-btn.disabled {
+  opacity: .35;
+  cursor: default;
+}
+.og-page-info {
+  font-size: 13px;
+  color: var(--og-muted);
+  white-space: nowrap;
+}
+
 @media (max-width: 768px) {
   .og-toolbar { padding: 14px; }
   .og-sub { padding: 12px 14px; }
@@ -779,7 +817,7 @@ function IconPlay() {
 }
 
 /* ─── Main component ─────────────────────────────────────────────────────── */
-export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }: Props) {
+export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, page = 1, totalPages = 1 }: Props) {
   /* ── items state ── */
   const [items, setItems] = useState(initial);
   useEffect(() => { setItems(initial); }, [initial]);
@@ -808,11 +846,12 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
   const [showFaceConfirm, setShowFaceConfirm] = useState(false);
   const [faceClusters, setFaceClusters] = useState<FaceCluster[]>([]);
   const [faceCrops, setFaceCrops] = useState<Map<string, string>>(new Map());
-  const [selectedFace, setSelectedFace] = useState<string | null>(null); // cluster id
-  const [filteredIds, setFilteredIds] = useState<Set<string> | null>(null);
+  const [selectedFace, setSelectedFace] = useState<string | null>(null);
+  const [faceItems, setFaceItems] = useState<MediaItem[] | null>(null);
+  const [fetchingFace, setFetchingFace] = useState(false);
 
   /* ── derived display list ── */
-  const displayItems = filteredIds ? items.filter((i) => filteredIds.has(i.id)) : items;
+  const displayItems = faceItems ?? items;
 
   /* ── face loading ── */
   const imageItems = items.filter((i) => i.file_type === "image");
@@ -884,20 +923,32 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
   function handleFaceDisable() {
     setFaceEnabled(false);
     setSelectedFace(null);
-    setFilteredIds(null);
+    setFaceItems(null);
+    setFetchingFace(false);
     setFaceStatus("idle");
     setFaceClusters([]);
     setFaceCrops(new Map());
   }
 
-  function handleFaceChipClick(clusterId: string) {
+  async function handleFaceChipClick(clusterId: string) {
     if (selectedFace === clusterId) {
       setSelectedFace(null);
-      setFilteredIds(null);
-    } else {
-      setSelectedFace(clusterId);
-      const c = faceClusters.find((c) => c.id === clusterId);
-      if (c) setFilteredIds(new Set(c.mediaIds));
+      setFaceItems(null);
+      return;
+    }
+    setSelectedFace(clusterId);
+    const c = faceClusters.find((c) => c.id === clusterId);
+    if (!c) return;
+    setFetchingFace(true);
+    try {
+      const res = await fetch("/api/media-by-ids", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ albumId, mediaIds: [...new Set(c.mediaIds)] }),
+      });
+      if (res.ok) setFaceItems(await res.json());
+    } finally {
+      setFetchingFace(false);
     }
   }
 
@@ -949,6 +1000,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
     const result = await deleteMedia(mediaId, albumId);
     if (result.success) {
       setItems((prev) => prev.filter((i) => i.id !== mediaId));
+      setFaceItems((prev) => prev ? prev.filter((i) => i.id !== mediaId) : null);
       if (lightbox?.id === mediaId) setLightbox(null);
     }
     setDeleting(null);
@@ -960,6 +1012,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
     const ids = Array.from(selected);
     await deleteMediaBulk(ids, albumId);
     setItems((prev) => prev.filter((i) => !selected.has(i.id)));
+    setFaceItems((prev) => prev ? prev.filter((i) => !selected.has(i.id)) : null);
     setConfirmBulkDelete(false);
     setBulkDeleting(false);
     exitSelection();
@@ -986,9 +1039,8 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
   function subInfo() {
     if (selecting) return `${selected.size} selected`;
     if (selectedFace !== null) {
-      const c = faceClusters.find((fc) => fc.id === selectedFace);
-      const count = c ? new Set(c.mediaIds).size : 0;
-      return `Showing photos with this person · ${displayItems.length} of ${items.length}`;
+      if (fetchingFace) return "Loading photos…";
+      return `Showing ${displayItems.length} photo${displayItems.length !== 1 ? "s" : ""} with this person`;
     }
     return "Showing all photos · sorted by upload date";
   }
@@ -1183,7 +1235,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
                 {selectedFace !== null && (
                   <button
                     className="og-all-chip"
-                    onClick={() => { setSelectedFace(null); setFilteredIds(null); }}
+                    onClick={() => { setSelectedFace(null); setFaceItems(null); }}
                   >
                     <IconClose size={11} /> All
                   </button>
@@ -1372,6 +1424,19 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR }:
             <div className="og-no-results">No photos match this filter.</div>
           )}
         </div>
+
+        {/* ── Pagination ── */}
+        {!faceItems && totalPages > 1 && (
+          <div className="og-pagination">
+            {page > 1
+              ? <a href={`/albums/${albumId}/gallery?page=${page - 1}`} className="og-page-btn">← Previous</a>
+              : <span className="og-page-btn disabled">← Previous</span>}
+            <span className="og-page-info">Page {page} of {totalPages}</span>
+            {page < totalPages
+              ? <a href={`/albums/${albumId}/gallery?page=${page + 1}`} className="og-page-btn">Next →</a>
+              : <span className="og-page-btn disabled">Next →</span>}
+          </div>
+        )}
       </div>
 
       {/* ── Lightbox ── */}

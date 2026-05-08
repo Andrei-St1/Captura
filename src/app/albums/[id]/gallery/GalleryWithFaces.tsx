@@ -17,15 +17,19 @@ interface Props {
   albumId: string;
   albumTitle: string;
   firstQR?: { dataUrl: string; joinUrl: string; label: string } | null;
+  page?: number;
+  totalPages?: number;
 }
 
-export function GalleryWithFaces({ items, albumId, albumTitle, firstQR }: Props) {
+export function GalleryWithFaces({ items, albumId, albumTitle, firstQR, page, totalPages }: Props) {
   return (
     <OwnerMediaGrid
       items={items}
       albumId={albumId}
       albumTitle={albumTitle}
       firstQR={firstQR}
+      page={page}
+      totalPages={totalPages}
     />
   );
 }

@@ -195,6 +195,41 @@ const CSS = `
   }
   .gp-btn-ghost:hover { border-color: var(--gp-border2); }
 
+  /* ── Pagination ── */
+  .gp-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 32px 0 16px;
+  }
+  .gp-page-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 9px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--gp-border);
+    background: var(--gp-bg);
+    color: var(--gp-text);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: border-color .15s, background .15s;
+  }
+  .gp-page-btn:not(.disabled):hover {
+    border-color: var(--gp-border2);
+    background: var(--gp-bg2);
+  }
+  .gp-page-btn.disabled {
+    opacity: .35;
+    cursor: default;
+  }
+  .gp-page-info {
+    font-size: 13px;
+    color: var(--gp-muted);
+    white-space: nowrap;
+  }
+
   /* ── Responsive ── */
   @media (max-width: 768px) {
     .gp-nav { padding: 0 16px; }
@@ -207,12 +242,18 @@ const CSS = `
   }
 `;
 
+const PAGE_SIZE = 30;
+
 export default async function AlbumGalleryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { id } = await params;
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -220,7 +261,7 @@ export default async function AlbumGalleryPage({
 
   const { data: album } = await supabase
     .from("albums")
-    .select("id, title, status")
+    .select("id, title, status, used_bytes")
     .eq("id", id)
     .eq("owner_id", user.id)
     .single();
@@ -235,12 +276,14 @@ export default async function AlbumGalleryPage({
     .slice(0, 2)
     .toUpperCase();
 
-  const [{ data: media }, { data: qrRows }] = await Promise.all([
+  const offset = (page - 1) * PAGE_SIZE;
+  const [{ data: media, count }, { data: qrRows }, { data: latestMedia }] = await Promise.all([
     supabase
       .from("media")
-      .select("id, file_url, file_type, file_size, mime_type, uploader_name, created_at")
+      .select("id, file_url, file_type, file_size, mime_type, uploader_name, created_at", { count: "exact" })
       .eq("album_id", album.id)
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .range(offset, offset + PAGE_SIZE - 1),
     supabase
       .from("qr_codes")
       .select("token, label, enabled")
@@ -248,11 +291,20 @@ export default async function AlbumGalleryPage({
       .eq("enabled", true)
       .order("created_at", { ascending: true })
       .limit(1),
+    supabase
+      .from("media")
+      .select("created_at")
+      .eq("album_id", album.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single(),
   ]);
 
   const mediaItems = media ?? [];
-  const totalBytes = mediaItems.reduce((s, m) => s + (m.file_size ?? 0), 0);
-  const lastUpload = mediaItems[0]?.created_at ?? null;
+  const totalCount = count ?? 0;
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const totalBytes = (album as any).used_bytes ?? 0;
+  const lastUpload = latestMedia?.created_at ?? null;
 
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
   const firstQRRow = qrRows?.[0] ?? null;
@@ -305,7 +357,7 @@ export default async function AlbumGalleryPage({
             <div>
               <h1 className="gp-title">{album.title}</h1>
               <div className="gp-meta">
-                <span><strong>{mediaItems.length}</strong> {mediaItems.length === 1 ? "file" : "files"}</span>
+                <span><strong>{totalCount}</strong> {totalCount === 1 ? "file" : "files"}</span>
                 {totalBytes > 0 && (
                   <>
                     <span className="gp-meta-dot" />
@@ -335,6 +387,8 @@ export default async function AlbumGalleryPage({
             albumId={album.id}
             albumTitle={album.title}
             firstQR={firstQR}
+            page={page}
+            totalPages={totalPages}
           />
         </div>
       </div>

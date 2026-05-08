@@ -5,8 +5,18 @@ import { GalleryGrid } from "./GalleryGrid";
 import { JoinNav } from "../JoinNav";
 import { requireAlbumPin } from "@/lib/pin";
 
-export default async function GalleryPage({ params }: { params: Promise<{ token: string }> }) {
+const PAGE_SIZE = 30;
+
+export default async function GalleryPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ page?: string }>;
+}) {
   const { token } = await params;
+  const { page: pageParam } = await searchParams;
+  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const supabase = await createClient();
 
   const { data: qr } = await supabase
@@ -42,13 +52,17 @@ export default async function GalleryPage({ params }: { params: Promise<{ token:
     );
   }
 
-  const { data: media } = await supabase
+  const offset = (page - 1) * PAGE_SIZE;
+  const { data: media, count } = await supabase
     .from("media")
-    .select("id, file_url, file_type, file_size, uploader_name, created_at")
+    .select("id, file_url, file_type, file_size, uploader_name, created_at", { count: "exact" })
     .eq("album_id", album.id)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(offset, offset + PAGE_SIZE - 1);
 
   const items = media ?? [];
+  const totalCount = count ?? 0;
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
     <>
@@ -74,7 +88,7 @@ export default async function GalleryPage({ params }: { params: Promise<{ token:
           </div>
 
           <div className="gl-header-right">
-            <span className="gl-count">{items.length} {items.length === 1 ? "file" : "files"}</span>
+            <span className="gl-count">{totalCount} {totalCount === 1 ? "file" : "files"}</span>
           </div>
         </header>
 
@@ -92,7 +106,14 @@ export default async function GalleryPage({ params }: { params: Promise<{ token:
               <Link href={`/join/${token}/upload`} className="gl-empty-cta">Add yours →</Link>
             </div>
           ) : (
-            <GalleryGrid items={items} albumId={album.id} faceFinderEnabled={!!album.face_finder_enabled} />
+            <GalleryGrid
+            items={items}
+            albumId={album.id}
+            faceFinderEnabled={!!album.face_finder_enabled}
+            token={token}
+            page={page}
+            totalPages={totalPages}
+          />
           )}
         </main>
 
@@ -259,6 +280,41 @@ const CSS = `
   }
   .gl-powered a { color: oklch(44% 0.16 72); text-decoration: none; }
   .gl-powered a:hover { text-decoration: underline; }
+
+  /* ── Pagination ── */
+  .gl-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 32px 0 16px;
+  }
+  .gl-page-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 9px 18px;
+    border-radius: 8px;
+    border: 1px solid oklch(80% 0.010 80);
+    background: oklch(97% 0.008 80);
+    color: oklch(18% 0.015 265);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: border-color .15s, background .15s;
+  }
+  .gl-page-btn:not(.disabled):hover {
+    border-color: oklch(65% 0.012 80);
+    background: oklch(93% 0.010 80);
+  }
+  .gl-page-btn.disabled {
+    opacity: .35;
+    cursor: default;
+  }
+  .gl-page-info {
+    font-size: 13px;
+    color: oklch(46% 0.010 265);
+    white-space: nowrap;
+  }
 
   /* ── Mobile ── */
   @media (max-width: 768px) {

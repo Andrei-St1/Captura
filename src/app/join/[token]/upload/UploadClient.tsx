@@ -57,7 +57,15 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
 
     setIsUploading(true);
     try {
-      await Promise.all(pending.map((item) => uploadOne(item)));
+      const CONCURRENCY = 3;
+      const queue = [...pending];
+      async function runWorker() {
+        while (queue.length > 0) {
+          const item = queue.shift()!;
+          await uploadOne(item);
+        }
+      }
+      await Promise.all(Array.from({ length: CONCURRENCY }, runWorker));
     } finally {
       setIsUploading(false);
       setAllDone(true);

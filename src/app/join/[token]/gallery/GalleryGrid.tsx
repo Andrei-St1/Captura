@@ -17,6 +17,9 @@ interface GalleryGridProps {
   items: MediaItem[];
   albumId?: string;
   faceFinderEnabled?: boolean;
+  token?: string;
+  page?: number;
+  totalPages?: number;
 }
 
 /* ─── Face-filter types & constants ─────────────────────────────────────── */
@@ -147,22 +150,23 @@ async function downloadFile(id: string) {
 }
 
 /* ─── Component ──────────────────────────────────────────────────────────── */
-export function GalleryGrid({ items, albumId, faceFinderEnabled }: GalleryGridProps) {
+export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1, totalPages = 1 }: GalleryGridProps) {
   const [lightbox, setLightbox]       = useState<MediaItem | null>(null);
   const [downloading, setDownloading] = useState(false);
   const touchStartX = { current: 0 };
 
   /* ── face-filter state ── */
   type FaceStatus = "idle" | "loading" | "done" | "error";
-  const [faceStatus, setFaceStatus]       = useState<FaceStatus>("idle");
-  const [faceEnabled, setFaceEnabled]     = useState(false);
+  const [faceStatus, setFaceStatus]         = useState<FaceStatus>("idle");
+  const [faceEnabled, setFaceEnabled]       = useState(false);
   const [showFaceConfirm, setShowFaceConfirm] = useState(false);
-  const [faceClusters, setFaceClusters]   = useState<FaceCluster[]>([]);
-  const [faceCrops, setFaceCrops]         = useState<Map<string, string>>(new Map());
-  const [selectedFace, setSelectedFace]   = useState<string | null>(null);
-  const [filteredIds, setFilteredIds]     = useState<Set<string> | null>(null);
+  const [faceClusters, setFaceClusters]     = useState<FaceCluster[]>([]);
+  const [faceCrops, setFaceCrops]           = useState<Map<string, string>>(new Map());
+  const [selectedFace, setSelectedFace]     = useState<string | null>(null);
+  const [faceItems, setFaceItems]           = useState<MediaItem[] | null>(null);
+  const [fetchingFace, setFetchingFace]     = useState(false);
 
-  const visibleItems = filteredIds ? items.filter((i) => filteredIds.has(i.id)) : items;
+  const visibleItems = faceItems ?? items;
   const imageItems   = items.filter((i) => i.file_type === "image");
   const itemIds      = imageItems.map((i) => i.id).join(",");
   const loadFacesRef = useRef<(() => Promise<void>) | null>(null);
@@ -225,20 +229,32 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled }: GalleryGridPr
   function handleFaceDisable() {
     setFaceEnabled(false);
     setSelectedFace(null);
-    setFilteredIds(null);
+    setFaceItems(null);
+    setFetchingFace(false);
     setFaceStatus("idle");
     setFaceClusters([]);
     setFaceCrops(new Map());
   }
 
-  function handleFaceChipClick(clusterId: string) {
+  async function handleFaceChipClick(clusterId: string) {
     if (selectedFace === clusterId) {
       setSelectedFace(null);
-      setFilteredIds(null);
-    } else {
-      setSelectedFace(clusterId);
-      const c = faceClusters.find((c) => c.id === clusterId);
-      if (c) setFilteredIds(new Set(c.mediaIds));
+      setFaceItems(null);
+      return;
+    }
+    setSelectedFace(clusterId);
+    const c = faceClusters.find((c) => c.id === clusterId);
+    if (!c || !albumId) return;
+    setFetchingFace(true);
+    try {
+      const res = await fetch("/api/media-by-ids", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ albumId, mediaIds: [...new Set(c.mediaIds)] }),
+      });
+      if (res.ok) setFaceItems(await res.json());
+    } finally {
+      setFetchingFace(false);
     }
   }
 
@@ -345,7 +361,7 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled }: GalleryGridPr
                 {selectedFace !== null && (
                   <button
                     className="og-all-chip"
-                    onClick={() => { setSelectedFace(null); setFilteredIds(null); }}
+                    onClick={() => { setSelectedFace(null); setFaceItems(null); }}
                   >
                     <IconClose size={11} /> All
                   </button>
@@ -388,7 +404,7 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled }: GalleryGridPr
           </div>
 
           <div className="og-toolbar-right">
-            {visibleItems.length} {visibleItems.length === 1 ? "photo" : "photos"}
+            {fetchingFace ? "Loading…" : `${visibleItems.length} ${visibleItems.length === 1 ? "photo" : "photos"}`}
           </div>
         </div>
       )}
@@ -439,6 +455,19 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled }: GalleryGridPr
           </div>
         ))}
       </div>
+
+      {/* ── Pagination ── */}
+      {!faceItems && token && totalPages > 1 && (
+        <div className="gl-pagination">
+          {page > 1
+            ? <a href={`/join/${token}/gallery?page=${page - 1}`} className="gl-page-btn">← Previous</a>
+            : <span className="gl-page-btn disabled">← Previous</span>}
+          <span className="gl-page-info">Page {page} of {totalPages}</span>
+          {page < totalPages
+            ? <a href={`/join/${token}/gallery?page=${page + 1}`} className="gl-page-btn">Next →</a>
+            : <span className="gl-page-btn disabled">Next →</span>}
+        </div>
+      )}
 
       {/* ── Lightbox ── */}
       {lightbox && (
