@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     mediaId: f.media_id,
     descriptor: f.descriptor as number[],
     box: { x: f.box_x, y: f.box_y, w: f.box_w, h: f.box_h },
-    fileUrl: (f.media as { file_url: string } | null)?.file_url ?? null,
+    fileUrl: (f.media as unknown as { file_url: string } | null)?.file_url ?? null,
   }));
 
   return NextResponse.json(result);
