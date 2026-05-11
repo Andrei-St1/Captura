@@ -152,7 +152,7 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
 
   if (allDone && doneCount > 0 && pendingCount === 0) {
     return (
-      <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 p-8 text-center shadow-sm">
+      <div className="rounded-2xl bg-surface-container-lowest border border-outline-variant/20 p-8 text-center shadow-sm" style={{ "--color-primary": "oklch(44% 0.16 72)" } as React.CSSProperties}>
         <div className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-emerald-50 border border-emerald-200 mb-5">
           <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
@@ -168,7 +168,7 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
           <button
             onClick={() => { setFiles([]); setAllDone(false); }}
             className="w-full rounded-xl py-3 text-sm font-semibold text-white transition hover:opacity-90"
-            style={{ background: "linear-gradient(to right, #7d5070, #b784a7)" }}
+            style={{ background: "oklch(44% 0.16 72)" }}
           >
             Share more
           </button>
@@ -186,7 +186,7 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
   // ── Form ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" style={{ "--color-primary": "oklch(44% 0.16 72)" } as React.CSSProperties}>
 
       {/* Drop zone */}
       <div
@@ -224,7 +224,7 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
               }`}>
                 <span className="material-symbols-outlined" style={{
                   fontSize: "15px",
-                  color: item.status === "done" ? "#059669" : item.status === "error" ? "#dc2626" : "#7d5070"
+                  color: item.status === "done" ? "#059669" : item.status === "error" ? "#dc2626" : "oklch(44% 0.16 72)"
                 }}>
                   {item.file.type.startsWith("video/") ? "videocam" : "image"}
                 </span>
@@ -263,7 +263,7 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
                   </button>
                 )}
                 {item.status === "uploading" && (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7d5070" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="oklch(44% 0.16 72)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
                     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                   </svg>
                 )}
@@ -279,7 +279,7 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
           onClick={handleUpload}
           disabled={isUploading}
           className="w-full rounded-xl py-3.5 text-sm font-semibold text-white transition hover:opacity-90 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ background: "linear-gradient(to right, #7d5070, #b784a7)" }}
+          style={{ background: "oklch(44% 0.16 72)" }}
         >
           Share {pendingCount} {pendingCount === 1 ? "file" : "files"}
         </button>
