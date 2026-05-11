@@ -21,6 +21,31 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
+const COMPRESS_MAX_PX = 2560;
+const COMPRESS_QUALITY = 0.85;
+const SKIP_COMPRESS = new Set(["image/gif", "image/webp"]);
+
+async function compressImage(file: File): Promise<File> {
+  if (!file.type.startsWith("image/") || SKIP_COMPRESS.has(file.type)) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, COMPRESS_MAX_PX / Math.max(bitmap.width, bitmap.height));
+    const w = Math.round(bitmap.width * scale);
+    const h = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    canvas.getContext("2d")!.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close();
+    const blob = await new Promise<Blob>((resolve) =>
+      canvas.toBlob((b) => resolve(b!), "image/jpeg", COMPRESS_QUALITY)
+    );
+    const outName = file.name.replace(/\.[^.]+$/, ".jpg");
+    return new File([blob], outName, { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
+
 export function UploadClient({ albumId, albumTitle, token }: { albumId: string; albumTitle: string; token: string }) {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -57,12 +82,50 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
 
     setIsUploading(true);
     try {
-      const CONCURRENCY = 3;
-      const queue = [...pending];
+      // ── Phase 1: compress all images in parallel ───────────────────────────
+      const compressed = await Promise.all(
+        pending.map(async (item) => {
+          setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "uploading", progress: 5 } : f));
+          const uploadFile = await compressImage(item.file);
+          setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, progress: 10 } : f));
+          return { item, uploadFile };
+        })
+      );
+
+      // ── Phase 2: batch presign — single round-trip for all files ──────────
+      const batchRes = await fetch("/api/presign-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          albumId,
+          files: compressed.map(({ uploadFile }) => ({
+            fileName: uploadFile.name,
+            mimeType: uploadFile.type || "application/octet-stream",
+            fileSize: uploadFile.size,
+          })),
+        }),
+      });
+
+      if (!batchRes.ok) {
+        const { error } = await batchRes.json().catch(() => ({ error: "Presign failed" }));
+        compressed.forEach(({ item }) =>
+          setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "error", error, progress: 0 } : f))
+        );
+        return;
+      }
+
+      const { results } = await batchRes.json() as {
+        results: { presignedUrl: string; filePath: string; fileUrl: string }[];
+      };
+
+      // ── Phase 3: upload workers with pre-fetched presign data ─────────────
+      const CONCURRENCY = 5;
+      const queue = compressed.map((c, i) => ({ ...c, presign: results[i] }));
+
       async function runWorker() {
         while (queue.length > 0) {
-          const item = queue.shift()!;
-          await uploadOne(item);
+          const entry = queue.shift()!;
+          await uploadOne(entry.item, entry.uploadFile, entry.presign);
         }
       }
       await Promise.all(Array.from({ length: CONCURRENCY }, runWorker));
@@ -72,47 +135,34 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
     }
   }
 
-  async function uploadOne(item: FileItem) {
+  async function uploadOne(
+    item: FileItem,
+    uploadFile: File,
+    presign: { presignedUrl: string; filePath: string; fileUrl: string }
+  ) {
     const setErr = (error: string) =>
       setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "error", error, progress: 0 } : f));
     const setProgress = (progress: number) =>
       setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, progress } : f));
 
     try {
-      setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "uploading", progress: 10 } : f));
-
-      // ── Step 1: get presigned URL ──────────────────────────────────────────
-      const presignRes = await fetch("/api/presign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          albumId,
-          fileName: item.file.name,
-          mimeType: item.file.type || "application/octet-stream",
-          fileSize: item.file.size,
-        }),
-      });
-
-      const presignText = await presignRes.text();
-      let presign: { presignedUrl?: string; filePath?: string; fileUrl?: string; error?: string };
-      try { presign = JSON.parse(presignText); }
-      catch { return setErr(`Server error ${presignRes.status}: ${presignText.slice(0, 100)}`); }
-
-      if (!presignRes.ok || presign.error) return setErr(presign.error ?? `Presign failed (${presignRes.status})`);
-
       setProgress(30);
 
-      // ── Step 2: PUT directly to R2 (bypasses Vercel entirely) ─────────────
-      const r2Res = await fetch(presign.presignedUrl!, {
-        method: "PUT",
-        headers: { "Content-Type": item.file.type || "application/octet-stream" },
-        body: item.file,
+      // ── Step 2: PUT directly to R2 with real progress ─────────────────────
+      const r2Status = await new Promise<number>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable)
+            setProgress(30 + Math.round((e.loaded / e.total) * 55));
+        };
+        xhr.onload = () => resolve(xhr.status);
+        xhr.onerror = () => reject(new Error("Network error"));
+        xhr.open("PUT", presign.presignedUrl);
+        xhr.setRequestHeader("Content-Type", uploadFile.type || "application/octet-stream");
+        xhr.send(uploadFile);
       });
 
-      if (!r2Res.ok) {
-        const body = await r2Res.text();
-        return setErr(`Storage error ${r2Res.status}: ${body.slice(0, 100)}`);
-      }
+      if (r2Status >= 400) return setErr(`Storage error ${r2Status}`);
 
       setProgress(85);
 
@@ -124,8 +174,8 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
           albumId,
           filePath: presign.filePath,
           fileUrl: presign.fileUrl,
-          mimeType: item.file.type || "application/octet-stream",
-          fileSize: item.file.size,
+          mimeType: uploadFile.type || "application/octet-stream",
+          fileSize: uploadFile.size,
         }),
       });
 

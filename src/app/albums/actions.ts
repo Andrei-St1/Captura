@@ -296,10 +296,9 @@ export async function deleteMedia(mediaId: string, albumId: string) {
 
   if (!user) return { error: "Unauthorized" };
 
-  // Verify album ownership
   const { data: album } = await supabase
     .from("albums")
-    .select("id, used_bytes")
+    .select("id")
     .eq("id", albumId)
     .eq("owner_id", user.id)
     .single();
@@ -328,9 +327,7 @@ export async function deleteMedia(mediaId: string, albumId: string) {
   await serviceClient.from("album_faces").delete().eq("media_id", mediaId);
   await serviceClient.from("media").delete().eq("id", mediaId);
 
-  // Update album used_bytes
-  const newUsed = Math.max(0, (album.used_bytes ?? 0) - media.file_size);
-  await serviceClient.from("albums").update({ used_bytes: newUsed }).eq("id", albumId);
+  await serviceClient.rpc("increment_album_bytes", { p_album_id: albumId, p_delta: -media.file_size });
 
   revalidatePath(`/albums/${albumId}`);
   return { success: true };
@@ -341,10 +338,9 @@ export async function deleteMediaBulk(mediaIds: string[], albumId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Unauthorized" };
 
-  // One ownership check
   const { data: album } = await supabase
     .from("albums")
-    .select("id, used_bytes")
+    .select("id")
     .eq("id", albumId)
     .eq("owner_id", user.id)
     .single();
@@ -374,10 +370,8 @@ export async function deleteMediaBulk(mediaIds: string[], albumId: string) {
   await service.from("album_faces").delete().in("media_id", ids);
   await service.from("media").delete().in("id", ids);
 
-  // Update used_bytes once
   const freed = mediaFiles.reduce((sum, m) => sum + (m.file_size ?? 0), 0);
-  const newUsed = Math.max(0, (album.used_bytes ?? 0) - freed);
-  await service.from("albums").update({ used_bytes: newUsed }).eq("id", albumId);
+  await service.rpc("increment_album_bytes", { p_album_id: albumId, p_delta: -freed });
 
   revalidatePath(`/albums/${albumId}`);
   return { success: true };

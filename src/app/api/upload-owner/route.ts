@@ -76,10 +76,7 @@ export async function POST(request: NextRequest) {
       await detectAndSaveFaces(inserted.id, albumId, fileUrl);
     }
 
-    await service
-      .from("albums")
-      .update({ used_bytes: usedBytes + buffer.length })
-      .eq("id", albumId);
+    await service.rpc("increment_album_bytes", { p_album_id: albumId, p_delta: buffer.length });
 
     return NextResponse.json({ success: true, fileUrl, fileType });
   } catch (err) {

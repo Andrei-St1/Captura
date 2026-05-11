@@ -45,15 +45,8 @@ export async function POST(request: NextRequest) {
       detectAndSaveFaces(inserted.id, albumId, fileUrl).catch(() => {});
     }
 
-    // Update album used_bytes
-    const { data: album } = await supabase
-      .from("albums")
-      .select("used_bytes")
-      .eq("id", albumId)
-      .single();
-
-    const newUsed = Math.max(0, (album?.used_bytes ?? 0) + fileSize);
-    await supabase.from("albums").update({ used_bytes: newUsed }).eq("id", albumId);
+    // Atomic increment — avoids read-then-write race under concurrent uploads
+    await supabase.rpc("increment_album_bytes", { p_album_id: albumId, p_delta: fileSize });
 
     return NextResponse.json({ success: true, fileUrl, fileType });
   } catch (err) {
