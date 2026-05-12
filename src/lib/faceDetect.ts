@@ -34,6 +34,8 @@ export async function detectAndSaveFaces(mediaId: string, albumId: string, image
       })),
       { onConflict: "id" }
     );
+    // Invalidate cached clusters — next request recomputes
+    await service.from("face_clusters").delete().eq("album_id", albumId);
   } catch {
     // face detection is best-effort, never block the upload
   }

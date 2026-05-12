@@ -26,6 +26,21 @@
   --font-manrope:    "Manrope", sans-serif;
 }
 
+/* ── Mobile tap feedback ── */
+button,
+a,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+button:not(:disabled):active,
+a:not(.disabled):active,
+[role="button"]:active {
+  transform: scale(0.94);
+  transition: transform 0.08s ease !important;
+}
+
 /* Material Symbols icon font */
 .material-symbols-outlined {
   font-family: "Material Symbols Outlined";

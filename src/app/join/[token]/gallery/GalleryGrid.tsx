@@ -24,54 +24,16 @@ interface GalleryGridProps {
 }
 
 /* ─── Face-filter types & constants ─────────────────────────────────────── */
-const CLUSTER_THRESHOLD = 1.1;
 const MIN_CLUSTER_SIZE = 2;
-
-interface FaceRecord {
-  id: string;
-  mediaId: string;
-  descriptor: number[];
-  box: { x: number; y: number; w: number; h: number };
-  fileUrl?: string | null;
-}
 
 interface FaceCluster {
   id: string;
   mediaIds: string[];
-  representative: FaceRecord;
-  centroid: number[];
-}
-
-/* ─── Face-filter helpers ────────────────────────────────────────────────── */
-function euclidean(a: number[], b: number[]): number {
-  let s = 0;
-  for (let i = 0; i < a.length; i++) s += (a[i] - b[i]) ** 2;
-  return Math.sqrt(s);
-}
-
-function clusterFaces(faces: FaceRecord[]): FaceCluster[] {
-  const clusters: FaceCluster[] = [];
-  for (const face of faces) {
-    let best: FaceCluster | null = null;
-    let bestDist = CLUSTER_THRESHOLD;
-    for (const c of clusters) {
-      const d = euclidean(face.descriptor, c.centroid);
-      if (d < bestDist) { bestDist = d; best = c; }
-    }
-    if (best) {
-      best.mediaIds.push(face.mediaId);
-      const n = best.mediaIds.length;
-      best.centroid = best.centroid.map((v, i) => v + (face.descriptor[i] - v) / n);
-    } else {
-      clusters.push({
-        id: crypto.randomUUID(),
-        mediaIds: [face.mediaId],
-        representative: face,
-        centroid: [...face.descriptor],
-      });
-    }
-  }
-  return clusters.sort((a, b) => b.mediaIds.length - a.mediaIds.length);
+  representative: {
+    box: { x: number; y: number; w: number; h: number };
+    fileUrl: string | null;
+    thumbnailUrl: string | null;
+  };
 }
 
 async function loadImg(url: string): Promise<HTMLImageElement | null> {
@@ -179,22 +141,22 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
     setFaceClusters([]);
     setFaceCrops(new Map());
     const controller = new AbortController();
-    const timeoutId  = setTimeout(() => controller.abort(), 20_000);
+    const timeoutId  = setTimeout(() => controller.abort(), 30_000);
     try {
-      const res = await fetch(`/api/faces?albumId=${albumId}`, { signal: controller.signal });
+      const res = await fetch(`/api/face-clusters?albumId=${albumId}`, { signal: controller.signal });
       if (!res.ok) throw new Error("fetch failed");
-      const faces: FaceRecord[] = await res.json();
-      const clustered = clusterFaces(faces);
-      const visible   = clustered.filter((c) => c.mediaIds.length >= MIN_CLUSTER_SIZE);
-      const newCrops  = new Map<string, string>();
+      const clusters: FaceCluster[] = await res.json();
+
+      const visible  = clusters.filter((c) => c.mediaIds.length >= MIN_CLUSTER_SIZE);
+      const newCrops = new Map<string, string>();
       for (const cluster of visible.slice(0, 30)) {
-        const rep = cluster.representative;
-        const url = rep.fileUrl ?? imageItems.find((i) => i.id === rep.mediaId)?.file_url;
+        const { representative: rep } = cluster;
+        const url = rep.thumbnailUrl ?? rep.fileUrl;
         if (!url) continue;
         const crop = await cropToDataUrl(url, rep.box);
         if (crop) newCrops.set(cluster.id, crop);
       }
-      setFaceClusters(clustered);
+      setFaceClusters(clusters);
       setFaceCrops(newCrops);
       setFaceStatus("done");
     } catch (err) {
@@ -206,8 +168,7 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
     } finally {
       clearTimeout(timeoutId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [albumId, itemIds]);
+  }, [albumId]);
 
   loadFacesRef.current = loadFaces;
 

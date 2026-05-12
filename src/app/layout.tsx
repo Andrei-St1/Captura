@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { HapticProvider } from "@/components/HapticProvider";
 
 export const metadata: Metadata = {
   title: "Captura",
@@ -26,6 +27,7 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased">
+        <HapticProvider />
         {children}
       </body>
     </html>
