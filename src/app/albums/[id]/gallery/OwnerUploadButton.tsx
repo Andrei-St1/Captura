@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { extractExifDate, convertToWebP } from "@/lib/imagePreprocess";
 
 interface Props {
   albumId: string;
@@ -85,7 +86,7 @@ export function OwnerUploadButton({ albumId, compact }: Props) {
     return null;
   }
 
-  async function uploadSmall(file: File, presign: PresignResult): Promise<string | null> {
+  async function uploadSmall(file: File, presign: PresignResult, takenAt: string | null): Promise<string | null> {
     const framePromise = presign.thumbnailPresignedUrl && file.type.startsWith("video/")
       ? extractFrameFromFile(file)
       : Promise.resolve(null);
@@ -120,6 +121,7 @@ export function OwnerUploadButton({ albumId, compact }: Props) {
         mimeType: file.type || "application/octet-stream",
         fileSize: file.size,
         ...(thumbnailUrl ? { thumbnailUrl } : {}),
+        ...(takenAt ? { takenAt } : {}),
       }),
     });
 
@@ -130,7 +132,7 @@ export function OwnerUploadButton({ albumId, compact }: Props) {
     return null;
   }
 
-  async function uploadMultipart(file: File): Promise<string | null> {
+  async function uploadMultipart(file: File, takenAt: string | null): Promise<string | null> {
     const initRes = await fetch("/api/multipart-init-owner", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -242,6 +244,7 @@ export function OwnerUploadButton({ albumId, compact }: Props) {
         mimeType: file.type || "application/octet-stream",
         fileSize: file.size,
         ...(thumbnailUrl ? { thumbnailUrl } : {}),
+        ...(takenAt ? { takenAt } : {}),
       }),
     });
 
@@ -263,35 +266,46 @@ export function OwnerUploadButton({ albumId, compact }: Props) {
 
     const errs: string[] = [];
 
-    // Split: HEIC → server, small → presigned, large → multipart
+    // Split: HEIC → server (EXIF extracted server-side), non-HEIC → client preprocess + presign
     const heicFiles = all.filter((f) => HEIC_TYPES.has(f.type));
     const nonHeic = all.filter((f) => !HEIC_TYPES.has(f.type));
-    const smallFiles = nonHeic.filter((f) => f.size < MULTIPART_THRESHOLD);
-    const largeFiles = nonHeic.filter((f) => f.size >= MULTIPART_THRESHOLD);
 
-    // Batch presign small files
+    // Preprocess non-HEIC images: extract EXIF then convert to WebP
+    type Preprocessed = { file: File; processedFile: File; takenAt: string | null };
+    const preprocessed: Preprocessed[] = await Promise.all(
+      nonHeic.map(async (file) => {
+        const takenAt = file.type.startsWith("image/") ? await extractExifDate(file) : null;
+        const processedFile = file.type.startsWith("image/") ? await convertToWebP(file) : file;
+        return { file, processedFile, takenAt };
+      })
+    );
+
+    const smallProcessed = preprocessed.filter((p) => p.processedFile.size < MULTIPART_THRESHOLD);
+    const largeProcessed = preprocessed.filter((p) => p.processedFile.size >= MULTIPART_THRESHOLD);
+
+    // Batch presign small files using processed file metadata
     const presignMap = new Map<string, PresignResult>();
-    if (smallFiles.length > 0) {
+    if (smallProcessed.length > 0) {
       const batchRes = await fetch("/api/presign-owner-batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           albumId,
-          files: smallFiles.map((f) => ({
-            fileName: f.name,
-            mimeType: f.type || "application/octet-stream",
-            fileSize: f.size,
+          files: smallProcessed.map((p) => ({
+            fileName: p.processedFile.name,
+            mimeType: p.processedFile.type || "application/octet-stream",
+            fileSize: p.processedFile.size,
           })),
         }),
       });
 
       if (batchRes.ok) {
         const { results } = await batchRes.json() as { results: PresignResult[] };
-        smallFiles.forEach((f, i) => presignMap.set(f.name + f.size, results[i]));
+        smallProcessed.forEach((p, i) => presignMap.set(p.file.name + p.file.size, results[i]));
       } else {
         const { error } = await batchRes.json().catch(() => ({ error: "Presign failed" }));
-        smallFiles.forEach((f) => errs.push(`${f.name}: ${error}`));
-        done += smallFiles.length;
+        smallProcessed.forEach((p) => errs.push(`${p.file.name}: ${error}`));
+        done += smallProcessed.length;
         setProgress({ done, total: all.length });
       }
     }
@@ -299,15 +313,15 @@ export function OwnerUploadButton({ albumId, compact }: Props) {
     // Build unified work queue
     type Task =
       | { kind: "heic"; file: File }
-      | { kind: "small"; file: File; presign: PresignResult }
-      | { kind: "large"; file: File };
+      | { kind: "small"; file: File; processedFile: File; takenAt: string | null; presign: PresignResult }
+      | { kind: "large"; file: File; processedFile: File; takenAt: string | null };
 
     const queue: Task[] = [
       ...heicFiles.map((f) => ({ kind: "heic" as const, file: f })),
-      ...smallFiles
-        .filter((f) => presignMap.has(f.name + f.size))
-        .map((f) => ({ kind: "small" as const, file: f, presign: presignMap.get(f.name + f.size)! })),
-      ...largeFiles.map((f) => ({ kind: "large" as const, file: f })),
+      ...smallProcessed
+        .filter((p) => presignMap.has(p.file.name + p.file.size))
+        .map((p) => ({ kind: "small" as const, file: p.file, processedFile: p.processedFile, takenAt: p.takenAt, presign: presignMap.get(p.file.name + p.file.size)! })),
+      ...largeProcessed.map((p) => ({ kind: "large" as const, file: p.file, processedFile: p.processedFile, takenAt: p.takenAt })),
     ];
 
     async function runWorker() {
@@ -318,9 +332,9 @@ export function OwnerUploadButton({ albumId, compact }: Props) {
         if (task.kind === "heic") {
           err = await uploadViaServer(task.file);
         } else if (task.kind === "small") {
-          err = await uploadSmall(task.file, task.presign).catch((e) => e.message);
+          err = await uploadSmall(task.processedFile, task.presign, task.takenAt).catch((e: Error) => e.message);
         } else {
-          err = await uploadMultipart(task.file).catch((e) => e.message);
+          err = await uploadMultipart(task.processedFile, task.takenAt).catch((e: Error) => e.message);
         }
 
         if (err) errs.push(`${task.file.name}: ${err}`);

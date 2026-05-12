@@ -4,7 +4,7 @@ import { detectAndSaveFaces } from "@/lib/faceDetect";
 
 export async function POST(request: NextRequest) {
   try {
-    const { albumId, filePath, fileUrl, mimeType, fileSize, uploaderName, thumbnailUrl } =
+    const { albumId, filePath, fileUrl, mimeType, fileSize, uploaderName, thumbnailUrl, takenAt } =
       await request.json() as {
         albumId: string;
         filePath: string;
@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
         fileSize: number;
         uploaderName?: string;
         thumbnailUrl?: string;
+        takenAt?: string;
       };
 
     if (!albumId || !filePath || !fileUrl || !mimeType || !fileSize) {
@@ -34,6 +35,7 @@ export async function POST(request: NextRequest) {
         file_size: fileSize,
         mime_type: mimeType,
         ...(thumbnailUrl ? { thumbnail_url: thumbnailUrl } : {}),
+        ...(takenAt ? { taken_at: takenAt } : {}),
       })
       .select("id")
       .single();

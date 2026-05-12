@@ -12,6 +12,7 @@ interface MediaItem {
   uploader_name: string | null;
   created_at: string;
   thumbnail_url?: string | null;
+  taken_at?: string | null;
 }
 
 interface GalleryGridProps {
@@ -21,6 +22,7 @@ interface GalleryGridProps {
   token?: string;
   page?: number;
   totalPages?: number;
+  sort?: "taken" | "upload";
 }
 
 /* ─── Face-filter types & constants ─────────────────────────────────────── */
@@ -114,7 +116,7 @@ async function downloadFile(id: string) {
 }
 
 /* ─── Component ──────────────────────────────────────────────────────────── */
-export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1, totalPages = 1 }: GalleryGridProps) {
+export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1, totalPages = 1, sort = "upload" }: GalleryGridProps) {
   const [lightbox, setLightbox]       = useState<MediaItem | null>(null);
   const [downloading, setDownloading] = useState(false);
   const touchStartX = { current: 0 };
@@ -429,11 +431,11 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
       {!faceItems && token && totalPages > 1 && (
         <div className="gl-pagination">
           {page > 1
-            ? <a href={`/join/${token}/gallery?page=${page - 1}`} className="gl-page-btn">← Previous</a>
+            ? <a href={`/join/${token}/gallery?page=${page - 1}${sort === "taken" ? "&sort=taken" : ""}`} className="gl-page-btn">← Previous</a>
             : <span className="gl-page-btn disabled">← Previous</span>}
           <span className="gl-page-info">Page {page} of {totalPages}</span>
           {page < totalPages
-            ? <a href={`/join/${token}/gallery?page=${page + 1}`} className="gl-page-btn">Next →</a>
+            ? <a href={`/join/${token}/gallery?page=${page + 1}${sort === "taken" ? "&sort=taken" : ""}`} className="gl-page-btn">Next →</a>
             : <span className="gl-page-btn disabled">Next →</span>}
         </div>
       )}
@@ -785,6 +787,10 @@ const CSS = `
   }
 
   /* ── Masonry item ── */
+  @keyframes gl-shimmer {
+    from { background-position: 200% 0; }
+    to   { background-position: -200% 0; }
+  }
   .gl-item {
     border-radius: 10px;
     overflow: hidden;
@@ -792,6 +798,10 @@ const CSS = `
     position: relative;
     display: block;
     transition: transform .2s, box-shadow .2s;
+    min-height: 80px;
+    background: linear-gradient(90deg, oklch(90% 0.012 80) 30%, oklch(93% 0.010 80) 50%, oklch(90% 0.012 80) 70%);
+    background-size: 200% 100%;
+    animation: gl-shimmer 1.5s ease-in-out infinite;
   }
   .gl-item:hover { transform: translateY(-2px); box-shadow: 0 8px 24px oklch(0% 0 0 / 0.15); }
 

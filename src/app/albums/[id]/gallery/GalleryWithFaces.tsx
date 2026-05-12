@@ -10,6 +10,8 @@ interface MediaItem {
   mime_type: string | null;
   uploader_name: string | null;
   created_at: string;
+  thumbnail_url?: string | null;
+  taken_at?: string | null;
 }
 
 interface Props {
@@ -19,9 +21,10 @@ interface Props {
   firstQR?: { dataUrl: string; joinUrl: string; label: string } | null;
   page?: number;
   totalPages?: number;
+  sort?: "taken" | "upload";
 }
 
-export function GalleryWithFaces({ items, albumId, albumTitle, firstQR, page, totalPages }: Props) {
+export function GalleryWithFaces({ items, albumId, albumTitle, firstQR, page, totalPages, sort }: Props) {
   return (
     <OwnerMediaGrid
       items={items}
@@ -30,6 +33,7 @@ export function GalleryWithFaces({ items, albumId, albumTitle, firstQR, page, to
       firstQR={firstQR}
       page={page}
       totalPages={totalPages}
+      sort={sort}
     />
   );
 }

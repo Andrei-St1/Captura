@@ -46,7 +46,8 @@ export async function POST(request: NextRequest) {
     let mimeType = file.type;
     let fileName = file.name;
 
-    ({ buffer, mimeType, fileName } = await maybeConvertHeic(buffer, mimeType, fileName));
+    let takenAt: string | null = null;
+    ({ buffer, mimeType, fileName, takenAt } = await maybeConvertHeic(buffer, mimeType, fileName));
 
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
     const filePath = `albums/${albumId}/${timestamp}-${safeName}`;
@@ -70,6 +71,7 @@ export async function POST(request: NextRequest) {
       file_type: fileType,
       file_size: buffer.length,
       mime_type: mimeType,
+      ...(takenAt ? { taken_at: takenAt } : {}),
     }).select("id").single();
 
     if (fileType === "image" && inserted?.id) {

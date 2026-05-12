@@ -12,11 +12,12 @@ export default async function GalleryPage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; sort?: string }>;
 }) {
   const { token } = await params;
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, sort: sortParam } = await searchParams;
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
+  const sort: "taken" | "upload" = sortParam === "taken" ? "taken" : "upload";
   const supabase = await createClient();
 
   const { data: qr } = await supabase
@@ -53,12 +54,14 @@ export default async function GalleryPage({
   }
 
   const offset = (page - 1) * PAGE_SIZE;
-  const { data: media, count } = await supabase
+  const mediaQueryBase = supabase
     .from("media")
-    .select("id, file_url, file_type, file_size, uploader_name, created_at, thumbnail_url", { count: "exact" })
-    .eq("album_id", album.id)
-    .order("created_at", { ascending: false })
-    .range(offset, offset + PAGE_SIZE - 1);
+    .select("id, file_url, file_type, file_size, uploader_name, created_at, thumbnail_url, taken_at", { count: "exact" })
+    .eq("album_id", album.id);
+  const orderedMediaQuery = sort === "taken"
+    ? mediaQueryBase.order("taken_at", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false })
+    : mediaQueryBase.order("created_at", { ascending: false });
+  const { data: media, count } = await orderedMediaQuery.range(offset, offset + PAGE_SIZE - 1);
 
   const items = media ?? [];
   const totalCount = count ?? 0;
@@ -88,6 +91,12 @@ export default async function GalleryPage({
           </div>
 
           <div className="gl-header-right">
+            {totalCount > 0 && (
+              <div className="gl-sort-group">
+                <a href={`/join/${token}/gallery`} className={`gl-sort-btn${sort !== "taken" ? " active" : ""}`}>Upload</a>
+                <a href={`/join/${token}/gallery?sort=taken`} className={`gl-sort-btn${sort === "taken" ? " active" : ""}`}>Taken</a>
+              </div>
+            )}
             <span className="gl-count">{totalCount} {totalCount === 1 ? "file" : "files"}</span>
           </div>
         </header>
@@ -107,13 +116,14 @@ export default async function GalleryPage({
             </div>
           ) : (
             <GalleryGrid
-            items={items}
-            albumId={album.id}
-            faceFinderEnabled={!!album.face_finder_enabled}
-            token={token}
-            page={page}
-            totalPages={totalPages}
-          />
+              items={items}
+              albumId={album.id}
+              faceFinderEnabled={!!album.face_finder_enabled}
+              token={token}
+              page={page}
+              totalPages={totalPages}
+              sort={sort}
+            />
           )}
         </main>
 
@@ -193,11 +203,35 @@ const CSS = `
     display: flex;
     justify-content: flex-end;
     align-items: center;
+    gap: 8px;
   }
 
   .gl-count {
     font-size: 13px;
     color: oklch(46% 0.010 265);
+  }
+
+  .gl-sort-group {
+    display: flex;
+    border-radius: 7px;
+    border: 1px solid oklch(80% 0.010 80);
+    overflow: hidden;
+  }
+  .gl-sort-btn {
+    padding: 4px 9px;
+    font-size: 11px;
+    font-weight: 500;
+    color: oklch(46% 0.010 265);
+    text-decoration: none;
+    transition: background .15s, color .15s;
+  }
+  .gl-sort-btn.active {
+    background: oklch(90% 0.012 80);
+    color: oklch(18% 0.015 265);
+  }
+  .gl-sort-btn:hover:not(.active) {
+    background: oklch(93% 0.010 80);
+    color: oklch(18% 0.015 265);
   }
 
   /* ── Main ── */

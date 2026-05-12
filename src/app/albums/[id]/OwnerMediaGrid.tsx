@@ -50,6 +50,7 @@ interface MediaItem {
   uploader_name: string | null;
   created_at: string;
   thumbnail_url?: string | null;
+  taken_at?: string | null;
 }
 
 interface Props {
@@ -59,6 +60,7 @@ interface Props {
   firstQR?: { dataUrl: string; joinUrl: string; label: string } | null;
   page?: number;
   totalPages?: number;
+  sort?: "taken" | "upload";
 }
 
 /* ─── Face-filter types & constants ─────────────────────────────────────── */
@@ -369,6 +371,10 @@ const panelCss = `
 }
 
 /* ── tile ── */
+@keyframes og-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
 .og-tile {
   position: relative;
   break-inside: avoid;
@@ -377,7 +383,35 @@ const panelCss = `
   border-radius: 12px;
   overflow: hidden;
   cursor: pointer;
+  min-height: 80px;
+  background: linear-gradient(90deg, var(--og-bg3) 30%, var(--og-bg2) 50%, var(--og-bg3) 70%);
+  background-size: 200% 100%;
+  animation: og-shimmer 1.5s ease-in-out infinite;
+}
+
+/* ── sort toggle ── */
+.og-sort-group {
+  display: flex;
+  border-radius: 7px;
+  border: 1px solid var(--og-border);
+  overflow: hidden;
+}
+.og-sort-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--og-muted);
+  text-decoration: none;
+  transition: background .15s, color .15s;
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+.og-sort-btn.active {
   background: var(--og-bg3);
+  color: var(--og-text);
+}
+.og-sort-btn:hover:not(.active) {
+  background: var(--og-bg2);
+  color: var(--og-text);
 }
 .og-tile img {
   width: 100%;
@@ -781,7 +815,7 @@ function IconPlay() {
 }
 
 /* ─── Main component ─────────────────────────────────────────────────────── */
-export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, page = 1, totalPages = 1 }: Props) {
+export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, page = 1, totalPages = 1, sort = "upload" }: Props) {
   /* ── items state ── */
   const [items, setItems] = useState(initial);
   useEffect(() => { setItems(initial); }, [initial]);
@@ -1002,7 +1036,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
       if (fetchingFace) return "Loading photos…";
       return `Showing ${displayItems.length} photo${displayItems.length !== 1 ? "s" : ""} with this person`;
     }
-    return "Showing all photos · sorted by upload date";
+    return `Showing all photos · sorted by ${sort === "taken" ? "date taken" : "upload date"}`;
   }
 
   /* ── keyboard: close lightbox on Escape ── */
@@ -1237,8 +1271,12 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
             )}
           </div>
 
-          {/* Count */}
+          {/* Sort toggle + count */}
           <div className="og-toolbar-right">
+            <div className="og-sort-group">
+              <a href={`/albums/${albumId}/gallery`} className={`og-sort-btn${sort !== "taken" ? " active" : ""}`}>Upload</a>
+              <a href={`/albums/${albumId}/gallery?sort=taken`} className={`og-sort-btn${sort === "taken" ? " active" : ""}`}>Taken</a>
+            </div>
             {items.length} {items.length === 1 ? "photo" : "photos"}
           </div>
         </div>
@@ -1394,11 +1432,11 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
         {!faceItems && totalPages > 1 && (
           <div className="og-pagination">
             {page > 1
-              ? <a href={`/albums/${albumId}/gallery?page=${page - 1}`} className="og-page-btn">← Previous</a>
+              ? <a href={`/albums/${albumId}/gallery?page=${page - 1}${sort === "taken" ? "&sort=taken" : ""}`} className="og-page-btn">← Previous</a>
               : <span className="og-page-btn disabled">← Previous</span>}
             <span className="og-page-info">Page {page} of {totalPages}</span>
             {page < totalPages
-              ? <a href={`/albums/${albumId}/gallery?page=${page + 1}`} className="og-page-btn">Next →</a>
+              ? <a href={`/albums/${albumId}/gallery?page=${page + 1}${sort === "taken" ? "&sort=taken" : ""}`} className="og-page-btn">Next →</a>
               : <span className="og-page-btn disabled">Next →</span>}
           </div>
         )}

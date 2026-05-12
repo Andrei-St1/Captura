@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import Link from "next/link";
+import { extractExifDate, convertToWebP } from "@/lib/imagePreprocess";
 
 interface FileItem {
   id: string;
@@ -24,31 +25,6 @@ function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-}
-
-const COMPRESS_MAX_PX = 2560;
-const COMPRESS_QUALITY = 0.85;
-const SKIP_COMPRESS = new Set(["image/gif", "image/webp"]);
-
-async function compressImage(file: File): Promise<File> {
-  if (!file.type.startsWith("image/") || SKIP_COMPRESS.has(file.type)) return file;
-  try {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, COMPRESS_MAX_PX / Math.max(bitmap.width, bitmap.height));
-    const w = Math.round(bitmap.width * scale);
-    const h = Math.round(bitmap.height * scale);
-    const canvas = document.createElement("canvas");
-    canvas.width = w; canvas.height = h;
-    canvas.getContext("2d")!.drawImage(bitmap, 0, 0, w, h);
-    bitmap.close();
-    const blob = await new Promise<Blob>((resolve) =>
-      canvas.toBlob((b) => resolve(b!), "image/jpeg", COMPRESS_QUALITY)
-    );
-    const outName = file.name.replace(/\.[^.]+$/, ".jpg");
-    return new File([blob], outName, { type: "image/jpeg" });
-  } catch {
-    return file;
-  }
 }
 
 async function extractFrameFromFile(file: File): Promise<Blob | null> {
@@ -131,7 +107,8 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
   async function uploadOne(
     item: FileItem,
     uploadFile: File,
-    presign: { presignedUrl: string; filePath: string; fileUrl: string; thumbnailPresignedUrl?: string; thumbnailFileUrl?: string }
+    presign: { presignedUrl: string; filePath: string; fileUrl: string; thumbnailPresignedUrl?: string; thumbnailFileUrl?: string },
+    takenAt: string | null
   ) {
     const setErr = (error: string) =>
       setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "error", error, progress: 0 } : f));
@@ -183,6 +160,7 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
           mimeType: uploadFile.type || "application/octet-stream",
           fileSize: uploadFile.size,
           ...(thumbnailUrl ? { thumbnailUrl } : {}),
+          ...(takenAt ? { takenAt } : {}),
         }),
       });
 
@@ -201,7 +179,7 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
     }
   }
 
-  async function uploadOneMultipart(item: FileItem, uploadFile: File) {
+  async function uploadOneMultipart(item: FileItem, uploadFile: File, takenAt: string | null) {
     const setErr = (error: string) =>
       setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "error", error, progress: 0 } : f));
     const setProgress = (progress: number) =>
@@ -349,6 +327,7 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
           mimeType: uploadFile.type || "application/octet-stream",
           fileSize: uploadFile.size,
           ...(thumbnailUrl ? { thumbnailUrl } : {}),
+          ...(takenAt ? { takenAt } : {}),
         }),
       });
 
@@ -373,19 +352,20 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
 
     setIsUploading(true);
     try {
-      // Phase 1: compress all images in parallel
-      const compressed = await Promise.all(
+      // Phase 1: extract EXIF + convert to WebP in parallel
+      const preprocessed = await Promise.all(
         pending.map(async (item) => {
           setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "uploading", progress: 5 } : f));
-          const uploadFile = await compressImage(item.file);
+          const takenAt = await extractExifDate(item.file);
+          const uploadFile = await convertToWebP(item.file);
           setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, progress: 10 } : f));
-          return { item, uploadFile };
+          return { item, uploadFile, takenAt };
         })
       );
 
       // Split by size: small → single PUT, large → multipart
-      const small = compressed.filter((c) => c.uploadFile.size < MULTIPART_THRESHOLD);
-      const large = compressed.filter((c) => c.uploadFile.size >= MULTIPART_THRESHOLD);
+      const small = preprocessed.filter((c) => c.uploadFile.size < MULTIPART_THRESHOLD);
+      const large = preprocessed.filter((c) => c.uploadFile.size >= MULTIPART_THRESHOLD);
 
       type PresignResult = { presignedUrl: string; filePath: string; fileUrl: string };
       const presignMap = new Map<string, PresignResult>();
@@ -418,8 +398,8 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
 
       // Phase 3: unified worker pool for all files
       type QueueEntry =
-        | { kind: "small"; item: FileItem; uploadFile: File; presign: PresignResult }
-        | { kind: "large"; item: FileItem; uploadFile: File };
+        | { kind: "small"; item: FileItem; uploadFile: File; presign: PresignResult; takenAt: string | null }
+        | { kind: "large"; item: FileItem; uploadFile: File; takenAt: string | null };
 
       const queue: QueueEntry[] = [
         ...small
@@ -434,9 +414,9 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
         while (queue.length > 0) {
           const entry = queue.shift()!;
           if (entry.kind === "small") {
-            await uploadOne(entry.item, entry.uploadFile, entry.presign);
+            await uploadOne(entry.item, entry.uploadFile, entry.presign, entry.takenAt);
           } else {
-            await uploadOneMultipart(entry.item, entry.uploadFile);
+            await uploadOneMultipart(entry.item, entry.uploadFile, entry.takenAt);
           }
         }
       }
