@@ -283,7 +283,7 @@ export default async function AlbumGalleryPage({
   const [{ data: media, count }, { data: qrRows }, { data: latestMedia }] = await Promise.all([
     supabase
       .from("media")
-      .select("id, file_url, file_type, file_size, mime_type, uploader_name, created_at", { count: "exact" })
+      .select("id, file_url, file_type, file_size, mime_type, uploader_name, created_at, thumbnail_url", { count: "exact" })
       .eq("album_id", album.id)
       .order("created_at", { ascending: false })
       .range(offset, offset + PAGE_SIZE - 1),

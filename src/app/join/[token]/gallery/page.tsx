@@ -55,7 +55,7 @@ export default async function GalleryPage({
   const offset = (page - 1) * PAGE_SIZE;
   const { data: media, count } = await supabase
     .from("media")
-    .select("id, file_url, file_type, file_size, uploader_name, created_at", { count: "exact" })
+    .select("id, file_url, file_type, file_size, uploader_name, created_at, thumbnail_url", { count: "exact" })
     .eq("album_id", album.id)
     .order("created_at", { ascending: false })
     .range(offset, offset + PAGE_SIZE - 1);

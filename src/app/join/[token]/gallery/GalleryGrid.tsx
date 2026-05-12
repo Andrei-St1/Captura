@@ -11,6 +11,7 @@ interface MediaItem {
   file_size: number;
   uploader_name: string | null;
   created_at: string;
+  thumbnail_url?: string | null;
 }
 
 interface GalleryGridProps {
@@ -422,17 +423,22 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
           >
             {item.file_type === "video" ? (
               <>
-                <VideoThumb
-                  src={item.file_url}
-                  imgClassName="gl-img"
-                  placeholder={
-                    <div className="gl-video-thumb">
-                      <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
-                        <polygon points="5 3 19 12 5 21 5 3" />
-                      </svg>
-                    </div>
-                  }
-                />
+                {item.thumbnail_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={item.thumbnail_url} className="gl-img" alt="" loading="lazy" />
+                ) : (
+                  <VideoThumb
+                    src={item.file_url}
+                    imgClassName="gl-img"
+                    placeholder={
+                      <div className="gl-video-thumb">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
+                          <polygon points="5 3 19 12 5 21 5 3" />
+                        </svg>
+                      </div>
+                    }
+                  />
+                )}
                 <div className="gl-play-badge">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
                     <polygon points="5 3 19 12 5 21 5 3" />

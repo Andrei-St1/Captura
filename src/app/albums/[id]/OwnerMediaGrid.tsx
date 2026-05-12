@@ -49,6 +49,7 @@ interface MediaItem {
   mime_type: string | null;
   uploader_name: string | null;
   created_at: string;
+  thumbnail_url?: string | null;
 }
 
 interface Props {
@@ -1357,11 +1358,16 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
                   {/* Media */}
                   {item.file_type === "video" ? (
                     <>
-                      <VideoThumb
-                        src={item.file_url}
-                        imgStyle={{ width: "100%", height: "auto", display: "block" }}
-                        placeholder={<div className="og-tile-video-ph" />}
-                      />
+                      {item.thumbnail_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={item.thumbnail_url} style={{ width: "100%", height: "auto", display: "block" }} alt="" loading="lazy" />
+                      ) : (
+                        <VideoThumb
+                          src={item.file_url}
+                          imgStyle={{ width: "100%", height: "auto", display: "block" }}
+                          placeholder={<div className="og-tile-video-ph" />}
+                        />
+                      )}
                       <div className="og-video-badge"><IconPlay /></div>
                     </>
                   ) : (
