@@ -40,6 +40,39 @@ interface FaceCluster {
 }
 
 
+async function loadImg(url: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url + (url.includes("?") ? "&" : "?") + "_cb=" + Date.now();
+  });
+}
+
+async function cropToDataUrl(
+  url: string,
+  box: { x: number; y: number; w: number; h: number }
+): Promise<string | null> {
+  const img = await loadImg(url);
+  if (!img) return null;
+  const size = 72;
+  const canvas = document.createElement("canvas");
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  const iw = img.naturalWidth, ih = img.naturalHeight;
+  const faceSize = Math.max(box.w * iw, box.h * ih);
+  const cx = (box.x + box.w / 2) * iw;
+  const cy = (box.y + box.h / 2) * ih - faceSize * 0.15;
+  const half = faceSize * 1.05;
+  const sx = Math.max(0, Math.min(iw - half * 2, cx - half));
+  const sy = Math.max(0, Math.min(ih - half * 2, cy - half));
+  const side = Math.min(half * 2, iw - sx, ih - sy);
+  ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+  return canvas.toDataURL("image/jpeg", 0.9);
+}
+
 /* ─── Icon helpers ───────────────────────────────────────────────────────── */
 function IconFace() {
   return (
@@ -139,8 +172,15 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
     const visible  = clusters.filter((c) => c.mediaIds.length >= MIN_CLUSTER_SIZE);
     const newCrops = new Map<string, string>();
     for (const cluster of visible.slice(0, 30)) {
-      const cropUrl = cluster.representative.cropUrl;
-      if (cropUrl) newCrops.set(cluster.id, cropUrl);
+      const { representative: rep } = cluster;
+      if (rep.cropUrl) {
+        newCrops.set(cluster.id, rep.cropUrl);
+        continue;
+      }
+      const url = rep.fileUrl;
+      if (!url) continue;
+      const crop = await cropToDataUrl(url, rep.box);
+      if (crop) newCrops.set(cluster.id, crop);
     }
     setFaceClusters(clusters);
     setFaceCrops(newCrops);
