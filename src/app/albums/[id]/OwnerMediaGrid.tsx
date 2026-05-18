@@ -965,7 +965,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
   }
 
   const visibleClusters = faceClusters.filter(
-    (c) => c.mediaIds.length >= MIN_CLUSTER_SIZE && faceCrops.has(c.id)
+    (c) => c.mediaIds.length >= MIN_CLUSTER_SIZE
   );
 
   /* ── selection helpers ── */
@@ -1255,6 +1255,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
 
                 {visibleClusters.map((cluster) => {
                   const count = new Set(cluster.mediaIds).size;
+                  const cropSrc = faceCrops.get(cluster.id);
                   return (
                     <button
                       key={cluster.id}
@@ -1262,8 +1263,14 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
                       onClick={() => handleFaceChipClick(cluster.id)}
                       title={`${count} photo${count !== 1 ? "s" : ""}`}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={faceCrops.get(cluster.id)!} alt="face" />
+                      {cropSrc ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={cropSrc} alt="face" />
+                      ) : (
+                        <div style={{ width: 38, height: 38, borderRadius: "50%", background: "var(--og-bg3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <IconFace />
+                        </div>
+                      )}
                       <span className="og-face-chip-count">{count > 99 ? "99+" : count}</span>
                     </button>
                   );

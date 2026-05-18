@@ -23,6 +23,7 @@ interface GalleryGridProps {
   page?: number;
   totalPages?: number;
   sort?: "taken" | "upload";
+  initialFaceClusters?: FaceCluster[];
 }
 
 /* ─── Face-filter types & constants ─────────────────────────────────────── */
@@ -34,42 +35,10 @@ interface FaceCluster {
   representative: {
     box: { x: number; y: number; w: number; h: number };
     fileUrl: string | null;
-    thumbnailUrl: string | null;
+    cropUrl: string | null;
   };
 }
 
-async function loadImg(url: string): Promise<HTMLImageElement | null> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
-    img.src = url + (url.includes("?") ? "&" : "?") + "_cb=" + Date.now();
-  });
-}
-
-async function cropToDataUrl(
-  url: string,
-  box: { x: number; y: number; w: number; h: number }
-): Promise<string | null> {
-  const img = await loadImg(url);
-  if (!img) return null;
-  const size = 72;
-  const canvas = document.createElement("canvas");
-  canvas.width = size; canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return null;
-  const iw = img.naturalWidth, ih = img.naturalHeight;
-  const faceSize = Math.max(box.w * iw, box.h * ih);
-  const cx = (box.x + box.w / 2) * iw;
-  const cy = (box.y + box.h / 2) * ih - faceSize * 0.15;
-  const half = faceSize * 1.05;
-  const sx = Math.max(0, Math.min(iw - half * 2, cx - half));
-  const sy = Math.max(0, Math.min(ih - half * 2, cy - half));
-  const side = Math.min(half * 2, iw - sx, ih - sy);
-  ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
-  return canvas.toDataURL("image/jpeg", 0.9);
-}
 
 /* ─── Icon helpers ───────────────────────────────────────────────────────── */
 function IconFace() {
@@ -116,7 +85,7 @@ async function downloadFile(id: string) {
 }
 
 /* ─── Component ──────────────────────────────────────────────────────────── */
-export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1, totalPages = 1, sort = "upload" }: GalleryGridProps) {
+export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1, totalPages = 1, sort = "upload", initialFaceClusters }: GalleryGridProps) {
   const [lightbox, setLightbox]       = useState<MediaItem | null>(null);
   const [downloading, setDownloading] = useState(false);
   const touchStartX = { current: 0 };
@@ -136,46 +105,54 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
   const imageItems   = items.filter((i) => i.file_type === "image");
   const itemIds      = imageItems.map((i) => i.id).join(",");
   const loadFacesRef = useRef<(() => Promise<void>) | null>(null);
+  const faceEnabledRef = useRef(false);
 
-  const loadFaces = useCallback(async () => {
+  const loadFaces = useCallback(async (preloaded?: FaceCluster[]) => {
     if (!albumId) return;
     setFaceStatus("loading");
     setFaceClusters([]);
     setFaceCrops(new Map());
-    const controller = new AbortController();
-    const timeoutId  = setTimeout(() => controller.abort(), 30_000);
-    try {
-      const res = await fetch(`/api/face-clusters?albumId=${albumId}`, { signal: controller.signal });
-      if (!res.ok) throw new Error("fetch failed");
-      const clusters: FaceCluster[] = await res.json();
-
-      const visible  = clusters.filter((c) => c.mediaIds.length >= MIN_CLUSTER_SIZE);
-      const newCrops = new Map<string, string>();
-      for (const cluster of visible.slice(0, 30)) {
-        const { representative: rep } = cluster;
-        const url = rep.thumbnailUrl ?? rep.fileUrl;
-        if (!url) continue;
-        const crop = await cropToDataUrl(url, rep.box);
-        if (crop) newCrops.set(cluster.id, crop);
+    let clusters: FaceCluster[];
+    if (preloaded) {
+      clusters = preloaded;
+    } else {
+      const controller = new AbortController();
+      const timeoutId  = setTimeout(() => controller.abort(), 30_000);
+      try {
+        const res = await fetch(
+          `/api/face-clusters?albumId=${albumId}${token ? `&token=${token}` : ""}`,
+          { signal: controller.signal }
+        );
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error("fetch failed");
+        clusters = await res.json();
+      } catch (err) {
+        clearTimeout(timeoutId);
+        if ((err as { name?: string }).name === "AbortError") {
+          setFaceStatus("done");
+        } else {
+          setFaceStatus("error");
+        }
+        return;
       }
-      setFaceClusters(clusters);
-      setFaceCrops(newCrops);
-      setFaceStatus("done");
-    } catch (err) {
-      if ((err as { name?: string }).name === "AbortError") {
-        setFaceStatus("done");
-      } else {
-        setFaceStatus("error");
-      }
-    } finally {
-      clearTimeout(timeoutId);
     }
-  }, [albumId]);
+    const visible  = clusters.filter((c) => c.mediaIds.length >= MIN_CLUSTER_SIZE);
+    const newCrops = new Map<string, string>();
+    for (const cluster of visible.slice(0, 30)) {
+      const cropUrl = cluster.representative.cropUrl;
+      if (cropUrl) newCrops.set(cluster.id, cropUrl);
+    }
+    setFaceClusters(clusters);
+    setFaceCrops(newCrops);
+    setFaceStatus("done");
+  }, [albumId, token]);
 
   loadFacesRef.current = loadFaces;
 
+  useEffect(() => { faceEnabledRef.current = faceEnabled; }, [faceEnabled]);
+
   useEffect(() => {
-    if (!faceEnabled) return;
+    if (!faceEnabledRef.current) return;
     if (imageItems.length === 0) {
       setFaceClusters([]);
       setFaceCrops(new Map());
@@ -184,12 +161,12 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
     }
     loadFacesRef.current?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemIds, faceEnabled]);
+  }, [itemIds]);
 
   function handleFaceEnable() {
     setShowFaceConfirm(false);
     setFaceEnabled(true);
-    loadFaces();
+    loadFaces(initialFaceClusters?.length ? initialFaceClusters : undefined);
   }
 
   function handleFaceDisable() {
@@ -225,7 +202,7 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
   }
 
   const visibleClusters = faceClusters.filter(
-    (c) => c.mediaIds.length >= MIN_CLUSTER_SIZE && faceCrops.has(c.id)
+    (c) => c.mediaIds.length >= MIN_CLUSTER_SIZE
   );
 
   /* ── lightbox nav ── */
@@ -335,6 +312,7 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
 
                 {visibleClusters.map((cluster) => {
                   const count = new Set(cluster.mediaIds).size;
+                  const cropSrc = faceCrops.get(cluster.id);
                   return (
                     <button
                       key={cluster.id}
@@ -342,8 +320,14 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
                       onClick={() => handleFaceChipClick(cluster.id)}
                       title={`${count} photo${count !== 1 ? "s" : ""}`}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={faceCrops.get(cluster.id)!} alt="face" />
+                      {cropSrc ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={cropSrc} alt="face" />
+                      ) : (
+                        <div style={{ width: "38px", height: "38px", borderRadius: "50%", background: "var(--og-gold-glow)", border: "1px solid var(--og-gold-b)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--og-gold)" }}>
+                          <IconFace />
+                        </div>
+                      )}
                       <span className="og-face-chip-count">{count > 99 ? "99+" : count}</span>
                     </button>
                   );

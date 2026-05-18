@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getFaceClustersForAlbum } from "@/lib/getFaceClusters";
 import { GalleryGrid } from "./GalleryGrid";
 import { JoinNav } from "../JoinNav";
 import { requireAlbumPin } from "@/lib/pin";
@@ -61,7 +62,12 @@ export default async function GalleryPage({
   const orderedMediaQuery = sort === "taken"
     ? mediaQueryBase.order("taken_at", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false })
     : mediaQueryBase.order("created_at", { ascending: false });
-  const { data: media, count } = await orderedMediaQuery.range(offset, offset + PAGE_SIZE - 1);
+  const [{ data: media, count }, initialFaceClusters] = await Promise.all([
+    orderedMediaQuery.range(offset, offset + PAGE_SIZE - 1),
+    album.face_finder_enabled
+      ? getFaceClustersForAlbum(album.id).catch(() => [])
+      : Promise.resolve([]),
+  ]);
 
   const items = media ?? [];
   const totalCount = count ?? 0;
@@ -123,6 +129,7 @@ export default async function GalleryPage({
               page={page}
               totalPages={totalPages}
               sort={sort}
+              initialFaceClusters={initialFaceClusters}
             />
           )}
         </main>
