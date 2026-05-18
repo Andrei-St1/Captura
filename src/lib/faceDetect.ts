@@ -1,3 +1,5 @@
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { r2, R2_BUCKET, R2_PUBLIC_URL } from "@/lib/r2";
 import { createServiceClient } from "@/lib/supabase/service";
 
 const CLUSTER_THRESHOLD = 1.1;
@@ -8,6 +10,7 @@ interface DetectedFace {
   albumId: string;
   descriptor: number[];
   box: { x: number; y: number; w: number; h: number };
+  cropB64?: string;
 }
 
 interface ClusterRow {
@@ -117,9 +120,29 @@ export async function detectAndSaveFaces(mediaId: string, albumId: string, image
       );
     }
 
-    // 3. Save faces with cluster_id assigned — clusters exist now
+    // 3. Upload face crops to R2, then save faces with cluster_id
+    const cropUrls = await Promise.all(
+      assignments.map(async ({ face: f }) => {
+        if (!f.cropB64) return null;
+        try {
+          const cropPath = `faces/${albumId}/${f.id}.jpg`;
+          const cropBuffer = Buffer.from(f.cropB64, "base64");
+          await r2.send(new PutObjectCommand({
+            Bucket: R2_BUCKET,
+            Key: cropPath,
+            Body: cropBuffer,
+            ContentType: "image/jpeg",
+            ContentLength: cropBuffer.length,
+          }));
+          return `${R2_PUBLIC_URL}/${cropPath}`;
+        } catch {
+          return null;
+        }
+      })
+    );
+
     await service.from("album_faces").upsert(
-      assignments.map(({ face: f, clusterId }) => ({
+      assignments.map(({ face: f, clusterId }, i) => ({
         id: f.id,
         media_id: mediaId,
         album_id: albumId,
@@ -129,6 +152,7 @@ export async function detectAndSaveFaces(mediaId: string, albumId: string, image
         box_w: f.box.w,
         box_h: f.box.h,
         cluster_id: clusterId,
+        ...(cropUrls[i] ? { crop_url: cropUrls[i] } : {}),
       })),
       { onConflict: "id" }
     );

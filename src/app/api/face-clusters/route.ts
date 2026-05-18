@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
   const [{ data: repFaces }, { data: allFaces }] = await Promise.all([
     service
       .from("album_faces")
-      .select("id, box_x, box_y, box_w, box_h, media_id, media(file_url)")
+      .select("id, box_x, box_y, box_w, box_h, media_id, crop_url, media(file_url)")
       .in("id", repIds),
     service
       .from("album_faces")
@@ -67,6 +67,7 @@ export async function GET(request: NextRequest) {
         representative: {
           mediaId: rep.media_id,
           fileUrl: media?.file_url ?? null,
+          cropUrl: (rep as any).crop_url ?? null,
           box: { x: rep.box_x, y: rep.box_y, w: rep.box_w, h: rep.box_h },
         },
       };

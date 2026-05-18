@@ -9,6 +9,7 @@ interface FaceCluster {
   representative: {
     mediaId: string;
     fileUrl: string | null;
+    cropUrl: string | null;
     box: { x: number; y: number; w: number; h: number };
   };
 }
@@ -105,6 +106,12 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
       const newCrops = new Map<string, string>();
       await Promise.all(
         sorted.slice(0, 30).map(async (cluster) => {
+          // Use pre-cropped thumbnail if available (instant — no canvas needed)
+          if (cluster.representative.cropUrl) {
+            newCrops.set(cluster.id, cluster.representative.cropUrl);
+            return;
+          }
+          // Fallback: crop from full image via canvas
           const url = cluster.representative.fileUrl;
           if (!url) return;
           const crop = await cropToDataUrl(url, cluster.representative.box);

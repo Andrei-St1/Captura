@@ -1,7 +1,9 @@
 import asyncio
+import base64
 import os
 import uuid
 import httpx
+import cv2
 import numpy as np
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -29,6 +31,7 @@ class FaceResult(BaseModel):
     albumId: str
     descriptor: list[float]
     box: dict
+    cropB64: str
 
 
 @app.get("/health")
@@ -57,6 +60,19 @@ async def _detect_one(req: DetectRequest) -> list[FaceResult]:
     results = []
     for face in faces:
         x1, y1, x2, y2 = face.bbox.astype(int)
+
+        # Crop with padding for a natural face thumbnail
+        pad_x = int((x2 - x1) * 0.30)
+        pad_y = int((y2 - y1) * 0.35)
+        cx1 = max(0, x1 - pad_x)
+        cy1 = max(0, y1 - pad_y)
+        cx2 = min(w, x2 + pad_x)
+        cy2 = min(h, y2 + pad_y)
+        crop = img[cy1:cy2, cx1:cx2]
+        crop_sq = cv2.resize(crop, (80, 80))
+        _, buf = cv2.imencode(".jpg", crop_sq, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        crop_b64 = base64.b64encode(buf).decode()
+
         results.append(FaceResult(
             id=str(uuid.uuid4()),
             mediaId=req.mediaId,
@@ -68,6 +84,7 @@ async def _detect_one(req: DetectRequest) -> list[FaceResult]:
                 "w": min(1.0, (x2 - x1) / w),
                 "h": min(1.0, (y2 - y1) / h),
             },
+            cropB64=crop_b64,
         ))
     return results
 
