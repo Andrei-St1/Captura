@@ -2,21 +2,15 @@
 
 import { useEffect, useState } from "react";
 
-const CLUSTER_THRESHOLD = 1.1;
-const MIN_CLUSTER_SIZE = 2;
-
-interface FaceRecord {
-  id: string;
-  mediaId: string;
-  descriptor: number[];
-  box: { x: number; y: number; w: number; h: number };
-}
-
 interface FaceCluster {
   id: string;
+  faceCount: number;
   mediaIds: string[];
-  representative: FaceRecord;
-  centroid: number[];
+  representative: {
+    mediaId: string;
+    fileUrl: string | null;
+    box: { x: number; y: number; w: number; h: number };
+  };
 }
 
 interface MediaItem {
@@ -29,37 +23,6 @@ interface Props {
   items: MediaItem[];
   albumId: string;
   onFilter: (ids: Set<string> | null) => void;
-}
-
-function euclidean(a: number[], b: number[]): number {
-  let s = 0;
-  for (let i = 0; i < a.length; i++) s += (a[i] - b[i]) ** 2;
-  return Math.sqrt(s);
-}
-
-function clusterFaces(faces: FaceRecord[]): FaceCluster[] {
-  const clusters: FaceCluster[] = [];
-  for (const face of faces) {
-    let best: FaceCluster | null = null;
-    let bestDist = CLUSTER_THRESHOLD;
-    for (const c of clusters) {
-      const d = euclidean(face.descriptor, c.centroid);
-      if (d < bestDist) { bestDist = d; best = c; }
-    }
-    if (best) {
-      best.mediaIds.push(face.mediaId);
-      const n = best.mediaIds.length;
-      best.centroid = best.centroid.map((v, i) => v + (face.descriptor[i] - v) / n);
-    } else {
-      clusters.push({
-        id: crypto.randomUUID(),
-        mediaIds: [face.mediaId],
-        representative: face,
-        centroid: [...face.descriptor],
-      });
-    }
-  }
-  return clusters.sort((a, b) => b.mediaIds.length - a.mediaIds.length);
 }
 
 async function loadImg(url: string): Promise<HTMLImageElement | null> {
@@ -109,14 +72,12 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
   const imageItems = items.filter((i) => i.file_type === "image");
   const itemIds = imageItems.map((i) => i.id).join(",");
 
-  // Animated dots while loading
   useEffect(() => {
     if (status !== "loading") return;
     const t = setInterval(() => setDots((d) => d.length >= 3 ? "." : d + "."), 500);
     return () => clearInterval(t);
   }, [status]);
 
-  // Re-load when items change (new uploads / deletions)
   useEffect(() => {
     if (!enabled) return;
     if (imageItems.length === 0) {
@@ -132,21 +93,21 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
   async function load() {
     setStatus("loading");
     try {
-      const res = await fetch(`/api/faces?albumId=${albumId}`);
+      const res = await fetch(`/api/face-clusters?albumId=${albumId}`);
       if (!res.ok) throw new Error("fetch failed");
-      const faces: FaceRecord[] = await res.json();
+      const data: FaceCluster[] = await res.json();
 
-      const clustered = clusterFaces(faces);
-      setClusters(clustered);
+      // Sort by number of unique photos descending
+      const sorted = data.sort((a, b) => b.mediaIds.length - a.mediaIds.length);
+      setClusters(sorted);
       setStatus("done");
 
-      const visible = clustered.filter((c) => c.mediaIds.length >= MIN_CLUSTER_SIZE);
       const newCrops = new Map<string, string>();
       await Promise.all(
-        visible.slice(0, 30).map(async (cluster) => {
-          const item = imageItems.find((i) => i.id === cluster.representative.mediaId);
-          if (!item) return;
-          const crop = await cropToDataUrl(item.file_url, cluster.representative.box);
+        sorted.slice(0, 30).map(async (cluster) => {
+          const url = cluster.representative.fileUrl;
+          if (!url) return;
+          const crop = await cropToDataUrl(url, cluster.representative.box);
           if (crop) newCrops.set(cluster.id, crop);
         })
       );
@@ -178,17 +139,16 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
     } else {
       setSelected(clusterId);
       const c = clusters.find((c) => c.id === clusterId);
-      if (c) onFilter(new Set(c.mediaIds)); // Set deduplicates automatically
+      if (c) onFilter(new Set(c.mediaIds));
     }
   }
 
-  const visible = clusters.filter((c) => c.mediaIds.length >= MIN_CLUSTER_SIZE && crops.has(c.id));
+  const visible = clusters.filter((c) => crops.has(c.id));
 
   if (imageItems.length === 0) return null;
 
   return (
     <>
-      {/* Confirmation modal */}
       {showConfirm && (
         <div
           className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
@@ -230,7 +190,6 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
 
       <div className="border-b border-outline-variant/20 px-4 py-3 min-h-[100px] flex items-center gap-3">
 
-        {/* Idle — activate button */}
         {!enabled && status === "idle" && (
           <button
             onClick={() => setShowConfirm(true)}
@@ -241,7 +200,6 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
           </button>
         )}
 
-        {/* Loading */}
         {status === "loading" && (
           <div className="flex items-center gap-3 flex-1">
             <div className="relative shrink-0">
@@ -252,7 +210,6 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
               <span className="text-sm font-medium text-on-surface">Finding faces{dots}</span>
               <span className="text-xs text-on-surface-variant">Scanning photos and grouping similar faces</span>
             </div>
-            {/* Animated bar */}
             <div className="flex-1 max-w-[160px] ml-auto">
               <div className="h-1 w-full rounded-full bg-outline-variant/20 overflow-hidden">
                 <div className="h-full bg-primary rounded-full animate-[loading-bar_1.4s_ease-in-out_infinite]" style={{ width: "40%" }} />
@@ -261,7 +218,6 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
           </div>
         )}
 
-        {/* Done — no faces */}
         {status === "done" && visible.length === 0 && (
           <div className="flex items-center gap-3 flex-1">
             <p className="text-xs text-on-surface-variant flex-1">No recurring faces detected.</p>
@@ -275,7 +231,6 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
           </div>
         )}
 
-        {/* Done — face bubbles */}
         {status === "done" && visible.length > 0 && (
           <div className="flex items-center gap-3 overflow-x-auto overflow-y-visible flex-1 min-w-0 py-2">
             <span className="shrink-0 text-xs text-on-surface-variant font-medium">Filter by face</span>
@@ -294,7 +249,7 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
               <button
                 key={cluster.id}
                 onClick={() => select(cluster.id)}
-                title={`${new Set(cluster.mediaIds).size} photos`}
+                title={`${cluster.mediaIds.length} photos`}
                 className={`shrink-0 flex flex-col items-center gap-1 transition-all duration-200 ${
                   selected === cluster.id ? "scale-110" : "hover:scale-105 opacity-80 hover:opacity-100"
                 }`}
@@ -305,11 +260,10 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={crops.get(cluster.id)!} alt="face" className="w-full h-full object-cover" />
                 </div>
-                <span className="text-[10px] text-on-surface-variant tabular-nums">{new Set(cluster.mediaIds).size}</span>
+                <span className="text-[10px] text-on-surface-variant tabular-nums">{cluster.mediaIds.length}</span>
               </button>
             ))}
 
-            {/* Disable button at the end */}
             <button
               onClick={handleDisable}
               className="shrink-0 ml-auto flex items-center gap-1.5 rounded-xl border border-outline-variant/40 px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:border-red-400 hover:text-red-500 transition"
@@ -320,7 +274,6 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
           </div>
         )}
 
-        {/* Error */}
         {status === "error" && (
           <div className="flex items-center gap-3 flex-1">
             <p className="text-xs text-red-500 flex-1">Failed to load faces. <button onClick={load} className="underline">Retry</button></p>
