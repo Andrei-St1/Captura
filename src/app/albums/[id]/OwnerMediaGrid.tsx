@@ -60,7 +60,6 @@ interface Props {
   firstQR?: { dataUrl: string; joinUrl: string; label: string } | null;
   page?: number;
   totalPages?: number;
-  sort?: "taken" | "upload";
 }
 
 /* ─── Face-filter types & constants ─────────────────────────────────────── */
@@ -815,7 +814,7 @@ function IconPlay() {
 }
 
 /* ─── Main component ─────────────────────────────────────────────────────── */
-export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, page = 1, totalPages = 1, sort = "upload" }: Props) {
+export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, page = 1, totalPages = 1 }: Props) {
   /* ── items state ── */
   const [items, setItems] = useState(initial);
   useEffect(() => { setItems(initial); }, [initial]);
@@ -1036,7 +1035,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
       if (fetchingFace) return "Loading photos…";
       return `Showing ${displayItems.length} photo${displayItems.length !== 1 ? "s" : ""} with this person`;
     }
-    return `Showing all photos · sorted by ${sort === "taken" ? "date taken" : "upload date"}`;
+    return "Showing all photos · sorted by upload date";
   }
 
   /* ── keyboard: close lightbox on Escape ── */
@@ -1271,12 +1270,8 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
             )}
           </div>
 
-          {/* Sort toggle + count */}
+          {/* Count */}
           <div className="og-toolbar-right">
-            <div className="og-sort-group">
-              <a href={`/albums/${albumId}/gallery`} className={`og-sort-btn${sort !== "taken" ? " active" : ""}`}>Upload</a>
-              <a href={`/albums/${albumId}/gallery?sort=taken`} className={`og-sort-btn${sort === "taken" ? " active" : ""}`}>Taken</a>
-            </div>
             {items.length} {items.length === 1 ? "photo" : "photos"}
           </div>
         </div>
@@ -1432,11 +1427,11 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
         {!faceItems && totalPages > 1 && (
           <div className="og-pagination">
             {page > 1
-              ? <a href={`/albums/${albumId}/gallery?page=${page - 1}${sort === "taken" ? "&sort=taken" : ""}`} className="og-page-btn">← Previous</a>
+              ? <a href={`/albums/${albumId}/gallery?page=${page - 1}`} className="og-page-btn">← Previous</a>
               : <span className="og-page-btn disabled">← Previous</span>}
             <span className="og-page-info">Page {page} of {totalPages}</span>
             {page < totalPages
-              ? <a href={`/albums/${albumId}/gallery?page=${page + 1}${sort === "taken" ? "&sort=taken" : ""}`} className="og-page-btn">Next →</a>
+              ? <a href={`/albums/${albumId}/gallery?page=${page + 1}`} className="og-page-btn">Next →</a>
               : <span className="og-page-btn disabled">Next →</span>}
           </div>
         )}

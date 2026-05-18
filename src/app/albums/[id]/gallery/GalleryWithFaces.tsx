@@ -21,10 +21,9 @@ interface Props {
   firstQR?: { dataUrl: string; joinUrl: string; label: string } | null;
   page?: number;
   totalPages?: number;
-  sort?: "taken" | "upload";
 }
 
-export function GalleryWithFaces({ items, albumId, albumTitle, firstQR, page, totalPages, sort }: Props) {
+export function GalleryWithFaces({ items, albumId, albumTitle, firstQR, page, totalPages }: Props) {
   return (
     <OwnerMediaGrid
       items={items}
@@ -33,7 +32,6 @@ export function GalleryWithFaces({ items, albumId, albumTitle, firstQR, page, to
       firstQR={firstQR}
       page={page}
       totalPages={totalPages}
-      sort={sort}
     />
   );
 }

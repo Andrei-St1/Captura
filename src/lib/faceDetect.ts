@@ -92,7 +92,7 @@ export async function detectAndSaveFaces(mediaId: string, albumId: string, image
     const newClusters = active.filter((c) => c.isNew);
     const dirtyClusters = active.filter((c) => c.dirty);
 
-    // Insert new clusters
+    // 1. Insert new clusters with null representative first (faces don't exist yet)
     if (newClusters.length > 0) {
       await service.from("face_clusters").insert(
         newClusters.map((c) => ({
@@ -100,12 +100,12 @@ export async function detectAndSaveFaces(mediaId: string, albumId: string, image
           album_id: albumId,
           centroid: c.centroid,
           face_count: c.face_count,
-          representative_face_id: c.representative_face_id,
+          representative_face_id: null,
         }))
       );
     }
 
-    // Update dirty centroids
+    // 2. Update dirty centroids
     if (dirtyClusters.length > 0) {
       await Promise.all(
         dirtyClusters.map((c) =>
@@ -117,7 +117,7 @@ export async function detectAndSaveFaces(mediaId: string, albumId: string, image
       );
     }
 
-    // Save faces with cluster_id already assigned — no lazy recompute needed
+    // 3. Save faces with cluster_id assigned — clusters exist now
     await service.from("album_faces").upsert(
       assignments.map(({ face: f, clusterId }) => ({
         id: f.id,
@@ -132,6 +132,20 @@ export async function detectAndSaveFaces(mediaId: string, albumId: string, image
       })),
       { onConflict: "id" }
     );
+
+    // 4. Now set representative_face_id — faces exist now
+    if (newClusters.length > 0) {
+      await Promise.all(
+        newClusters.map((c) => {
+          const rep = assignments.find((a) => a.clusterId === c.id);
+          if (!rep) return;
+          return service
+            .from("face_clusters")
+            .update({ representative_face_id: rep.face.id })
+            .eq("id", c.id);
+        })
+      );
+    }
   } catch {
     // face detection is best-effort, never block the upload
   }

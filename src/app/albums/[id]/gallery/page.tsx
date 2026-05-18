@@ -252,12 +252,11 @@ export default async function AlbumGalleryPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ page?: string; sort?: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { id } = await params;
-  const { page: pageParam, sort: sortParam } = await searchParams;
+  const { page: pageParam } = await searchParams;
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
-  const sort: "taken" | "upload" = sortParam === "taken" ? "taken" : "upload";
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -281,13 +280,11 @@ export default async function AlbumGalleryPage({
     .toUpperCase();
 
   const offset = (page - 1) * PAGE_SIZE;
-  const mediaQueryBase = supabase
+  const orderedMediaQuery = supabase
     .from("media")
     .select("id, file_url, file_type, file_size, mime_type, uploader_name, created_at, thumbnail_url, taken_at", { count: "exact" })
-    .eq("album_id", album.id);
-  const orderedMediaQuery = sort === "taken"
-    ? mediaQueryBase.order("taken_at", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false })
-    : mediaQueryBase.order("created_at", { ascending: false });
+    .eq("album_id", album.id)
+    .order("created_at", { ascending: false });
 
   const [{ data: media, count }, { data: qrRows }, { data: latestMedia }] = await Promise.all([
     orderedMediaQuery.range(offset, offset + PAGE_SIZE - 1),
@@ -396,7 +393,6 @@ export default async function AlbumGalleryPage({
             firstQR={firstQR}
             page={page}
             totalPages={totalPages}
-            sort={sort}
           />
         </div>
       </div>
