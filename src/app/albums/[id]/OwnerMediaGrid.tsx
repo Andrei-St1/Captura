@@ -908,9 +908,13 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
 
   loadFacesRef.current = loadFaces;
 
-  // Re-load when items change while face filter is enabled
+  // Re-load only when items actually change while face filter is already enabled.
+  // Intentionally excludes faceEnabled from deps — enabling is handled by handleFaceEnable.
+  const faceEnabledRef = useRef(false);
+  useEffect(() => { faceEnabledRef.current = faceEnabled; }, [faceEnabled]);
+
   useEffect(() => {
-    if (!faceEnabled) return;
+    if (!faceEnabledRef.current) return;
     if (imageItems.length === 0) {
       setFaceClusters([]);
       setFaceCrops(new Map());
@@ -919,7 +923,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
     }
     loadFacesRef.current?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemIds, faceEnabled]);
+  }, [itemIds]);
 
   function handleFaceEnable() {
     setShowFaceConfirm(false);

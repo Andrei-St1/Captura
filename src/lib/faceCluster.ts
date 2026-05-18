@@ -87,7 +87,8 @@ export async function reclusterAlbum(albumId: string): Promise<void> {
   const { data: faces } = await service
     .from("album_faces")
     .select("id, descriptor")
-    .eq("album_id", albumId);
+    .eq("album_id", albumId)
+    .order("id");
 
   if (!faces?.length) return;
 
