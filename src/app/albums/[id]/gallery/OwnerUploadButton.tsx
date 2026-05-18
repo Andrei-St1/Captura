@@ -14,6 +14,7 @@ const CHUNK_SIZE = 50 * 1024 * 1024;
 const PART_CONCURRENCY = 4;
 const PART_MAX_RETRIES = 3;
 const FILE_CONCURRENCY = 3;
+const PRESIGN_BATCH_SIZE = 15;
 const HEIC_TYPES = new Set(["image/heic", "image/heif"]);
 
 type PresignResult = {
@@ -133,6 +134,8 @@ export function OwnerUploadButton({ albumId, compact }: Props) {
   }
 
   async function uploadMultipart(file: File, takenAt: string | null): Promise<string | null> {
+    // Init multipart upload + presign all parts in one round-trip
+    const partCount = Math.ceil(file.size / CHUNK_SIZE);
     const initRes = await fetch("/api/multipart-init-owner", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -141,6 +144,7 @@ export function OwnerUploadButton({ albumId, compact }: Props) {
         fileName: file.name,
         mimeType: file.type || "application/octet-stream",
         fileSize: file.size,
+        partCount,
       }),
     });
 
@@ -149,27 +153,13 @@ export function OwnerUploadButton({ albumId, compact }: Props) {
       return error;
     }
 
-    const { uploadId, filePath, fileUrl, thumbnailPresignedUrl, thumbnailFileUrl } = await initRes.json() as {
+    const { uploadId, filePath, fileUrl, presignedUrls, thumbnailPresignedUrl, thumbnailFileUrl } = await initRes.json() as {
       uploadId: string; filePath: string; fileUrl: string;
+      presignedUrls: string[];
       thumbnailPresignedUrl?: string; thumbnailFileUrl?: string;
     };
 
     const framePromise = thumbnailPresignedUrl ? extractFrameFromFile(file) : Promise.resolve(null);
-    const partCount = Math.ceil(file.size / CHUNK_SIZE);
-
-    const presignRes = await fetch("/api/multipart-presign-parts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uploadId, filePath, partCount }),
-    });
-
-    if (!presignRes.ok) {
-      const { error } = await presignRes.json().catch(() => ({ error: "Presign failed" }));
-      await abortMultipart(uploadId, filePath);
-      return error;
-    }
-
-    const { presignedUrls } = await presignRes.json() as { presignedUrls: string[] };
 
     const parts: { PartNumber: number; ETag: string }[] = new Array(partCount);
     const partQueue = Array.from({ length: partCount }, (_, i) => i);
@@ -266,66 +256,21 @@ export function OwnerUploadButton({ albumId, compact }: Props) {
 
     const errs: string[] = [];
 
-    // Split: HEIC → server (EXIF extracted server-side), non-HEIC → client preprocess + presign
-    const heicFiles = all.filter((f) => HEIC_TYPES.has(f.type));
-    const nonHeic = all.filter((f) => !HEIC_TYPES.has(f.type));
-
-    // Preprocess non-HEIC images: extract EXIF then convert to WebP
-    type Preprocessed = { file: File; processedFile: File; takenAt: string | null };
-    const preprocessed: Preprocessed[] = await Promise.all(
-      nonHeic.map(async (file) => {
-        const takenAt = file.type.startsWith("image/") ? await extractExifDate(file) : null;
-        const processedFile = file.type.startsWith("image/") ? await convertToWebP(file) : file;
-        return { file, processedFile, takenAt };
-      })
-    );
-
-    const smallProcessed = preprocessed.filter((p) => p.processedFile.size < MULTIPART_THRESHOLD);
-    const largeProcessed = preprocessed.filter((p) => p.processedFile.size >= MULTIPART_THRESHOLD);
-
-    // Batch presign small files using processed file metadata
-    const presignMap = new Map<string, PresignResult>();
-    if (smallProcessed.length > 0) {
-      const batchRes = await fetch("/api/presign-owner-batch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          albumId,
-          files: smallProcessed.map((p) => ({
-            fileName: p.processedFile.name,
-            mimeType: p.processedFile.type || "application/octet-stream",
-            fileSize: p.processedFile.size,
-          })),
-        }),
-      });
-
-      if (batchRes.ok) {
-        const { results } = await batchRes.json() as { results: PresignResult[] };
-        smallProcessed.forEach((p, i) => presignMap.set(p.file.name + p.file.size, results[i]));
-      } else {
-        const { error } = await batchRes.json().catch(() => ({ error: "Presign failed" }));
-        smallProcessed.forEach((p) => errs.push(`${p.file.name}: ${error}`));
-        done += smallProcessed.length;
-        setProgress({ done, total: all.length });
-      }
-    }
-
-    // Build unified work queue
     type Task =
       | { kind: "heic"; file: File }
       | { kind: "small"; file: File; processedFile: File; takenAt: string | null; presign: PresignResult }
       | { kind: "large"; file: File; processedFile: File; takenAt: string | null };
 
-    const queue: Task[] = [
-      ...heicFiles.map((f) => ({ kind: "heic" as const, file: f })),
-      ...smallProcessed
-        .filter((p) => presignMap.has(p.file.name + p.file.size))
-        .map((p) => ({ kind: "small" as const, file: p.file, processedFile: p.processedFile, takenAt: p.takenAt, presign: presignMap.get(p.file.name + p.file.size)! })),
-      ...largeProcessed.map((p) => ({ kind: "large" as const, file: p.file, processedFile: p.processedFile, takenAt: p.takenAt })),
-    ];
+    const queue: Task[] = [];
+    let allQueued = false;
 
+    // Workers start immediately — drain queue as items arrive
     async function runWorker() {
-      while (queue.length > 0) {
+      while (!allQueued || queue.length > 0) {
+        if (queue.length === 0) {
+          await new Promise<void>((r) => setTimeout(r, 30));
+          continue;
+        }
         const task = queue.shift()!;
         let err: string | null = null;
 
@@ -343,7 +288,71 @@ export function OwnerUploadButton({ albumId, compact }: Props) {
       }
     }
 
-    await Promise.all(Array.from({ length: Math.min(FILE_CONCURRENCY, all.length) }, runWorker));
+    const workerPromises = Array.from({ length: Math.min(FILE_CONCURRENCY, all.length) }, runWorker);
+
+    // Serialize presign calls via promise chain; flush every PRESIGN_BATCH_SIZE files
+    const smallBuffer: { file: File; processedFile: File; takenAt: string | null }[] = [];
+    let presignChain = Promise.resolve();
+
+    function flushSmallBuffer(force = false) {
+      if (smallBuffer.length === 0) return;
+      if (!force && smallBuffer.length < PRESIGN_BATCH_SIZE) return;
+      const batch = smallBuffer.splice(0);
+      presignChain = presignChain.then(async () => {
+        const res = await fetch("/api/presign-owner-batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            albumId,
+            files: batch.map((p) => ({
+              fileName: p.processedFile.name,
+              mimeType: p.processedFile.type || "application/octet-stream",
+              fileSize: p.processedFile.size,
+            })),
+          }),
+        });
+        if (!res.ok) {
+          const { error } = await res.json().catch(() => ({ error: "Presign failed" }));
+          batch.forEach((p) => {
+            errs.push(`${p.file.name}: ${error}`);
+            done++;
+            setProgress({ done, total: all.length });
+          });
+          return;
+        }
+        const { results } = await res.json() as { results: PresignResult[] };
+        batch.forEach((p, i) => {
+          if (results[i]) queue.push({ kind: "small", ...p, presign: results[i] });
+        });
+      });
+    }
+
+    // Preprocess all files in parallel; HEIC and large files enter queue immediately,
+    // small files buffer for rolling batch presign
+    await Promise.all(
+      all.map(async (file) => {
+        if (HEIC_TYPES.has(file.type)) {
+          queue.push({ kind: "heic", file });
+          return;
+        }
+
+        const [takenAt, processedFile] = file.type.startsWith("image/")
+          ? await Promise.all([extractExifDate(file), convertToWebP(file)])
+          : [null, file];
+
+        if (processedFile.size >= MULTIPART_THRESHOLD) {
+          queue.push({ kind: "large", file, processedFile, takenAt });
+        } else {
+          smallBuffer.push({ file, processedFile, takenAt });
+          flushSmallBuffer(false);
+        }
+      })
+    );
+
+    flushSmallBuffer(true);
+    await presignChain;
+    allQueued = true;
+    await Promise.all(workerPromises);
 
     setUploading(false);
     setProgress(null);

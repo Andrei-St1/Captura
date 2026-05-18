@@ -1,3 +1,4 @@
+import asyncio
 import os
 import uuid
 import httpx
@@ -8,7 +9,7 @@ from insightface.app import FaceAnalysis
 
 app = FastAPI()
 
-face_app = FaceAnalysis(name="buffalo_sc", providers=["CPUExecutionProvider"])
+face_app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
 face_app.prepare(ctx_id=0, det_size=(640, 640))
 
 
@@ -16,6 +17,10 @@ class DetectRequest(BaseModel):
     mediaId: str
     albumId: str
     imageUrl: str
+
+
+class DetectBatchRequest(BaseModel):
+    items: list[DetectRequest]
 
 
 class FaceResult(BaseModel):
@@ -31,8 +36,7 @@ def health():
     return {"ok": True}
 
 
-@app.post("/detect", response_model=list[FaceResult])
-async def detect(req: DetectRequest):
+async def _detect_one(req: DetectRequest) -> list[FaceResult]:
     async with httpx.AsyncClient(timeout=30) as client:
         try:
             r = await client.get(req.imageUrl)
@@ -46,7 +50,8 @@ async def detect(req: DetectRequest):
     if img is None:
         return []
 
-    faces = face_app.get(img)
+    # Run inference off the event loop so concurrent requests don't serialize
+    faces = await asyncio.to_thread(face_app.get, img)
     h, w = img.shape[:2]
 
     results = []
@@ -64,7 +69,19 @@ async def detect(req: DetectRequest):
                 "h": min(1.0, (y2 - y1) / h),
             },
         ))
+    return results
 
+
+@app.post("/detect", response_model=list[FaceResult])
+async def detect(req: DetectRequest):
+    return await _detect_one(req)
+
+
+@app.post("/detect-batch", response_model=list[FaceResult])
+async def detect_batch(req: DetectBatchRequest):
+    results = []
+    for item in req.items:
+        results.extend(await _detect_one(item))
     return results
 
 

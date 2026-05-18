@@ -1,4 +1,5 @@
 const SKIP_CONVERT = new Set(["image/gif", "image/webp"]);
+const SKIP_CONVERT_SIZE = 200 * 1024; // WebP savings negligible below 200 KB
 const MAX_PX = 2560;
 
 export async function extractExifDate(file: File): Promise<string | null> {
@@ -13,7 +14,7 @@ export async function extractExifDate(file: File): Promise<string | null> {
 }
 
 export async function convertToWebP(file: File): Promise<File> {
-  if (!file.type.startsWith("image/") || SKIP_CONVERT.has(file.type)) return file;
+  if (!file.type.startsWith("image/") || SKIP_CONVERT.has(file.type) || file.size < SKIP_CONVERT_SIZE) return file;
   try {
     const bitmap = await createImageBitmap(file);
     const scale = Math.min(1, MAX_PX / Math.max(bitmap.width, bitmap.height));

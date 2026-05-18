@@ -20,6 +20,8 @@ const MULTIPART_THRESHOLD = 50 * 1024 * 1024;
 const CHUNK_SIZE = 50 * 1024 * 1024;
 const PART_CONCURRENCY = 4;
 const PART_MAX_RETRIES = 3;
+const FILE_CONCURRENCY = 5;
+const PRESIGN_BATCH_SIZE = 15;
 
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -188,7 +190,8 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
     try {
       setProgress(5);
 
-      // 1. Init multipart upload
+      // 1. Init multipart upload + presign all parts in one round-trip
+      const partCount = Math.ceil(uploadFile.size / CHUNK_SIZE);
       const initRes = await fetch("/api/multipart-init", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -197,6 +200,7 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
           fileName: uploadFile.name,
           mimeType: uploadFile.type || "application/octet-stream",
           fileSize: uploadFile.size,
+          partCount,
         }),
       });
 
@@ -205,35 +209,20 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
         return setErr(error);
       }
 
-      const { uploadId, filePath, fileUrl, thumbnailPresignedUrl, thumbnailFileUrl } = await initRes.json() as {
+      const { uploadId, filePath, fileUrl, presignedUrls, thumbnailPresignedUrl, thumbnailFileUrl } = await initRes.json() as {
         uploadId: string; filePath: string; fileUrl: string;
+        presignedUrls: string[];
         thumbnailPresignedUrl?: string; thumbnailFileUrl?: string;
       };
 
-      // Start frame extraction in parallel with part presigning + upload
+      // Start frame extraction in parallel with chunk uploads
       const framePromise = thumbnailPresignedUrl
         ? extractFrameFromFile(uploadFile)
         : Promise.resolve(null);
 
-      const partCount = Math.ceil(uploadFile.size / CHUNK_SIZE);
       setProgress(8);
 
-      // 2. Presign all parts in one round-trip
-      const presignRes = await fetch("/api/multipart-presign-parts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uploadId, filePath, partCount }),
-      });
-
-      if (!presignRes.ok) {
-        const { error } = await presignRes.json().catch(() => ({ error: "Presign parts failed" }));
-        setErr(error);
-        return abortMultipart(uploadId, filePath);
-      }
-
-      const { presignedUrls } = await presignRes.json() as { presignedUrls: string[] };
-
-      // 3. Upload parts with PART_CONCURRENCY parallel workers
+      // 2. Upload parts with PART_CONCURRENCY parallel workers
       const parts: { PartNumber: number; ETag: string }[] = new Array(partCount);
       const partProgress = new Array<number>(partCount).fill(0);
 
@@ -291,7 +280,7 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
 
       setProgress(87);
 
-      // 4. Complete multipart
+      // 3. Complete multipart
       const completeRes = await fetch("/api/multipart-complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -316,7 +305,7 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
         }
       }
 
-      // 5. Confirm DB record
+      // 4. Confirm DB record
       const confirmRes = await fetch("/api/upload-confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -352,66 +341,21 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
 
     setIsUploading(true);
     try {
-      // Phase 1: extract EXIF + convert to WebP in parallel
-      const preprocessed = await Promise.all(
-        pending.map(async (item) => {
-          setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "uploading", progress: 5 } : f));
-          const takenAt = await extractExifDate(item.file);
-          const uploadFile = await convertToWebP(item.file);
-          setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, progress: 10 } : f));
-          return { item, uploadFile, takenAt };
-        })
-      );
-
-      // Split by size: small → single PUT, large → multipart
-      const small = preprocessed.filter((c) => c.uploadFile.size < MULTIPART_THRESHOLD);
-      const large = preprocessed.filter((c) => c.uploadFile.size >= MULTIPART_THRESHOLD);
-
       type PresignResult = { presignedUrl: string; filePath: string; fileUrl: string };
-      const presignMap = new Map<string, PresignResult>();
-
-      // Phase 2: batch presign small files (single round-trip)
-      if (small.length > 0) {
-        const batchRes = await fetch("/api/presign-batch", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            albumId,
-            files: small.map(({ uploadFile }) => ({
-              fileName: uploadFile.name,
-              mimeType: uploadFile.type || "application/octet-stream",
-              fileSize: uploadFile.size,
-            })),
-          }),
-        });
-
-        if (!batchRes.ok) {
-          const { error } = await batchRes.json().catch(() => ({ error: "Presign failed" }));
-          small.forEach(({ item }) =>
-            setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "error", error, progress: 0 } : f))
-          );
-        } else {
-          const { results } = await batchRes.json() as { results: PresignResult[] };
-          small.forEach(({ item }, i) => presignMap.set(item.id, results[i]));
-        }
-      }
-
-      // Phase 3: unified worker pool for all files
       type QueueEntry =
         | { kind: "small"; item: FileItem; uploadFile: File; presign: PresignResult; takenAt: string | null }
         | { kind: "large"; item: FileItem; uploadFile: File; takenAt: string | null };
 
-      const queue: QueueEntry[] = [
-        ...small
-          .filter((c) => presignMap.has(c.item.id))
-          .map((c) => ({ kind: "small" as const, ...c, presign: presignMap.get(c.item.id)! })),
-        ...large.map((c) => ({ kind: "large" as const, ...c })),
-      ];
+      const queue: QueueEntry[] = [];
+      let allQueued = false;
 
-      const CONCURRENCY = 5;
-
+      // Workers start immediately — drain queue as items arrive
       async function runWorker() {
-        while (queue.length > 0) {
+        while (!allQueued || queue.length > 0) {
+          if (queue.length === 0) {
+            await new Promise<void>((r) => setTimeout(r, 30));
+            continue;
+          }
           const entry = queue.shift()!;
           if (entry.kind === "small") {
             await uploadOne(entry.item, entry.uploadFile, entry.presign, entry.takenAt);
@@ -421,7 +365,73 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
         }
       }
 
-      await Promise.all(Array.from({ length: CONCURRENCY }, runWorker));
+      const workerPromises = Array.from({ length: FILE_CONCURRENCY }, runWorker);
+
+      // Serialize presign calls via promise chain; flush every PRESIGN_BATCH_SIZE files
+      const smallBuffer: { item: FileItem; uploadFile: File; takenAt: string | null }[] = [];
+      let presignChain = Promise.resolve();
+
+      function flushSmallBuffer(force = false) {
+        if (smallBuffer.length === 0) return;
+        if (!force && smallBuffer.length < PRESIGN_BATCH_SIZE) return;
+        const batch = smallBuffer.splice(0);
+        presignChain = presignChain.then(async () => {
+          const res = await fetch("/api/presign-batch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              albumId,
+              files: batch.map(({ uploadFile }) => ({
+                fileName: uploadFile.name,
+                mimeType: uploadFile.type || "application/octet-stream",
+                fileSize: uploadFile.size,
+              })),
+            }),
+          });
+          if (!res.ok) {
+            const { error } = await res.json().catch(() => ({ error: "Presign failed" }));
+            batch.forEach(({ item }) =>
+              setFiles((prev) => prev.map((f) =>
+                f.id === item.id ? { ...f, status: "error", error, progress: 0 } : f
+              ))
+            );
+            return;
+          }
+          const { results } = await res.json() as { results: PresignResult[] };
+          batch.forEach((b, i) => {
+            if (results[i]) queue.push({ kind: "small", ...b, presign: results[i] });
+          });
+        });
+      }
+
+      // Preprocess all files in parallel; large files enter queue immediately,
+      // small files buffer for rolling batch presign
+      await Promise.all(
+        pending.map(async (item) => {
+          setFiles((prev) => prev.map((f) =>
+            f.id === item.id ? { ...f, status: "uploading", progress: 5 } : f
+          ));
+          const [takenAt, uploadFile] = await Promise.all([
+            extractExifDate(item.file),
+            convertToWebP(item.file),
+          ]);
+          setFiles((prev) => prev.map((f) =>
+            f.id === item.id ? { ...f, progress: 10 } : f
+          ));
+
+          if (uploadFile.size >= MULTIPART_THRESHOLD) {
+            queue.push({ kind: "large", item, uploadFile, takenAt });
+          } else {
+            smallBuffer.push({ item, uploadFile, takenAt });
+            flushSmallBuffer(false);
+          }
+        })
+      );
+
+      flushSmallBuffer(true);
+      await presignChain;
+      allQueued = true;
+      await Promise.all(workerPromises);
     } finally {
       setIsUploading(false);
       setAllDone(true);

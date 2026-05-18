@@ -1,5 +1,28 @@
 import { createServiceClient } from "@/lib/supabase/service";
 
+const CLUSTER_THRESHOLD = 1.1;
+
+interface DetectedFace {
+  id: string;
+  mediaId: string;
+  albumId: string;
+  descriptor: number[];
+  box: { x: number; y: number; w: number; h: number };
+}
+
+interface ClusterRow {
+  id: string;
+  centroid: number[] | null;
+  face_count: number;
+  representative_face_id: string | null;
+}
+
+function euclidean(a: number[], b: number[]): number {
+  let s = 0;
+  for (let i = 0; i < a.length; i++) s += (a[i] - b[i]) ** 2;
+  return Math.sqrt(s);
+}
+
 export async function detectAndSaveFaces(mediaId: string, albumId: string, imageUrl: string) {
   const url = process.env.FACE_SERVICE_URL;
   if (!url) return;
@@ -12,30 +35,103 @@ export async function detectAndSaveFaces(mediaId: string, albumId: string, image
     });
     if (!res.ok) return;
 
-    const faces = await res.json() as {
-      id: string; mediaId: string; albumId: string;
-      descriptor: number[];
-      box: { x: number; y: number; w: number; h: number };
-    }[];
-
-    if (!faces?.length) return;
+    const detected = (await res.json()) as DetectedFace[];
+    if (!detected?.length) return;
 
     const service = createServiceClient();
+
+    // Fetch existing cluster centroids for this album
+    const { data: existingClusters } = await service
+      .from("face_clusters")
+      .select("id, centroid, face_count, representative_face_id")
+      .eq("album_id", albumId);
+
+    // Working set: existing clusters + any new ones created this batch
+    const active: (ClusterRow & { dirty: boolean; isNew: boolean })[] = (existingClusters ?? []).map((c) => ({
+      ...c,
+      centroid: c.centroid as number[] | null,
+      dirty: false,
+      isNew: false,
+    }));
+
+    const assignments: { face: DetectedFace; clusterId: string; isNew: boolean }[] = [];
+
+    for (const face of detected) {
+      let best: (typeof active)[0] | null = null;
+      let bestDist = CLUSTER_THRESHOLD;
+
+      for (const c of active) {
+        if (!c.centroid) continue;
+        const d = euclidean(face.descriptor, c.centroid);
+        if (d < bestDist) { bestDist = d; best = c; }
+      }
+
+      if (best) {
+        // Incremental centroid update
+        const n = best.face_count + 1;
+        best.centroid = best.centroid!.map((v, i) => v + (face.descriptor[i] - v) / n);
+        best.face_count = n;
+        best.dirty = true;
+        assignments.push({ face, clusterId: best.id, isNew: false });
+      } else {
+        // New person
+        const newId = crypto.randomUUID();
+        const newCluster = {
+          id: newId,
+          centroid: [...face.descriptor],
+          face_count: 1,
+          representative_face_id: face.id,
+          dirty: false,
+          isNew: true,
+        };
+        active.push(newCluster);
+        assignments.push({ face, clusterId: newId, isNew: true });
+      }
+    }
+
+    const newClusters = active.filter((c) => c.isNew);
+    const dirtyClusters = active.filter((c) => c.dirty);
+
+    // Insert new clusters
+    if (newClusters.length > 0) {
+      await service.from("face_clusters").insert(
+        newClusters.map((c) => ({
+          id: c.id,
+          album_id: albumId,
+          centroid: c.centroid,
+          face_count: c.face_count,
+          representative_face_id: c.representative_face_id,
+        }))
+      );
+    }
+
+    // Update dirty centroids
+    if (dirtyClusters.length > 0) {
+      await Promise.all(
+        dirtyClusters.map((c) =>
+          service
+            .from("face_clusters")
+            .update({ centroid: c.centroid, face_count: c.face_count })
+            .eq("id", c.id)
+        )
+      );
+    }
+
+    // Save faces with cluster_id already assigned — no lazy recompute needed
     await service.from("album_faces").upsert(
-      faces.map((f) => ({
+      assignments.map(({ face: f, clusterId }) => ({
         id: f.id,
-        media_id: f.mediaId,
-        album_id: f.albumId,
+        media_id: mediaId,
+        album_id: albumId,
         descriptor: f.descriptor,
         box_x: f.box.x,
         box_y: f.box.y,
         box_w: f.box.w,
         box_h: f.box.h,
+        cluster_id: clusterId,
       })),
       { onConflict: "id" }
     );
-    // Invalidate cached clusters — next request recomputes
-    await service.from("face_clusters").delete().eq("album_id", albumId);
   } catch {
     // face detection is best-effort, never block the upload
   }
