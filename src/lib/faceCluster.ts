@@ -1,10 +1,22 @@
 import { createServiceClient } from "@/lib/supabase/service";
 
-const CLUSTER_THRESHOLD = 1.00;
+const CLUSTER_THRESHOLD = 1.1;
 
 interface FaceRow {
   id: string;
   descriptor: number[];
+}
+
+// Supabase may return array columns as PostgreSQL array strings ("{0.1,0.2,...}")
+// or pgvector strings ("[0.1,0.2,...]") — parse defensively.
+function parseDescriptor(raw: unknown): number[] {
+  if (Array.isArray(raw)) return raw as number[];
+  if (typeof raw === "string") {
+    const s = raw.trim();
+    if (s.startsWith("[")) return JSON.parse(s) as number[];
+    if (s.startsWith("{")) return s.slice(1, -1).split(",").map(Number);
+  }
+  return [];
 }
 
 function euclidean(a: number[], b: number[]): number {
@@ -92,7 +104,14 @@ export async function reclusterAlbum(albumId: string): Promise<void> {
 
   if (!faces?.length) return;
 
-  let clusters = greedyCluster(faces as FaceRow[]);
+  const parsed: FaceRow[] = faces.map((f) => ({
+    id: f.id,
+    descriptor: parseDescriptor(f.descriptor),
+  })).filter((f) => f.descriptor.length > 0);
+
+  if (!parsed.length) return;
+
+  let clusters = greedyCluster(parsed);
   clusters = refinementPass(clusters);
 
   // Null out FK references before deleting clusters
