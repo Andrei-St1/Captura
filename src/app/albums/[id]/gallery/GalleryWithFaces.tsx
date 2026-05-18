@@ -1,6 +1,7 @@
 "use client";
 
 import { OwnerMediaGrid } from "../OwnerMediaGrid";
+import type { UIFaceCluster } from "@/lib/getFaceClusters";
 
 interface MediaItem {
   id: string;
@@ -21,9 +22,10 @@ interface Props {
   firstQR?: { dataUrl: string; joinUrl: string; label: string } | null;
   page?: number;
   totalPages?: number;
+  initialFaceClusters?: UIFaceCluster[];
 }
 
-export function GalleryWithFaces({ items, albumId, albumTitle, firstQR, page, totalPages }: Props) {
+export function GalleryWithFaces({ items, albumId, albumTitle, firstQR, page, totalPages, initialFaceClusters }: Props) {
   return (
     <OwnerMediaGrid
       items={items}
@@ -32,6 +34,7 @@ export function GalleryWithFaces({ items, albumId, albumTitle, firstQR, page, to
       firstQR={firstQR}
       page={page}
       totalPages={totalPages}
+      initialFaceClusters={initialFaceClusters}
     />
   );
 }

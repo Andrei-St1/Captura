@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/app/auth/actions";
 import { generateQRDataURL } from "@/lib/qr";
+import { getFaceClustersForAlbum } from "@/lib/getFaceClusters";
 import { OwnerUploadButton } from "./OwnerUploadButton";
 import { GalleryWithFaces } from "./GalleryWithFaces";
 
@@ -286,7 +287,7 @@ export default async function AlbumGalleryPage({
     .eq("album_id", album.id)
     .order("created_at", { ascending: false });
 
-  const [{ data: media, count }, { data: qrRows }, { data: latestMedia }] = await Promise.all([
+  const [{ data: media, count }, { data: qrRows }, { data: latestMedia }, initialFaceClusters] = await Promise.all([
     orderedMediaQuery.range(offset, offset + PAGE_SIZE - 1),
     supabase
       .from("qr_codes")
@@ -302,6 +303,7 @@ export default async function AlbumGalleryPage({
       .order("created_at", { ascending: false })
       .limit(1)
       .single(),
+    getFaceClustersForAlbum(album.id).catch(() => []),
   ]);
 
   const mediaItems = media ?? [];
@@ -393,6 +395,7 @@ export default async function AlbumGalleryPage({
             firstQR={firstQR}
             page={page}
             totalPages={totalPages}
+            initialFaceClusters={initialFaceClusters}
           />
         </div>
       </div>

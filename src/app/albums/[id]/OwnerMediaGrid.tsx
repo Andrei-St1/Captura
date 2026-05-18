@@ -60,6 +60,7 @@ interface Props {
   firstQR?: { dataUrl: string; joinUrl: string; label: string } | null;
   page?: number;
   totalPages?: number;
+  initialFaceClusters?: FaceCluster[];
 }
 
 /* ─── Face-filter types & constants ─────────────────────────────────────── */
@@ -67,11 +68,12 @@ const MIN_CLUSTER_SIZE = 2;
 
 interface FaceCluster {
   id: string;
+  faceCount?: number;
   mediaIds: string[];
   representative: {
     box: { x: number; y: number; w: number; h: number };
     fileUrl: string | null;
-    thumbnailUrl: string | null;
+    cropUrl?: string | null;
   };
 }
 
@@ -814,7 +816,7 @@ function IconPlay() {
 }
 
 /* ─── Main component ─────────────────────────────────────────────────────── */
-export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, page = 1, totalPages = 1 }: Props) {
+export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, page = 1, totalPages = 1, initialFaceClusters }: Props) {
   /* ── items state ── */
   const [items, setItems] = useState(initial);
   useEffect(() => { setItems(initial); }, [initial]);
@@ -855,41 +857,53 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
   const itemIds = imageItems.map((i) => i.id).join(",");
   const loadFacesRef = useRef<(() => Promise<void>) | null>(null);
 
-  const loadFaces = useCallback(async () => {
-    setFaceStatus("loading");
-    setFaceClusters([]);
-    setFaceCrops(new Map());
+  const loadFaces = useCallback(async (preloaded?: FaceCluster[]) => {
+    let clusters: FaceCluster[];
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30_000);
+    if (preloaded) {
+      clusters = preloaded;
+    } else {
+      setFaceStatus("loading");
+      setFaceClusters([]);
+      setFaceCrops(new Map());
 
-    try {
-      const res = await fetch(`/api/face-clusters?albumId=${albumId}`, { signal: controller.signal });
-      if (!res.ok) throw new Error("fetch failed");
-      const clusters: FaceCluster[] = await res.json();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
-      const visible = clusters.filter((c) => c.mediaIds.length >= MIN_CLUSTER_SIZE);
-      const newCrops = new Map<string, string>();
-      for (const cluster of visible.slice(0, 30)) {
-        const { representative: rep } = cluster;
-        const url = rep.thumbnailUrl ?? rep.fileUrl;
-        if (!url) continue;
-        const crop = await cropToDataUrl(url, rep.box);
-        if (crop) newCrops.set(cluster.id, crop);
+      try {
+        const res = await fetch(`/api/face-clusters?albumId=${albumId}`, { signal: controller.signal });
+        if (!res.ok) throw new Error("fetch failed");
+        clusters = await res.json();
+      } catch (err) {
+        clearTimeout(timeoutId);
+        if ((err as { name?: string }).name === "AbortError") {
+          setFaceStatus("done");
+        } else {
+          setFaceStatus("error");
+        }
+        return;
       }
-
-      setFaceClusters(clusters);
-      setFaceCrops(newCrops);
-      setFaceStatus("done");
-    } catch (err) {
-      if ((err as { name?: string }).name === "AbortError") {
-        setFaceStatus("done");
-      } else {
-        setFaceStatus("error");
-      }
-    } finally {
       clearTimeout(timeoutId);
     }
+
+    const visible = clusters.filter((c) => c.mediaIds.length >= MIN_CLUSTER_SIZE);
+    const newCrops = new Map<string, string>();
+    for (const cluster of visible.slice(0, 30)) {
+      const { representative: rep } = cluster;
+      if (rep.cropUrl) {
+        // Pre-cropped thumbnail stored in R2 — no canvas needed
+        newCrops.set(cluster.id, rep.cropUrl);
+        continue;
+      }
+      const url = rep.fileUrl;
+      if (!url) continue;
+      const crop = await cropToDataUrl(url, rep.box);
+      if (crop) newCrops.set(cluster.id, crop);
+    }
+
+    setFaceClusters(clusters);
+    setFaceCrops(newCrops);
+    setFaceStatus("done");
   }, [albumId]);
 
   loadFacesRef.current = loadFaces;
@@ -910,7 +924,8 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
   function handleFaceEnable() {
     setShowFaceConfirm(false);
     setFaceEnabled(true);
-    loadFaces();
+    // Use SSR-preloaded clusters if available — skips API call entirely
+    loadFaces(initialFaceClusters?.length ? initialFaceClusters : undefined);
   }
 
   function handleFaceDisable() {
