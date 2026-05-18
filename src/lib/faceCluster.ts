@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/service";
 
-const CLUSTER_THRESHOLD = 0.75;
+const CLUSTER_THRESHOLD = 1.00;
 
 interface FaceRow {
   id: string;
