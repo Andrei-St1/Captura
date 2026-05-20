@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 interface Album {
@@ -198,6 +199,7 @@ function StatusBadge({ status }: { status: "active" | "scheduled" | "archived" }
 
 /* ── GRID CARD ── */
 function GridCard({ album, index }: { album: Album; index: number }) {
+  const router = useRouter();
   const [c1, c2] = COVER_GRADIENTS[index % COVER_GRADIENTS.length];
   const status = getStatus(album);
   const mediaCount = album.media?.[0]?.count ?? 0;
@@ -207,7 +209,7 @@ function GridCard({ album, index }: { album: Album; index: number }) {
     : { background: `linear-gradient(135deg, ${c1}, ${c2})` };
 
   return (
-    <div className="al-album-card">
+    <div className="al-album-card" onClick={() => router.push(`/albums/${album.id}`)}>
       <div className="al-album-cover">
         <div className="al-cover-fill" style={coverStyle} />
         <div className="al-cover-grad" />
@@ -241,13 +243,13 @@ function GridCard({ album, index }: { album: Album; index: number }) {
       </div>
 
       <div className="al-album-footer">
-        <Link href={`/albums/${album.id}`} className="al-af-btn gold">
+        <Link href={`/albums/${album.id}`} className="al-af-btn gold" onClick={(e) => e.stopPropagation()}>
           Manage
         </Link>
-        <Link href={`/albums/${album.id}`} className="al-af-btn">
+        <Link href={`/albums/${album.id}#qr-codes`} className="al-af-btn" onClick={(e) => e.stopPropagation()}>
           QR code
         </Link>
-        <Link href={`/albums/${album.id}/gallery`} className="al-af-btn">
+        <Link href={`/albums/${album.id}/gallery`} className="al-af-btn" onClick={(e) => e.stopPropagation()}>
           Gallery
         </Link>
       </div>
@@ -257,6 +259,7 @@ function GridCard({ album, index }: { album: Album; index: number }) {
 
 /* ── LIST CARD ── */
 function ListCard({ album, index }: { album: Album; index: number }) {
+  const router = useRouter();
   const [c1, c2] = COVER_GRADIENTS[index % COVER_GRADIENTS.length];
   const status = getStatus(album);
   const mediaCount = album.media?.[0]?.count ?? 0;
@@ -274,7 +277,7 @@ function ListCard({ album, index }: { album: Album; index: number }) {
     : { background: `linear-gradient(160deg, ${c1}, ${c2})` };
 
   return (
-    <div className="al-list-card">
+    <div className="al-list-card" onClick={() => router.push(`/albums/${album.id}`)}>
       <div className="al-list-cover">
         <div className="al-list-cover-fill" style={coverStyle} />
       </div>
@@ -311,10 +314,13 @@ function ListCard({ album, index }: { album: Album; index: number }) {
           </div>
         </div>
         <div className="al-list-actions">
-          <Link href={`/albums/${album.id}`} className="al-list-action gold">
+          <Link href={`/albums/${album.id}`} className="al-list-action gold" onClick={(e) => e.stopPropagation()}>
             Manage
           </Link>
-          <Link href={`/albums/${album.id}/gallery`} className="al-list-action">
+          <Link href={`/albums/${album.id}#qr-codes`} className="al-list-action" onClick={(e) => e.stopPropagation()}>
+            QR code
+          </Link>
+          <Link href={`/albums/${album.id}/gallery`} className="al-list-action" onClick={(e) => e.stopPropagation()}>
             Gallery
           </Link>
         </div>

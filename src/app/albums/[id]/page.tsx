@@ -783,7 +783,7 @@ export default async function AlbumPage({
             </div>
 
             {/* ── Right column: QR codes ───────────────────────── */}
-            <div className="ap-col-side">
+            <div className="ap-col-side" id="qr-codes">
               <div
                 style={{
                   background: "var(--ap-bg)",
