@@ -12,208 +12,496 @@ interface Album {
   cover_url: string | null;
 }
 
+const COVER_PRESETS = [
+  { c1: "oklch(35% 0.06 200)", c2: "oklch(22% 0.08 155)" },
+  { c1: "oklch(32% 0.06 30)",  c2: "oklch(24% 0.07 350)" },
+  { c1: "oklch(34% 0.07 70)",  c2: "oklch(24% 0.06 40)" },
+  { c1: "oklch(30% 0.06 280)", c2: "oklch(22% 0.05 240)" },
+  { c1: "oklch(36% 0.07 155)", c2: "oklch(26% 0.06 130)" },
+  { c1: "oklch(28% 0.03 60)",  c2: "oklch(20% 0.02 60)" },
+];
+
+type CoverMode = "placeholder" | "preset" | "image";
+
 export function WelcomeForm({ album, previewToken }: { album: Album; previewToken: string | null }) {
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [coverPreview, setCoverPreview] = useState<string | null>(album.cover_url);
-  const [coverFile, setCoverFile] = useState<File | null>(null);
-  const [uploadingCover, setUploadingCover] = useState(false);
+  const [error, setError]                     = useState<string | null>(null);
+  const [loading, setLoading]                 = useState(false);
+  const [uploadingCover, setUploadingCover]   = useState(false);
+  const [dirty, setDirty]                     = useState(false);
+
+  const [coverMode, setCoverMode]             = useState<CoverMode>(album.cover_url ? "image" : "placeholder");
+  const [coverFile, setCoverFile]             = useState<File | null>(null);
+  const [coverImageUrl, setCoverImageUrl]     = useState<string | null>(album.cover_url);
+  const [coverGradient, setCoverGradient]     = useState<string | null>(null);
+  const [selectedPreset, setSelectedPreset]   = useState<number | null>(null);
+  const [isDragging, setIsDragging]           = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  function handleCoverChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Phone preview state
+  const [phTitle, setPhTitle]           = useState(album.title);
+  const [phLocation, setPhLocation]     = useState(album.location ?? "");
+  const [phDescription, setPhDescription] = useState(album.description ?? "");
+
+  const markDirty = () => setDirty(true);
+
+  function applyImageFile(file: File) {
     setCoverFile(file);
-    setCoverPreview(URL.createObjectURL(file));
+    setCoverImageUrl(URL.createObjectURL(file));
+    setCoverMode("image");
+    setCoverGradient(null);
+    setSelectedPreset(null);
+    markDirty();
+  }
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) applyImageFile(file);
+  }
+  function handleDragOver(e: React.DragEvent) { e.preventDefault(); setIsDragging(true); }
+  function handleDragLeave() { setIsDragging(false); }
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault(); setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file?.type.startsWith("image/")) applyImageFile(file);
+  }
+  function removeCover(e: React.MouseEvent) {
+    e.stopPropagation();
+    setCoverMode("placeholder"); setCoverFile(null); setCoverImageUrl(null);
+    setCoverGradient(null); setSelectedPreset(null); markDirty();
+  }
+  function selectPreset(idx: number) {
+    const p = COVER_PRESETS[idx];
+    setCoverGradient(`linear-gradient(170deg, ${p.c1} 0%, ${p.c2} 100%)`);
+    setCoverMode("preset"); setCoverFile(null); setCoverImageUrl(null);
+    setSelectedPreset(idx); markDirty();
   }
 
   async function handleSubmit(formData: FormData) {
-    setError(null);
-    setLoading(true);
-
-    // Upload cover if changed
+    setError(null); setLoading(true);
     if (coverFile) {
       setUploadingCover(true);
       const fd = new FormData();
-      fd.append("file", coverFile);
-      fd.append("albumId", album.id);
+      fd.append("file", coverFile); fd.append("albumId", album.id);
       const res = await fetch("/api/upload-cover", { method: "POST", body: fd });
       const result = await res.json();
       setUploadingCover(false);
       if (!res.ok || result.error) {
-        setError(result.error ?? "Cover upload failed.");
-        setLoading(false);
-        return;
+        setError(result.error ?? "Cover upload failed."); setLoading(false); return;
       }
     }
-
     const result = await updateWelcomePage(formData);
-    if (result?.error) {
-      setError(result.error);
-      setLoading(false);
-    }
+    if (result?.error) { setError(result.error); setLoading(false); }
   }
+
+  const coverZoneStyle: React.CSSProperties =
+    coverMode === "preset" && coverGradient   ? { background: coverGradient } :
+    coverMode === "placeholder"               ? { background: "#f6f3f2" } : {};
+
+  const phoneCoverStyle: React.CSSProperties =
+    coverMode === "image" && coverImageUrl
+      ? { backgroundImage: `url('${coverImageUrl}')`, backgroundSize: "cover", backgroundPosition: "center" }
+      : coverMode === "preset" && coverGradient
+      ? { background: coverGradient } : {};
 
   return (
     <div className="min-h-screen bg-surface font-manrope text-on-surface">
 
-      {/* Navbar */}
-      <nav className="fixed top-0 w-full z-50 bg-surface/70 backdrop-blur-xl shadow-[0_12px_40px_rgba(78,68,74,0.06)]">
-        <div className="flex justify-between items-center px-8 h-16 w-full max-w-screen-2xl mx-auto">
-          <Link href="/" className="font-noto-serif text-xl font-light tracking-tighter text-primary">Captura</Link>
-          <Link href={`/albums/${album.id}`} className="flex items-center gap-2 text-sm text-on-surface-variant hover:text-primary transition">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m12 19-7-7 7-7" /><path d="M19 12H5" />
-            </svg>
-            Back to album
-          </Link>
+      {/* ── TOPNAV ── */}
+      <nav className="sticky top-0 z-50 bg-surface border-b border-outline-variant/30">
+        <div className="flex items-center justify-between px-8 h-14 max-w-[1280px] mx-auto">
+          <div className="flex items-center gap-8">
+            <Link href="/" className="font-noto-serif text-[22px] font-medium tracking-[0.06em] text-primary">
+              Captura
+            </Link>
+            <div className="hidden md:flex gap-7">
+              <Link
+                href="/albums"
+                className="text-[11px] font-medium tracking-[0.14em] uppercase text-on-surface-variant hover:text-on-surface transition pb-0.5 border-b-2 border-transparent"
+              >
+                Albums
+              </Link>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {previewToken && (
+              <Link
+                href={`/join/${previewToken}`}
+                target="_blank"
+                className="hidden sm:inline-flex items-center gap-2.5 px-4 py-2 rounded-full border border-outline-variant/30 text-xs text-on-surface-variant hover:border-primary/30 hover:text-on-surface transition"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_0_3px_rgba(34,197,94,0.15)]" />
+                Preview at <span className="text-primary font-medium">/join/{previewToken}</span>
+                <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M6 3H3v10h10v-3M9 3h4v4M7 9l6-6"/>
+                </svg>
+              </Link>
+            )}
+          </div>
         </div>
       </nav>
 
-      <main className="pt-28 pb-20 px-6">
-        <div className="mx-auto max-w-2xl">
+      <div className="max-w-[1280px] mx-auto px-8 pt-9 pb-36">
 
-          <div className="mb-10">
-            <h1 className="font-noto-serif text-4xl font-light text-on-surface tracking-tight">
-              Welcome <span className="italic text-primary">page</span>
+        {/* BREADCRUMB */}
+        <div className="flex items-center gap-2 text-xs text-on-surface-variant mb-6">
+          <Link href="/albums" className="hover:text-on-surface transition">Albums</Link>
+          <span className="opacity-40">/</span>
+          <Link href={`/albums/${album.id}`} className="hover:text-on-surface transition">{album.title}</Link>
+          <span className="opacity-40">/</span>
+          <span className="text-primary">Welcome page</span>
+        </div>
+
+        {/* PAGE HEAD */}
+        <div className="flex items-end justify-between gap-8 mb-9 flex-wrap">
+          <div>
+            <div className="flex items-center gap-2 text-[10px] font-medium tracking-[0.16em] uppercase text-on-surface-variant mb-3">
+              <span className="w-6 h-px bg-primary opacity-60" />
+              {album.title} · Personalize
+            </div>
+            <h1 className="font-noto-serif text-[54px] font-light leading-none tracking-[-0.01em] text-on-surface">
+              Welcome <em className="italic text-primary">page</em>
             </h1>
-            <p className="mt-3 text-on-surface-variant font-light">
-              Customize what guests see when they scan the QR code.
+            <p className="mt-3.5 text-sm text-on-surface-variant leading-[1.65] max-w-[480px]">
+              Design the screen guests see the moment they scan your QR code — cover, name, and event details.
             </p>
           </div>
+        </div>
 
-          {error && (
-            <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
-          )}
+        {error && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            {error}
+          </div>
+        )}
 
-          <form action={handleSubmit} className="space-y-8">
+        {/* 2-COL GRID */}
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-6 items-start">
+
+          {/* ── LEFT: FORM ── */}
+          <form id="welcome-form" action={handleSubmit} className="flex flex-col gap-5">
             <input type="hidden" name="id" value={album.id} />
 
-            {/* Cover photo */}
-            <section className="rounded-2xl bg-surface-container-lowest ring-1 ring-outline-variant/30 shadow-sm overflow-hidden">
-              <div className="bg-surface-container-low px-6 py-4 border-b border-outline-variant/20">
-                <h2 className="font-noto-serif text-lg font-light text-on-surface">Cover photo</h2>
+            {/* COVER CARD */}
+            <div className="bg-surface border border-outline-variant/30 rounded-[18px] p-7">
+              <div className="flex items-start justify-between mb-[22px] gap-3">
+                <div>
+                  <div className="text-[10px] tracking-[0.16em] uppercase text-on-surface-variant font-medium mb-1">01 · Visual</div>
+                  <div className="font-noto-serif text-2xl font-light leading-none text-on-surface">
+                    Cover <em className="italic text-primary">photo</em>
+                  </div>
+                </div>
+                <div className="text-xs text-on-surface-variant max-w-[200px] text-right leading-[1.5]">
+                  A landscape image sets the tone. We crop it square on mobile.
+                </div>
               </div>
-              <div className="p-6">
-                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleCoverChange} />
 
-                {coverPreview ? (
-                  <div className="relative group">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={coverPreview}
-                      alt="Cover preview"
-                      className="w-full h-56 object-cover rounded-xl"
+              {/* Upload zone */}
+              <div
+                className={`relative overflow-hidden cursor-pointer transition-all rounded-[14px] border-[1.5px] ${
+                  isDragging
+                    ? "border-primary border-solid"
+                    : coverMode === "image"
+                    ? "border-outline-variant/40 border-solid"
+                    : "border-outline-variant/60 border-dashed hover:border-primary/40 hover:bg-primary/[0.03]"
+                }`}
+                style={{ aspectRatio: "16/8", ...coverZoneStyle }}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                  onChange={handleFileSelect}
+                />
+
+                {coverMode === "image" && coverImageUrl && (
+                  <>
+                    <div
+                      className="absolute inset-0 bg-cover bg-center"
+                      style={{ backgroundImage: `url('${coverImageUrl}')` }}
                     />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all rounded-xl flex items-center justify-center">
-                      <button
-                        type="button"
-                        onClick={() => fileRef.current?.click()}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow"
-                      >
-                        Change photo
-                      </button>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                  </>
+                )}
+
+                {coverMode === "placeholder" && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 p-6 text-center pointer-events-none">
+                    <div className="w-[52px] h-[52px] rounded-2xl bg-surface border border-outline-variant/30 flex items-center justify-center shadow-sm">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" className="text-primary">
+                        <rect x="3" y="3" width="18" height="18" rx="3"/>
+                        <circle cx="9" cy="10" r="2"/>
+                        <path d="M3 18l5-5 4 4 3-3 6 5"/>
+                      </svg>
+                    </div>
+                    <div className="font-noto-serif text-xl text-on-surface leading-[1.2] mt-1">
+                      Click to upload <em className="italic text-primary">or drag</em>
+                    </div>
+                    <div className="text-[11px] tracking-[0.08em] uppercase text-on-surface-variant">
+                      JPG · PNG · WebP — recommended 1200×800
                     </div>
                   </div>
-                ) : (
+                )}
+
+                {coverMode === "image" && (
                   <button
                     type="button"
-                    onClick={() => fileRef.current?.click()}
-                    className="w-full rounded-xl border-2 border-dashed border-outline-variant/40 bg-surface p-10 text-center hover:border-primary hover:bg-surface-container-low transition"
+                    onClick={removeCover}
+                    className="absolute top-3 right-3 w-8 h-8 bg-black/55 border border-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm z-10 hover:bg-black/70 transition pointer-events-auto"
                   >
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="rounded-2xl bg-primary/10 p-3">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7d5070" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                        </svg>
-                      </div>
-                      <p className="text-sm font-medium text-on-surface-variant">Click to upload cover photo</p>
-                      <p className="text-xs text-outline">JPG, PNG, WebP — recommended 1200×800px</p>
-                    </div>
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="white" strokeWidth="2">
+                      <path d="M2 2l10 10M12 2L2 12"/>
+                    </svg>
                   </button>
                 )}
               </div>
-            </section>
 
-            {/* Details */}
-            <section className="rounded-2xl bg-surface-container-lowest ring-1 ring-outline-variant/30 shadow-sm overflow-hidden">
-              <div className="bg-surface-container-low px-6 py-4 border-b border-outline-variant/20">
-                <h2 className="font-noto-serif text-lg font-light text-on-surface">Details</h2>
+              {/* Preset gradients */}
+              <div className="flex items-center justify-between mt-3.5 gap-4 flex-wrap">
+                <span className="text-[11px] text-on-surface-variant">Or pick a preset gradient</span>
+                <div className="flex gap-2">
+                  {COVER_PRESETS.map((p, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => selectPreset(i)}
+                      className={`w-[54px] h-9 rounded-lg flex-shrink-0 border-2 transition-all ${
+                        selectedPreset === i
+                          ? "border-primary scale-[1.04] shadow-[0_0_0_3px_rgba(125,80,112,0.15)]"
+                          : "border-transparent hover:-translate-y-0.5 hover:shadow-lg"
+                      }`}
+                      style={{ background: `linear-gradient(170deg, ${p.c1} 0%, ${p.c2} 100%)` }}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="p-6 space-y-5">
-
-                <div>
-                  <label htmlFor="title" className="mb-1.5 block text-sm font-medium text-on-surface-variant">
-                    Album name <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    id="title" name="title" type="text" required
-                    defaultValue={album.title}
-                    className="w-full rounded-xl border border-outline-variant/40 bg-surface px-4 py-3 text-on-surface text-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="description" className="mb-1.5 block text-sm font-medium text-on-surface-variant">
-                    Description
-                  </label>
-                  <textarea
-                    id="description" name="description" rows={3}
-                    defaultValue={album.description ?? ""}
-                    placeholder="e.g. Help capture the magic of the day. Join the shared album to view and upload your favorite memories."
-                    className="w-full rounded-xl border border-outline-variant/40 bg-surface px-4 py-3 text-on-surface placeholder-outline text-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="location" className="mb-1.5 block text-sm font-medium text-on-surface-variant">
-                    Location
-                  </label>
-                  <input
-                    id="location" name="location" type="text"
-                    defaultValue={album.location ?? ""}
-                    placeholder="e.g. Lake Como, Italy"
-                    className="w-full rounded-xl border border-outline-variant/40 bg-surface px-4 py-3 text-on-surface placeholder-outline text-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
-
-              </div>
-            </section>
-
-            {/* Preview note */}
-            <div className="rounded-xl bg-violet-50 border border-violet-100 px-4 py-3 flex items-center gap-3 text-sm text-violet-700">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                <circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" />
-              </svg>
-              <span>
-                Preview the welcome page at{" "}
-                {previewToken ? (
-                  <Link href={`/join/${previewToken}`} target="_blank" className="font-semibold underline underline-offset-2">
-                    /join/{previewToken}
-                  </Link>
-                ) : (
-                  <span className="text-outline">No active QR code — create one first</span>
-                )}
-              </span>
             </div>
 
-            {/* Submit */}
-            <div className="flex items-center justify-end gap-4 pt-2">
-              <Link href={`/albums/${album.id}`} className="rounded-xl px-6 py-3 text-sm font-medium text-on-surface-variant hover:text-on-surface transition">
-                Cancel
-              </Link>
-              <button
-                type="submit"
-                disabled={loading}
-                className="rounded-xl bg-gradient-to-r from-primary to-primary-container px-8 py-3 text-sm font-semibold text-white shadow-md hover:scale-[1.02] transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
-              >
-                {uploadingCover ? "Uploading cover…" : loading ? "Saving…" : "Save welcome page"}
-              </button>
-            </div>
+            {/* DETAILS CARD */}
+            <div className="bg-surface border border-outline-variant/30 rounded-[18px] p-7">
+              <div className="flex items-start justify-between mb-[22px] gap-3">
+                <div>
+                  <div className="text-[10px] tracking-[0.16em] uppercase text-on-surface-variant font-medium mb-1">02 · Story</div>
+                  <div className="font-noto-serif text-2xl font-light leading-none text-on-surface">
+                    Event <em className="italic text-primary">details</em>
+                  </div>
+                </div>
+                <div className="text-xs text-on-surface-variant max-w-[200px] text-right leading-[1.5]">
+                  Keep names short. They appear prominently on the welcome screen.
+                </div>
+              </div>
 
+              {/* Event name */}
+              <div className="flex flex-col gap-2">
+                <label htmlFor="title" className="text-[11px] font-medium tracking-[0.10em] uppercase text-on-surface-variant flex items-center gap-1.5">
+                  Event name <span className="text-primary text-[13px] leading-none">*</span>
+                </label>
+                <input
+                  id="title" name="title" type="text" required maxLength={60}
+                  defaultValue={album.title}
+                  onChange={e => { setPhTitle(e.target.value); markDirty(); }}
+                  placeholder="e.g. Alexandra & Andrei"
+                  className="w-full bg-surface border border-outline-variant/40 rounded-xl px-4 py-[13px] text-sm font-light text-on-surface outline-none transition focus:border-primary/40 focus:ring-[3px] focus:ring-primary/10 placeholder:text-on-surface-variant/50 placeholder:italic"
+                />
+                <div className="text-[10px] text-on-surface-variant text-right tracking-[0.04em] -mt-0.5">
+                  {phTitle.length} / 60
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="flex flex-col gap-2 mt-[18px]">
+                <label htmlFor="description" className="text-[11px] font-medium tracking-[0.10em] uppercase text-on-surface-variant">
+                  Description
+                </label>
+                <textarea
+                  id="description" name="description" rows={3} maxLength={240}
+                  defaultValue={album.description ?? ""}
+                  onChange={e => { setPhDescription(e.target.value); markDirty(); }}
+                  placeholder="e.g. Împărtășiți cu noi momentele voastre speciale"
+                  className="w-full bg-surface border border-outline-variant/40 rounded-xl px-4 py-[13px] font-noto-serif text-base italic font-light text-on-surface outline-none transition focus:border-primary/40 focus:ring-[3px] focus:ring-primary/10 placeholder:text-on-surface-variant/50 resize-y min-h-24 leading-[1.6]"
+                />
+                <div className="text-[10px] text-on-surface-variant text-right tracking-[0.04em] -mt-0.5">
+                  {phDescription.length} / 240
+                </div>
+              </div>
+
+              {/* Location */}
+              <div className="flex flex-col gap-2 mt-[18px]">
+                <label htmlFor="location" className="text-[11px] font-medium tracking-[0.10em] uppercase text-on-surface-variant">
+                  The setting · venue or city
+                </label>
+                <input
+                  id="location" name="location" type="text"
+                  defaultValue={album.location ?? ""}
+                  onChange={e => { setPhLocation(e.target.value); markDirty(); }}
+                  placeholder="e.g. Lake Como, Italy"
+                  className="w-full bg-surface border border-outline-variant/40 rounded-xl px-4 py-[13px] text-sm font-light text-on-surface outline-none transition focus:border-primary/40 focus:ring-[3px] focus:ring-primary/10 placeholder:text-on-surface-variant/50 placeholder:italic"
+                />
+              </div>
+            </div>
           </form>
+
+          {/* ── RIGHT: PHONE PREVIEW ── */}
+          <div className="xl:sticky xl:top-[90px] flex flex-col items-center gap-4">
+            <div className="text-[10px] tracking-[0.16em] uppercase text-on-surface-variant font-medium flex items-center gap-2 self-start">
+              <span className="w-[18px] h-px bg-primary opacity-60" />
+              Live preview · what guests see
+            </div>
+
+            {/* Phone frame */}
+            <div
+              style={{
+                width: 280, height: 580,
+                background: "oklch(15% 0.015 265)",
+                borderRadius: 36,
+                padding: 8,
+                boxShadow: "0 30px 60px rgba(0,0,0,0.22), 0 0 0 1.5px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.06)",
+                position: "relative",
+                flexShrink: 0,
+              }}
+            >
+              {/* Camera notch */}
+              <div
+                style={{
+                  position: "absolute", top: 14, left: "50%", transform: "translateX(-50%)",
+                  width: 80, height: 18, background: "oklch(8% 0.015 265)", borderRadius: 100, zIndex: 2,
+                }}
+              />
+
+              <div style={{
+                width: "100%", height: "100%", background: "#fcf9f8",
+                borderRadius: 28, overflow: "hidden", display: "flex", flexDirection: "column", position: "relative",
+              }}>
+                {/* Cover */}
+                <div style={{ flex: "0 0 48%", position: "relative", overflow: "hidden", ...phoneCoverStyle }}>
+                  {coverMode === "placeholder" && (
+                    <div style={{
+                      position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                      background: "repeating-linear-gradient(45deg, oklch(80% 0.012 80) 0 12px, oklch(85% 0.012 80) 12px 24px)",
+                    }}>
+                      <span style={{
+                        fontFamily: "monospace", fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase",
+                        color: "oklch(40% 0.010 80)", background: "rgba(252,249,248,0.88)", padding: "4px 10px", borderRadius: 4,
+                      }}>cover</span>
+                    </div>
+                  )}
+                  {/* Invite badge */}
+                  <div style={{
+                    position: "absolute", top: 36, left: "50%", transform: "translateX(-50%)",
+                    background: "rgba(255,255,255,0.14)", backdropFilter: "blur(10px)",
+                    border: "1px solid rgba(255,255,255,0.20)", borderRadius: 100,
+                    padding: "4px 10px", fontSize: 8, fontWeight: 500, letterSpacing: "0.12em",
+                    textTransform: "uppercase", color: "oklch(95% 0.005 80)", whiteSpace: "nowrap", zIndex: 2,
+                  }}>
+                    You are invited to contribute
+                  </div>
+                  {/* Fade to bg */}
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    background: "linear-gradient(to bottom, transparent 50%, #fcf9f8 100%)",
+                  }} />
+                </div>
+
+                {/* Info card */}
+                <div style={{ flex: 1, padding: "0 18px 16px", display: "flex", flexDirection: "column", position: "relative", zIndex: 2 }}>
+                  <div style={{ fontSize: 7, fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: "#4e444a", marginBottom: 4, marginTop: 2 }}>
+                    {phLocation || "Venue · City"}
+                  </div>
+                  <div style={{ fontFamily: '"Noto Serif", serif', fontSize: 24, fontWeight: 400, lineHeight: 1.05, color: "#1b1c1c", marginBottom: 14, letterSpacing: "-0.005em" }}>
+                    {phTitle || <span style={{ fontStyle: "italic", color: "#4e444a" }}>Your event</span>}
+                  </div>
+                  {phDescription && (
+                    <div style={{
+                      fontFamily: '"Noto Serif", serif', fontStyle: "italic", fontSize: 11,
+                      color: "#4e444a", lineHeight: 1.5, marginBottom: 12,
+                      display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+                    }}>
+                      {phDescription}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: "auto" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, borderRadius: 8, padding: "9px 12px", fontSize: 9, fontWeight: 500, background: "#7d5070", color: "white" }}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                      Add your photos
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, borderRadius: 8, padding: "8px 12px", fontSize: 9, fontWeight: 500, border: "1px solid #d2c2ca", color: "#1b1c1c" }}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                      View gallery
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "center", fontSize: 6, letterSpacing: "0.12em", textTransform: "uppercase", color: "#80747a", marginTop: 8, opacity: 0.6 }}>
+                    Powered by Captura
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Preview meta */}
+            {previewToken && (
+              <div className="w-full flex flex-col gap-2.5 px-[18px] py-3.5 bg-surface border border-outline-variant/30 rounded-xl">
+                <div className="flex justify-between items-center text-xs text-on-surface-variant">
+                  <span>Share URL</span>
+                  <span className="text-primary font-medium">/join/{previewToken}</span>
+                </div>
+                <div className="h-px bg-outline-variant/30" />
+                <div className="flex justify-between items-center text-xs text-on-surface-variant">
+                  <span>Status</span>
+                  <span className="text-green-600 font-medium">● Live</span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </main>
+      </div>
+
+      {/* ── ACTION BAR ── */}
+      <div
+        className="fixed left-0 right-0 bottom-0 z-40 border-t border-outline-variant/30 px-8 py-3.5"
+        style={{ background: "color-mix(in oklch, #fcf9f8 92%, transparent)", backdropFilter: "blur(14px)" }}
+      >
+        <div className="max-w-[1280px] mx-auto flex items-center justify-between gap-5">
+          <div className="flex items-center gap-2.5 text-xs text-on-surface-variant">
+            {dirty && (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                <span>Unsaved changes</span>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-2.5">
+            <Link
+              href={`/albums/${album.id}`}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium text-on-surface-variant hover:text-on-surface transition"
+            >
+              Cancel
+            </Link>
+            {previewToken && (
+              <Link
+                href={`/join/${previewToken}`}
+                target="_blank"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium text-on-surface border border-outline-variant/40 bg-surface hover:border-outline-variant transition"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2.5"/>
+                </svg>
+                Preview
+              </Link>
+            )}
+            <button
+              type="submit"
+              form="welcome-form"
+              disabled={loading}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{ background: "#7d5070", boxShadow: "0 4px 14px rgba(125,80,112,0.22)" }}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 1h8l3 3v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM5 1v4h6V1M5 11h6"/>
+              </svg>
+              {uploadingCover ? "Uploading…" : loading ? "Saving…" : "Save welcome page"}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
