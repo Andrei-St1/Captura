@@ -194,6 +194,7 @@ export async function updateWelcomePage(formData: FormData) {
   const title = (formData.get("title") as string).trim();
   const description = (formData.get("description") as string | null)?.trim() || null;
   const location = (formData.get("location") as string | null)?.trim() || null;
+  const color_scheme = (formData.get("color_scheme") as string | null) || "amber";
 
   const { data: album } = await supabase
     .from("albums")
@@ -206,7 +207,7 @@ export async function updateWelcomePage(formData: FormData) {
 
   const { error } = await supabase
     .from("albums")
-    .update({ title, description, location })
+    .update({ title, description, location, color_scheme })
     .eq("id", id)
     .eq("owner_id", user.id);
 

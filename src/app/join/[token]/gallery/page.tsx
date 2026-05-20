@@ -5,6 +5,7 @@ import { getFaceClustersForAlbum } from "@/lib/getFaceClusters";
 import { GalleryGrid } from "./GalleryGrid";
 import { JoinNav } from "../JoinNav";
 import { requireAlbumPin } from "@/lib/pin";
+import { getScheme, schemeToCss } from "@/lib/colorSchemes";
 
 const PAGE_SIZE = 30;
 
@@ -23,7 +24,7 @@ export default async function GalleryPage({
 
   const { data: qr } = await supabase
     .from("qr_codes")
-    .select("id, enabled, expires_at, albums(id, title, status, show_gallery, pin_required, pin_hash, face_finder_enabled)")
+    .select("id, enabled, expires_at, albums(id, title, status, show_gallery, pin_required, pin_hash, face_finder_enabled, color_scheme)")
     .eq("token", token)
     .single();
 
@@ -75,6 +76,7 @@ export default async function GalleryPage({
 
   return (
     <>
+      <style>{schemeToCss(getScheme(album.color_scheme))}</style>
       <style>{CSS}</style>
       <div className="gl-root">
 
@@ -145,8 +147,8 @@ export default async function GalleryPage({
 const CSS = `
   .gl-root {
     min-height: 100vh;
-    background: oklch(97% 0.008 80);
-    color: oklch(18% 0.015 265);
+    background: var(--cs-bg);
+    color: var(--cs-text);
     font-family: 'DM Sans', system-ui, sans-serif;
     font-size: 14px;
     display: flex;
@@ -156,10 +158,10 @@ const CSS = `
   /* ── Header ── */
   .gl-header {
     position: sticky; top: 0; z-index: 40;
-    background: oklch(97% 0.008 80 / 0.88);
+    background: var(--cs-bg-glass);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border-bottom: 1px solid oklch(80% 0.010 80);
+    border-bottom: 1px solid var(--cs-border);
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
@@ -177,10 +179,10 @@ const CSS = `
 
   .gl-back {
     display: inline-flex; align-items: center; gap: 5px;
-    font-size: 12px; color: oklch(46% 0.010 265);
+    font-size: 12px; color: var(--cs-muted);
     text-decoration: none; transition: color .15s;
   }
-  .gl-back:hover { color: oklch(18% 0.015 265); }
+  .gl-back:hover { color: var(--cs-text); }
 
   .gl-header-center {
     display: flex;
@@ -191,7 +193,7 @@ const CSS = `
   .gl-album-title {
     font-family: 'Cormorant Garamond', Georgia, serif;
     font-size: 17px; font-weight: 400;
-    color: oklch(18% 0.015 265);
+    color: var(--cs-text);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
 
@@ -200,7 +202,7 @@ const CSS = `
     display: none;
     font-family: 'Cormorant Garamond', Georgia, serif;
     font-size: 16px; font-weight: 400;
-    color: oklch(18% 0.015 265);
+    color: var(--cs-text);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     max-width: 160px;
     text-align: center;
@@ -215,30 +217,30 @@ const CSS = `
 
   .gl-count {
     font-size: 13px;
-    color: oklch(46% 0.010 265);
+    color: var(--cs-muted);
   }
 
   .gl-sort-group {
     display: flex;
     border-radius: 7px;
-    border: 1px solid oklch(80% 0.010 80);
+    border: 1px solid var(--cs-border);
     overflow: hidden;
   }
   .gl-sort-btn {
     padding: 4px 9px;
     font-size: 11px;
     font-weight: 500;
-    color: oklch(46% 0.010 265);
+    color: var(--cs-muted);
     text-decoration: none;
     transition: background .15s, color .15s;
   }
   .gl-sort-btn.active {
-    background: oklch(90% 0.012 80);
-    color: oklch(18% 0.015 265);
+    background: var(--cs-bg-alt);
+    color: var(--cs-text);
   }
   .gl-sort-btn:hover:not(.active) {
-    background: oklch(93% 0.010 80);
-    color: oklch(18% 0.015 265);
+    background: var(--cs-bg-alt);
+    color: var(--cs-text);
   }
 
   /* ── Main ── */
@@ -273,8 +275,8 @@ const CSS = `
     margin-top: 12px;
     display: inline-flex; align-items: center;
     padding: 11px 28px;
-    background: oklch(44% 0.16 72);
-    color: oklch(97% 0.008 80);
+    background: var(--cs-accent);
+    color: var(--cs-bg);
     border-radius: 10px;
     font-size: 13px; font-weight: 600;
     text-decoration: none;
@@ -284,8 +286,8 @@ const CSS = `
 
   /* ── Private box ── */
   .gl-private-box {
-    background: oklch(93% 0.010 80);
-    border: 1px solid oklch(80% 0.010 80);
+    background: var(--cs-bg-alt);
+    border: 1px solid var(--cs-border);
     border-radius: 20px;
     padding: 48px 32px;
     text-align: center;
@@ -305,7 +307,7 @@ const CSS = `
   .gl-private-back {
     margin-top: 8px;
     font-size: 13px; font-weight: 600;
-    color: oklch(44% 0.16 72);
+    color: var(--cs-accent);
     text-decoration: none;
   }
   .gl-private-back:hover { text-decoration: underline; }
@@ -317,9 +319,9 @@ const CSS = `
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: oklch(65% 0.010 265);
+    color: var(--cs-dim);
   }
-  .gl-powered a { color: oklch(44% 0.16 72); text-decoration: none; }
+  .gl-powered a { color: var(--cs-accent); text-decoration: none; }
   .gl-powered a:hover { text-decoration: underline; }
 
   /* ── Pagination ── */
@@ -335,17 +337,17 @@ const CSS = `
     align-items: center;
     padding: 9px 18px;
     border-radius: 8px;
-    border: 1px solid oklch(80% 0.010 80);
-    background: oklch(97% 0.008 80);
-    color: oklch(18% 0.015 265);
+    border: 1px solid var(--cs-border);
+    background: var(--cs-bg);
+    color: var(--cs-text);
     font-size: 13px;
     font-weight: 500;
     text-decoration: none;
     transition: border-color .15s, background .15s;
   }
   .gl-page-btn:not(.disabled):hover {
-    border-color: oklch(65% 0.012 80);
-    background: oklch(93% 0.010 80);
+    border-color: var(--cs-muted);
+    background: var(--cs-bg-alt);
   }
   .gl-page-btn.disabled {
     opacity: .35;
@@ -353,7 +355,7 @@ const CSS = `
   }
   .gl-page-info {
     font-size: 13px;
-    color: oklch(46% 0.010 265);
+    color: var(--cs-muted);
     white-space: nowrap;
   }
 

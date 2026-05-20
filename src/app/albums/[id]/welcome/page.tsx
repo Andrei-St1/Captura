@@ -15,22 +15,12 @@ export default async function WelcomePage({
 
   const { data: album } = await supabase
     .from("albums")
-    .select("id, title, description, location, cover_url")
+    .select("id, title, description, location, cover_url, color_scheme")
     .eq("id", id)
     .eq("owner_id", user.id)
     .single();
 
   if (!album) notFound();
 
-  // Get first enabled QR token for preview link
-  const { data: qr } = await supabase
-    .from("qr_codes")
-    .select("token")
-    .eq("album_id", id)
-    .eq("enabled", true)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .single();
-
-  return <WelcomeForm album={album} previewToken={qr?.token ?? null} />;
+  return <WelcomeForm album={album} />;
 }

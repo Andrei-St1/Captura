@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { UploadClient } from "./UploadClient";
 import { JoinNav } from "../JoinNav";
 import { requireAlbumPin } from "@/lib/pin";
+import { getScheme, schemeToCss } from "@/lib/colorSchemes";
 
 export default async function UploadPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -11,7 +12,7 @@ export default async function UploadPage({ params }: { params: Promise<{ token: 
 
   const { data: qr } = await supabase
     .from("qr_codes")
-    .select("id, enabled, expires_at, albums(id, title, status, open_date, close_date, show_gallery, pin_required, pin_hash)")
+    .select("id, enabled, expires_at, albums(id, title, status, open_date, close_date, show_gallery, pin_required, pin_hash, color_scheme)")
     .eq("token", token)
     .single();
 
@@ -32,6 +33,7 @@ export default async function UploadPage({ params }: { params: Promise<{ token: 
 
   return (
     <>
+      <style>{schemeToCss(getScheme(album.color_scheme))}</style>
       <style>{CSS}</style>
       <div className="up-root">
 
@@ -96,8 +98,8 @@ export default async function UploadPage({ params }: { params: Promise<{ token: 
 const CSS = `
   .up-root {
     min-height: 100vh;
-    background: oklch(97% 0.008 80);
-    color: oklch(18% 0.015 265);
+    background: var(--cs-bg);
+    color: var(--cs-text);
     font-family: 'DM Sans', system-ui, sans-serif;
     display: flex;
     flex-direction: column;
@@ -106,10 +108,10 @@ const CSS = `
   /* ── Header ── */
   .up-header {
     position: sticky; top: 0; z-index: 40;
-    background: oklch(97% 0.008 80 / 0.88);
+    background: var(--cs-bg-glass);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border-bottom: 1px solid oklch(80% 0.010 80);
+    border-bottom: 1px solid var(--cs-border);
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
@@ -119,16 +121,16 @@ const CSS = `
 
   .up-back {
     display: flex; align-items: center; gap: 6px;
-    font-size: 13px; color: oklch(46% 0.010 265);
+    font-size: 13px; color: var(--cs-muted);
     text-decoration: none; transition: color .15s;
   }
-  .up-back:hover { color: oklch(18% 0.015 265); }
+  .up-back:hover { color: var(--cs-text); }
 
   .up-wordmark {
     font-family: 'Cormorant Garamond', Georgia, serif;
     font-size: 18px; font-weight: 500;
     letter-spacing: 0.06em;
-    color: oklch(44% 0.16 72);
+    color: var(--cs-accent);
     text-decoration: none;
     display: flex; justify-content: flex-end;
   }
@@ -158,7 +160,7 @@ const CSS = `
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.28em;
-    color: oklch(46% 0.010 265);
+    color: var(--cs-muted);
     margin-bottom: 10px;
   }
 
@@ -166,20 +168,20 @@ const CSS = `
     font-family: 'Cormorant Garamond', Georgia, serif;
     font-size: 32px;
     font-weight: 400;
-    color: oklch(44% 0.16 72);
+    color: var(--cs-accent);
     line-height: 1.15;
   }
 
   .up-rule {
     width: 40px; height: 1px;
-    background: oklch(80% 0.010 80);
+    background: var(--cs-border);
     margin: 18px auto 0;
   }
 
   /* ── Status box ── */
   .up-status-box {
-    background: oklch(93% 0.010 80);
-    border: 1px solid oklch(80% 0.010 80);
+    background: var(--cs-bg-alt);
+    border: 1px solid var(--cs-border);
     border-radius: 16px;
     padding: 40px 24px;
     text-align: center;
@@ -188,11 +190,11 @@ const CSS = `
   .up-status-title {
     font-family: 'Cormorant Garamond', Georgia, serif;
     font-size: 22px; font-weight: 400;
-    color: oklch(18% 0.015 265);
+    color: var(--cs-text);
   }
   .up-status-body {
     font-size: 13px;
-    color: oklch(46% 0.010 265);
+    color: var(--cs-muted);
     line-height: 1.6;
   }
 
@@ -202,7 +204,7 @@ const CSS = `
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.14em;
-    color: oklch(65% 0.010 265);
+    color: var(--cs-dim);
   }
 
   @media (max-width: 768px) {

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { requireAlbumPin } from "@/lib/pin";
+import { getScheme, schemeToCss } from "@/lib/colorSchemes";
 
 type AlbumStatus = "not_open" | "open" | "closed" | "archived" | "qr_disabled";
 
@@ -49,7 +50,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
 
   const { data: qr } = await supabase
     .from("qr_codes")
-    .select("id, token, enabled, expires_at, albums(id, title, description, location, cover_url, open_date, close_date, status, show_gallery, pin_required, pin_hash)")
+    .select("id, token, enabled, expires_at, albums(id, title, description, location, cover_url, open_date, close_date, status, show_gallery, pin_required, pin_hash, color_scheme)")
     .eq("token", token)
     .single();
 
@@ -69,8 +70,11 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
   const status = getStatus(qr, album);
   const eventDate = fmtDate(album.open_date);
 
+  const scheme = getScheme(album.color_scheme);
+
   return (
     <>
+      <style>{schemeToCss(scheme)}</style>
       <style>{CSS}</style>
       <div className="gw-page">
 
@@ -268,8 +272,8 @@ const CSS = `
     font-family: 'DM Sans', system-ui, sans-serif;
     font-size: 14px;
     line-height: 1.5;
-    background: oklch(97% 0.008 80);
-    color: oklch(18% 0.015 265);
+    background: var(--cs-bg);
+    color: var(--cs-text);
   }
 
   /* ── LEFT ── */
@@ -279,9 +283,9 @@ const CSS = `
     height: 100vh;
     overflow: hidden;
     background: linear-gradient(160deg,
-      oklch(12% 0.04 60) 0%,
-      oklch(18% 0.08 72) 40%,
-      oklch(24% 0.06 80) 100%);
+      var(--cs-left-g1) 0%,
+      var(--cs-left-g2) 40%,
+      var(--cs-left-g3) 100%);
   }
 
   .gw-cover-img {
@@ -294,7 +298,7 @@ const CSS = `
     position: absolute; inset: 0;
     background-image:
       radial-gradient(ellipse 140% 35% at 50% 108%, oklch(80% 0.006 80 / 0.22) 0%, transparent 60%),
-      radial-gradient(ellipse 80% 60% at 20% 40%, oklch(44% 0.16 72 / 0.15) 0%, transparent 55%),
+      radial-gradient(ellipse 80% 60% at 20% 40%, var(--cs-accent-dim) 0%, transparent 55%),
       radial-gradient(ellipse 60% 50% at 80% 20%, oklch(22% 0.05 60 / 0.4) 0%, transparent 50%);
   }
 
@@ -309,13 +313,13 @@ const CSS = `
   .gw-particle {
     position: absolute;
     border-radius: 50%;
-    background: oklch(80% 0.12 72 / 0.6);
+    background: var(--cs-particle);
     animation: gw-float linear infinite;
   }
 
   .gw-left-fade {
     position: absolute; inset: 0;
-    background: linear-gradient(to right, transparent 65%, oklch(97% 0.008 80) 100%);
+    background: linear-gradient(to right, transparent 65%, var(--cs-bg) 100%);
   }
 
   .gw-left-bottom-fade {
@@ -356,7 +360,7 @@ const CSS = `
     justify-content: center;
     padding: 60px 72px 60px 64px;
     position: relative;
-    background: oklch(97% 0.008 80);
+    background: var(--cs-bg);
     min-height: 100vh;
     overflow-y: auto;
   }
@@ -366,7 +370,7 @@ const CSS = `
     font-family: 'Cormorant Garamond', Georgia, serif;
     font-size: 15px; font-weight: 500;
     letter-spacing: 0.10em;
-    color: oklch(46% 0.010 265);
+    color: var(--cs-muted);
     text-decoration: none; opacity: 0.7;
     transition: opacity .15s;
   }
@@ -376,9 +380,9 @@ const CSS = `
     display: inline-flex; align-items: center; gap: 6px;
     font-size: 10px; font-weight: 500; letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: oklch(44% 0.16 72);
-    background: oklch(44% 0.16 72 / 0.09);
-    border: 1px solid oklch(44% 0.16 72 / 0.28);
+    color: var(--cs-accent);
+    background: var(--cs-accent-faint);
+    border: 1px solid var(--cs-accent-subtle);
     border-radius: 100px; padding: 5px 12px;
     margin-bottom: 24px; width: fit-content;
     animation: gw-fadeUp .6s cubic-bezier(.22,1,.36,1) .05s both;
@@ -386,7 +390,7 @@ const CSS = `
   .gw-tag::before {
     content: '';
     width: 6px; height: 6px; border-radius: 50%;
-    background: oklch(44% 0.16 72);
+    background: var(--cs-accent);
     display: block;
   }
 
@@ -394,7 +398,7 @@ const CSS = `
     font-family: 'Cormorant Garamond', Georgia, serif;
     font-size: clamp(40px, 4.8vw, 72px);
     font-weight: 400; line-height: 1.0;
-    color: oklch(18% 0.015 265);
+    color: var(--cs-text);
     letter-spacing: -0.01em;
     margin-bottom: 12px;
     animation: gw-fadeUp .6s cubic-bezier(.22,1,.36,1) .10s both;
@@ -404,7 +408,7 @@ const CSS = `
     font-family: 'Cormorant Garamond', Georgia, serif;
     font-size: clamp(15px, 1.5vw, 20px);
     font-weight: 300; font-style: italic;
-    color: oklch(46% 0.010 265);
+    color: var(--cs-muted);
     margin-bottom: 32px; line-height: 1.45;
     animation: gw-fadeUp .6s cubic-bezier(.22,1,.36,1) .14s both;
   }
@@ -417,18 +421,18 @@ const CSS = `
 
   .gw-chip {
     display: flex; align-items: center; gap: 10px;
-    background: oklch(93% 0.010 80);
-    border: 1px solid oklch(80% 0.010 80);
+    background: var(--cs-bg-alt);
+    border: 1px solid var(--cs-border);
     border-radius: 10px; padding: 10px 16px;
   }
-  .gw-chip svg { stroke: oklch(44% 0.16 72); flex-shrink: 0; }
+  .gw-chip svg { stroke: var(--cs-accent); flex-shrink: 0; }
   .gw-chip-info { display: flex; flex-direction: column; gap: 1px; }
   .gw-chip-label {
     font-size: 9px; font-weight: 500;
     letter-spacing: 0.1em; text-transform: uppercase;
-    color: oklch(46% 0.010 265);
+    color: var(--cs-muted);
   }
-  .gw-chip-value { font-size: 14px; color: oklch(18% 0.015 265); line-height: 1.2; }
+  .gw-chip-value { font-size: 14px; color: var(--cs-text); line-height: 1.2; }
 
   .gw-ctas {
     display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
@@ -437,8 +441,8 @@ const CSS = `
 
   .gw-btn-primary {
     display: inline-flex; align-items: center; gap: 9px;
-    background: oklch(44% 0.16 72);
-    color: oklch(97% 0.008 80);
+    background: var(--cs-accent);
+    color: var(--cs-bg);
     border: none; border-radius: 12px;
     padding: 15px 28px;
     font-family: 'DM Sans', system-ui, sans-serif;
@@ -452,8 +456,8 @@ const CSS = `
   .gw-btn-secondary {
     display: inline-flex; align-items: center; gap: 9px;
     background: transparent;
-    color: oklch(18% 0.015 265);
-    border: 1px solid oklch(80% 0.010 80);
+    color: var(--cs-text);
+    border: 1px solid var(--cs-border);
     border-radius: 12px; padding: 14px 28px;
     font-family: 'DM Sans', system-ui, sans-serif;
     font-size: 15px; font-weight: 400;
@@ -462,15 +466,15 @@ const CSS = `
     transition: background .15s, border-color .15s;
   }
   .gw-btn-secondary:hover {
-    background: oklch(93% 0.010 80);
-    border-color: oklch(44% 0.16 72 / 0.3);
+    background: var(--cs-bg-alt);
+    border-color: var(--cs-accent-subtle);
   }
 
   .gw-status-box {
     padding: 16px 20px;
     border-radius: 12px;
-    background: oklch(93% 0.010 80);
-    border: 1px solid oklch(80% 0.010 80);
+    background: var(--cs-bg-alt);
+    border: 1px solid var(--cs-border);
   }
   .gw-status-amber {
     background: oklch(58% 0.17 75 / 0.08);
@@ -478,23 +482,23 @@ const CSS = `
   }
   .gw-status-title {
     font-size: 14px; font-weight: 600;
-    color: oklch(18% 0.015 265); margin-bottom: 4px;
+    color: var(--cs-text); margin-bottom: 4px;
   }
-  .gw-status-body { font-size: 12px; color: oklch(46% 0.010 265); }
+  .gw-status-body { font-size: 12px; color: var(--cs-muted); }
   .gw-status-amber .gw-status-title { color: oklch(40% 0.12 75); }
   .gw-status-amber .gw-status-body  { color: oklch(46% 0.10 75); }
 
   .gw-footer {
     margin-top: 40px;
     padding-top: 24px;
-    border-top: 1px solid oklch(80% 0.010 80);
+    border-top: 1px solid var(--cs-border);
     animation: gw-fadeUp .6s cubic-bezier(.22,1,.36,1) .26s both;
   }
   .gw-powered {
     font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
-    color: oklch(58% 0.010 265);
+    color: var(--cs-dim);
   }
-  .gw-powered a { color: oklch(44% 0.16 72); text-decoration: none; }
+  .gw-powered a { color: var(--cs-accent); text-decoration: none; }
   .gw-powered a:hover { text-decoration: underline; }
 
   /* ── RESPONSIVE ── */
@@ -508,7 +512,7 @@ const CSS = `
       height: 260px;
     }
     .gw-left-fade {
-      background: linear-gradient(to bottom, transparent 40%, oklch(97% 0.008 80) 100%);
+      background: linear-gradient(to bottom, transparent 40%, var(--cs-bg) 100%);
     }
     .gw-caption { display: none; }
     .gw-pills { top: 16px; left: 16px; }

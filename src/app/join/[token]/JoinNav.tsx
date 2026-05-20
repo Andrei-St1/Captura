@@ -10,12 +10,12 @@ interface Props {
   showGallery: boolean;
 }
 
-const gold   = "oklch(44% 0.16 72)";
-const bg     = "oklch(97% 0.008 80)";
-const bg2    = "oklch(93% 0.010 80)";
-const border = "oklch(80% 0.010 80)";
-const muted  = "oklch(46% 0.010 265)";
-const dim    = "oklch(58% 0.010 265)";
+const gold   = "var(--cs-accent)";
+const bg     = "var(--cs-bg)";
+const bg2    = "var(--cs-bg-alt)";
+const border = "var(--cs-border)";
+const muted  = "var(--cs-muted)";
+const dim    = "var(--cs-dim)";
 
 export function JoinNav({ token, showGallery }: Props) {
   const pathname = usePathname();
@@ -60,7 +60,7 @@ export function JoinNav({ token, showGallery }: Props) {
       {/* ── Mobile: fixed bottom nav via portal — escapes all stacking contexts ── */}
       {mounted && createPortal(
         <nav className="jn-bottom" style={{
-          background: "oklch(97% 0.008 80 / 0.95)",
+          background: "var(--cs-bg-nav)",
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
           borderTop: `1px solid ${border}`,

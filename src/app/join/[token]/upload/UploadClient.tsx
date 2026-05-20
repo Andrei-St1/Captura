@@ -487,15 +487,12 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
         onDragLeave={() => setIsDragging(false)}
         onDrop={onDrop}
         onClick={() => inputRef.current?.click()}
-        className={`cursor-pointer rounded-2xl border-2 border-dashed py-10 px-6 text-center transition-all ${
-          isDragging
-            ? "border-primary bg-primary/5"
-            : "border-outline-variant/40 hover:border-primary/40 hover:bg-surface-container-low"
-        }`}
+        className="cursor-pointer rounded-2xl border-2 border-dashed py-10 px-6 text-center transition-all border-outline-variant/40 hover:bg-surface-container-low"
+        style={isDragging ? { borderColor: "var(--cs-accent)", background: "var(--cs-accent-faint)" } : {}}
       >
         <input ref={inputRef} type="file" multiple accept={ACCEPTED} className="hidden"
           onChange={(e) => e.target.files && addFiles(e.target.files)} />
-        <span className="material-symbols-outlined text-primary mb-3 block" style={{ fontSize: "32px" }}>
+        <span className="material-symbols-outlined mb-3 block" style={{ fontSize: "32px", color: "var(--cs-accent)" }}>
           {isDragging ? "download" : "add_a_photo"}
         </span>
         <p className="text-sm font-medium text-on-surface">
@@ -513,8 +510,8 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
             <div key={item.id} className="flex items-center gap-3 rounded-xl bg-surface-container-lowest border border-outline-variant/20 px-4 py-3 shadow-sm">
               <div className={`shrink-0 rounded-lg p-1.5 ${
                 item.status === "done" ? "bg-emerald-50" :
-                item.status === "error" ? "bg-red-50" : "bg-primary/8"
-              }`}>
+                item.status === "error" ? "bg-red-50" : ""
+              }`} style={item.status !== "done" && item.status !== "error" ? { background: "var(--cs-accent-faint)" } : {}}>
                 <span className="material-symbols-outlined" style={{
                   fontSize: "15px",
                   color: item.status === "done" ? "#059669" : item.status === "error" ? "#dc2626" : "oklch(44% 0.16 72)"
