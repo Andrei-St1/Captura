@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { getAlbumQRCodesForDashboard } from "@/app/albums/qr-actions";
 
 interface Album {
   id: string;
@@ -198,7 +199,7 @@ function StatusBadge({ status }: { status: "active" | "scheduled" | "archived" }
 }
 
 /* ── GRID CARD ── */
-function GridCard({ album, index }: { album: Album; index: number }) {
+function GridCard({ album, index, onQR }: { album: Album; index: number; onQR: (id: string, title: string) => void }) {
   const router = useRouter();
   const [c1, c2] = COVER_GRADIENTS[index % COVER_GRADIENTS.length];
   const status = getStatus(album);
@@ -246,9 +247,9 @@ function GridCard({ album, index }: { album: Album; index: number }) {
         <Link href={`/albums/${album.id}`} className="al-af-btn gold" onClick={(e) => e.stopPropagation()}>
           Manage
         </Link>
-        <Link href={`/albums/${album.id}#qr-codes`} className="al-af-btn" onClick={(e) => e.stopPropagation()}>
+        <button className="al-af-btn" onClick={(e) => { e.stopPropagation(); onQR(album.id, album.title); }}>
           QR code
-        </Link>
+        </button>
         <Link href={`/albums/${album.id}/gallery`} className="al-af-btn" onClick={(e) => e.stopPropagation()}>
           Gallery
         </Link>
@@ -258,7 +259,7 @@ function GridCard({ album, index }: { album: Album; index: number }) {
 }
 
 /* ── LIST CARD ── */
-function ListCard({ album, index }: { album: Album; index: number }) {
+function ListCard({ album, index, onQR }: { album: Album; index: number; onQR: (id: string, title: string) => void }) {
   const router = useRouter();
   const [c1, c2] = COVER_GRADIENTS[index % COVER_GRADIENTS.length];
   const status = getStatus(album);
@@ -317,9 +318,9 @@ function ListCard({ album, index }: { album: Album; index: number }) {
           <Link href={`/albums/${album.id}`} className="al-list-action gold" onClick={(e) => e.stopPropagation()}>
             Manage
           </Link>
-          <Link href={`/albums/${album.id}#qr-codes`} className="al-list-action" onClick={(e) => e.stopPropagation()}>
+          <button className="al-list-action" onClick={(e) => { e.stopPropagation(); onQR(album.id, album.title); }}>
             QR code
-          </Link>
+          </button>
           <Link href={`/albums/${album.id}/gallery`} className="al-list-action" onClick={(e) => e.stopPropagation()}>
             Gallery
           </Link>
@@ -330,11 +331,26 @@ function ListCard({ album, index }: { album: Album; index: number }) {
 }
 
 /* ── MAIN CLIENT COMPONENT ── */
+type QRItem = { id: string; label: string; enabled: boolean; joinUrl: string; dataUrl: string };
+
 export function AlbumsClient({ albums, totalCount, activeCount }: Props) {
+  const router = useRouter();
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<Sort>("recent");
   const [view, setView] = useState<View>("grid");
+  const [qrModal, setQrModal] = useState<{ albumId: string; albumTitle: string } | null>(null);
+  const [qrItems, setQrItems] = useState<QRItem[]>([]);
+  const [qrLoading, setQrLoading] = useState(false);
+
+  async function openQR(albumId: string, albumTitle: string) {
+    setQrModal({ albumId, albumTitle });
+    setQrItems([]);
+    setQrLoading(true);
+    const codes = await getAlbumQRCodesForDashboard(albumId);
+    setQrItems(codes);
+    setQrLoading(false);
+  }
 
   const counts = useMemo(
     () => ({
@@ -532,19 +548,78 @@ export function AlbumsClient({ albums, totalCount, activeCount }: Props) {
             ) : view === "grid" ? (
               <div className="al-albums-grid">
                 {displayed.map((album, i) => (
-                  <GridCard key={album.id} album={album} index={i} />
+                  <GridCard key={album.id} album={album} index={i} onQR={openQR} />
                 ))}
               </div>
             ) : (
               <div className="al-albums-list">
                 {displayed.map((album, i) => (
-                  <ListCard key={album.id} album={album} index={i} />
+                  <ListCard key={album.id} album={album} index={i} onQR={openQR} />
                 ))}
               </div>
             )}
           </>
         )}
       </div>
+
+      {/* ── QR Modal ── */}
+      {qrModal && (
+        <div className="al-qr-overlay" onClick={() => setQrModal(null)}>
+          <div className="al-qr-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="al-qr-modal-head">
+              <div>
+                <div className="al-qr-modal-title">QR Codes</div>
+                <div className="al-qr-modal-sub">{qrModal.albumTitle}</div>
+              </div>
+              <button className="al-qr-modal-x" onClick={() => setQrModal(null)} aria-label="Close">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M2 2l12 12M14 2L2 14" />
+                </svg>
+              </button>
+            </div>
+            <div className="al-qr-modal-body">
+              {qrLoading ? (
+                <div style={{ textAlign: "center", padding: "32px 0", color: "var(--al-muted)", fontSize: 13 }}>
+                  Loading QR codes…
+                </div>
+              ) : qrItems.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "32px 0" }}>
+                  <div style={{ fontSize: 13, color: "var(--al-muted2)", marginBottom: 12 }}>
+                    No QR codes for this album.
+                  </div>
+                  <button
+                    className="al-qr-modal-btn al-qr-modal-btn-gold"
+                    style={{ maxWidth: 200, margin: "0 auto", display: "block" }}
+                    onClick={() => { setQrModal(null); router.push(`/albums/${qrModal.albumId}`); }}
+                  >
+                    Go to album →
+                  </button>
+                </div>
+              ) : (
+                qrItems.map((qr) => (
+                  <div key={qr.id} className="al-qr-item">
+                    <div style={{ background: "#fff", borderRadius: 8, padding: 6, flexShrink: 0 }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={qr.dataUrl} alt={qr.label} width={90} height={90} />
+                    </div>
+                    <div style={{ overflow: "hidden" }}>
+                      <div className="al-qr-label">
+                        {qr.label}
+                        {!qr.enabled && (
+                          <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 20, background: "var(--al-bg3)", color: "var(--al-muted2)" }}>
+                            disabled
+                          </span>
+                        )}
+                      </div>
+                      <div className="al-qr-url">{qr.joinUrl}</div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

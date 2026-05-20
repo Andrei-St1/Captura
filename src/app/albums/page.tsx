@@ -706,6 +706,113 @@ const CSS = `
   .al-albums-grid { grid-template-columns: 1fr; }
   .al-list-right { display: none; }
 }
+
+/* ── QR Modal ── */
+.al-qr-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: oklch(0% 0 0 / 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.al-qr-modal {
+  background: var(--al-bg2);
+  border: 1px solid var(--al-border);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 80px oklch(0% 0 0 / 0.20);
+}
+
+.al-qr-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 24px 24px 20px;
+  border-bottom: 1px solid var(--al-border);
+}
+
+.al-qr-modal-title {
+  font-family: var(--al-serif);
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--al-text);
+  line-height: 1.2;
+}
+
+.al-qr-modal-sub {
+  font-size: 12px;
+  color: var(--al-muted2);
+  margin-top: 3px;
+}
+
+.al-qr-modal-x {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--al-muted2);
+  padding: 6px;
+  border-radius: 8px;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.al-qr-modal-x:hover { color: var(--al-text); background: var(--al-bg3); }
+
+.al-qr-modal-body { padding: 20px 24px; }
+
+.al-qr-modal-btn {
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--al-sans);
+  transition: opacity 0.15s;
+}
+
+.al-qr-modal-btn:hover { opacity: 0.85; }
+.al-qr-modal-btn-gold { background: var(--al-gold); color: var(--al-bg); }
+
+.al-qr-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--al-bg3);
+  border: 1px solid var(--al-border);
+  margin-bottom: 10px;
+}
+
+.al-qr-item:last-child { margin-bottom: 0; }
+
+.al-qr-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--al-text);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.al-qr-url {
+  font-size: 10px;
+  font-family: monospace;
+  color: var(--al-muted2);
+  word-break: break-all;
+}
 `;
 
 export default async function AlbumsPage() {
