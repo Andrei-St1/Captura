@@ -189,8 +189,7 @@ export function HomeClient({ isLoggedIn }: { isLoggedIn: boolean }) {
 
   useEffect(() => {
     const saved = localStorage.getItem("captura-theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    if (saved === "dark" || (!saved && prefersDark)) setTheme("dark");
+    if (saved === "dark") setTheme("dark");
   }, []);
 
   useEffect(() => {
