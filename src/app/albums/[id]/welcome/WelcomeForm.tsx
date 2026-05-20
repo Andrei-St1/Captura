@@ -252,40 +252,91 @@ textarea.wf-input::placeholder { font-family: var(--serif); font-style: italic; 
   width: 80px; height: 18px; background: oklch(8% 0.015 265); border-radius: 100px; z-index: 2;
 }
 .wf-phone-screen {
-  width: 100%; height: 100%; background: var(--bg); border-radius: 28px;
+  width: 100%; height: 100%; border-radius: 28px;
   overflow: hidden; display: flex; flex-direction: column; position: relative;
 }
 
-.wf-ph-cover { flex: 0 0 48%; position: relative; overflow: hidden; background-size: cover; background-position: center; }
-.wf-ph-cover-stripes {
-  position: absolute; inset: 0;
-  background: repeating-linear-gradient(45deg, oklch(80% 0.012 80) 0 12px, oklch(85% 0.012 80) 12px 24px);
-  display: flex; align-items: center; justify-content: center;
+/* Cover panel — mirrors gw-left on mobile */
+.wf-ph-left {
+  flex: 0 0 44%;
+  position: relative; overflow: hidden;
+  background: linear-gradient(160deg, var(--ph-g1, oklch(12% 0.04 60)) 0%, var(--ph-g2, oklch(18% 0.08 72)) 40%, var(--ph-g3, oklch(24% 0.06 80)) 100%);
+  background-size: cover; background-position: center;
 }
-.wf-ph-cover-stripes::after {
-  content: 'cover'; font-family: 'Courier New', monospace; font-size: 11px;
-  letter-spacing: .18em; text-transform: uppercase; color: oklch(40% 0.010 80);
-  background: oklch(97% 0.008 80 / 0.88); padding: 4px 10px; border-radius: 4px;
+.wf-ph-left-fade {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 55%;
+  background: linear-gradient(to bottom, transparent 0%, var(--bg, oklch(97% 0.008 80)) 100%);
+  pointer-events: none;
 }
-.wf-ph-badge {
-  position: absolute; top: 36px; left: 50%; transform: translateX(-50%);
-  background: oklch(100% 0 0 / 0.14); backdrop-filter: blur(10px);
-  border: 1px solid oklch(100% 0 0 / 0.20); border-radius: 100px;
-  padding: 4px 10px; font-size: 8px; font-weight: 500; letter-spacing: 0.12em;
-  text-transform: uppercase; color: oklch(95% 0.005 80); white-space: nowrap; z-index: 2;
+.wf-ph-pill {
+  position: absolute; bottom: 22px; left: 12px;
+  display: inline-flex; align-items: center; gap: 5px;
+  background: oklch(100% 0 0 / 0.10); backdrop-filter: blur(12px);
+  border: 1px solid oklch(100% 0 0 / 0.16); border-radius: 100px;
+  padding: 4px 10px; color: oklch(94% 0.005 80);
+  font-size: 7px; letter-spacing: 0.06em;
+  max-width: 80%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; z-index: 2;
 }
-.wf-ph-grad { position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 50%, var(--bg) 100%); }
 
-.wf-ph-card { flex: 1; padding: 0 18px 16px; display: flex; flex-direction: column; position: relative; z-index: 2; }
-.wf-ph-eyebrow { font-size: 7px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; margin-top: 2px; }
-.wf-ph-name { font-family: var(--serif); font-size: 24px; font-weight: 400; line-height: 1.05; color: var(--text); margin-bottom: 12px; letter-spacing: -0.005em; }
-.wf-ph-tagline { font-family: var(--serif); font-style: italic; font-size: 11px; color: var(--muted); line-height: 1.5; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.wf-ph-actions { display: flex; flex-direction: column; gap: 6px; margin-top: auto; }
-.wf-ph-btn { display: flex; align-items: center; justify-content: center; gap: 5px; border-radius: 8px; padding: 9px 12px; font-size: 9px; font-weight: 500; }
-.wf-ph-btn-primary { background: var(--gold); color: white; }
-.wf-ph-btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
-.wf-ph-btn svg { width: 10px; height: 10px; stroke: currentColor; fill: none; stroke-width: 1.7; }
-.wf-ph-powered { text-align: center; font-size: 6px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-top: 8px; opacity: 0.6; }
+/* Content panel — mirrors gw-right on mobile */
+.wf-ph-right {
+  flex: 1; display: flex; flex-direction: column;
+  padding: 8px 16px 12px;
+  position: relative;
+  background: var(--bg, oklch(97% 0.008 80));
+  overflow: hidden;
+}
+.wf-ph-wordmark {
+  position: absolute; top: 8px; right: 12px;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 9px; font-weight: 500; letter-spacing: 0.10em;
+  color: var(--muted2, oklch(58% 0.010 265)); opacity: 0.7;
+}
+.wf-ph-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 7px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--gold);
+  background: color-mix(in oklch, var(--gold) 9%, transparent);
+  border: 1px solid color-mix(in oklch, var(--gold) 28%, transparent);
+  border-radius: 100px; padding: 3px 8px;
+  margin-top: 18px; margin-bottom: 8px; width: fit-content;
+}
+.wf-ph-tag::before {
+  content: ''; width: 4px; height: 4px; border-radius: 50%;
+  background: var(--gold); display: block; flex-shrink: 0;
+}
+.wf-ph-heading {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 26px; font-weight: 400; line-height: 1.0;
+  color: var(--text, oklch(18% 0.015 265));
+  letter-spacing: -0.01em; margin-bottom: 6px;
+}
+.wf-ph-sub {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-style: italic; font-size: 10px;
+  color: var(--muted2, oklch(58% 0.010 265));
+  line-height: 1.5; margin-bottom: 6px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.wf-ph-actions { display: flex; flex-direction: column; gap: 5px; margin-top: auto; }
+.wf-ph-btn-primary {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  background: var(--gold); color: var(--bg, oklch(97% 0.008 80));
+  border-radius: 8px; padding: 9px 12px;
+  font-size: 9px; font-weight: 500; font-family: 'DM Sans', system-ui, sans-serif;
+}
+.wf-ph-btn-secondary {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  background: transparent; color: var(--text, oklch(18% 0.015 265));
+  border: 1px solid var(--border, oklch(80% 0.010 80));
+  border-radius: 8px; padding: 8px 12px;
+  font-size: 9px; font-weight: 400; font-family: 'DM Sans', system-ui, sans-serif;
+}
+.wf-ph-btn-primary svg, .wf-ph-btn-secondary svg { width: 9px; height: 9px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.wf-ph-powered {
+  text-align: center; font-size: 6px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--muted2, oklch(58% 0.010 265)); margin-top: 8px; opacity: 0.5;
+}
 
 
 /* ERROR */
@@ -379,9 +430,10 @@ export function WelcomeForm({ album }: { album: Album }) {
 
   const phoneCoverStyle: React.CSSProperties =
     coverMode === "image" && coverImageUrl
-      ? { backgroundImage: `url('${coverImageUrl}')` }
+      ? { backgroundImage: `url('${coverImageUrl}')`, backgroundSize: "cover", backgroundPosition: "center" }
       : coverMode === "preset" && coverGradient
-      ? { background: coverGradient } : {};
+      ? { background: coverGradient }
+      : {};
 
   const coverZoneClass = [
     "wf-cover-zone",
@@ -593,27 +645,40 @@ export function WelcomeForm({ album }: { album: Album }) {
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
               <div className="wf-phone">
                 <div className="wf-phone-screen" style={{
-                  "--gold": getScheme(selectedScheme).accent,
-                  "--bg": getScheme(selectedScheme).bg,
-                  "--border": getScheme(selectedScheme).border,
+                  "--gold":  getScheme(selectedScheme).accent,
+                  "--bg":    getScheme(selectedScheme).bg,
+                  "--border":getScheme(selectedScheme).border,
+                  "--ph-g1": getScheme(selectedScheme).leftG1,
+                  "--ph-g2": getScheme(selectedScheme).leftG2,
+                  "--ph-g3": getScheme(selectedScheme).leftG3,
                 } as React.CSSProperties}>
-                  <div className="wf-ph-cover" style={phoneCoverStyle}>
-                    {coverMode === "placeholder" && <div className="wf-ph-cover-stripes" />}
-                    <div className="wf-ph-badge">You are invited to contribute</div>
-                    <div className="wf-ph-grad" />
-                  </div>
-                  <div className="wf-ph-card">
-                    <div className="wf-ph-eyebrow">{phLocation || "Venue · City"}</div>
-                    <div className="wf-ph-name">{phTitle || <em>Your event</em>}</div>
-                    {phDescription && (
-                      <div className="wf-ph-tagline">{phDescription}</div>
+
+                  {/* Cover panel */}
+                  <div className="wf-ph-left" style={phoneCoverStyle}>
+                    <div className="wf-ph-left-fade" />
+                    {phLocation && (
+                      <div className="wf-ph-pill">
+                        <svg viewBox="0 0 24 24" width="8" height="8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 21c-4-4-7-7.5-7-11a7 7 0 0 1 14 0c0 3.5-3 7-7 11z"/>
+                          <circle cx="12" cy="10" r="2.5"/>
+                        </svg>
+                        {phLocation}
+                      </div>
                     )}
+                  </div>
+
+                  {/* Content panel */}
+                  <div className="wf-ph-right">
+                    <div className="wf-ph-wordmark">Captura</div>
+                    <div className="wf-ph-tag">You are invited</div>
+                    <div className="wf-ph-heading">{phTitle || <em>Your event</em>}</div>
+                    {phDescription && <div className="wf-ph-sub">{phDescription}</div>}
                     <div className="wf-ph-actions">
-                      <div className="wf-ph-btn wf-ph-btn-primary">
+                      <div className="wf-ph-btn-primary">
                         <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                         Add your photos
                       </div>
-                      <div className="wf-ph-btn wf-ph-btn-secondary">
+                      <div className="wf-ph-btn-secondary">
                         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
                         View gallery
                       </div>
