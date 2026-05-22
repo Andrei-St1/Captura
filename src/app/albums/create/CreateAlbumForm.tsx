@@ -48,12 +48,22 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
   const [presetIdx, setPresetIdx]         = useState<number | null>(null);
   const [isDragging, setIsDragging]       = useState(false);
+  const [coverPos, setCoverPos]           = useState({ x: 50, y: 50 });
+  const [isDraggingCover, setIsDraggingCover] = useState(false);
+  const coverAreaRef  = useRef<HTMLDivElement>(null);
+  const coverImgRef   = useRef<HTMLImageElement>(null);
+  const coverDragRef  = useRef<{
+    startX: number; startY: number;
+    startPosX: number; startPosY: number;
+    sensX: number; sensY: number;
+  } | null>(null);
 
   function applyCoverFile(file: File) {
     if (!file.type.startsWith("image/")) return;
     setCoverFile(file);
     setCoverPreviewUrl(URL.createObjectURL(file));
     setPresetIdx(null);
+    setCoverPos({ x: 50, y: 50 });
   }
 
   function removeCover(e: React.MouseEvent) {
@@ -61,7 +71,54 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
     e.stopPropagation();
     setCoverFile(null);
     setCoverPreviewUrl(null);
+    setCoverPos({ x: 50, y: 50 });
     if (coverInputRef.current) coverInputRef.current.value = "";
+  }
+
+  function startCoverDrag(clientX: number, clientY: number) {
+    if (!coverAreaRef.current) return;
+    const rect = coverAreaRef.current.getBoundingClientRect();
+    let sensX = rect.width;
+    let sensY = rect.height;
+    if (coverImgRef.current) {
+      const { naturalWidth: nw, naturalHeight: nh } = coverImgRef.current;
+      const imgR = nw / nh;
+      const boxR = rect.width / rect.height;
+      if (imgR > boxR) {
+        sensX = Math.max(1, rect.height * imgR - rect.width);
+        sensY = 1e9;
+      } else {
+        sensX = 1e9;
+        sensY = Math.max(1, rect.width / imgR - rect.height);
+      }
+    }
+    coverDragRef.current = { startX: clientX, startY: clientY, startPosX: coverPos.x, startPosY: coverPos.y, sensX, sensY };
+    setIsDraggingCover(true);
+
+    function updatePos(cx: number, cy: number) {
+      const d = coverDragRef.current;
+      if (!d) return;
+      const dx = d.sensX >= 1e9 ? 0 : -(cx - d.startX) / d.sensX * 100;
+      const dy = d.sensY >= 1e9 ? 0 : -(cy - d.startY) / d.sensY * 100;
+      setCoverPos({
+        x: Math.max(0, Math.min(100, d.startPosX + dx)),
+        y: Math.max(0, Math.min(100, d.startPosY + dy)),
+      });
+    }
+    function onMouseMove(e: MouseEvent) { updatePos(e.clientX, e.clientY); }
+    function onTouchMove(e: TouchEvent) { e.preventDefault(); updatePos(e.touches[0].clientX, e.touches[0].clientY); }
+    function onEnd() {
+      coverDragRef.current = null;
+      setIsDraggingCover(false);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onEnd);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onEnd);
+    }
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onEnd);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onEnd);
   }
 
   function tryGoStep(idx: number) {
@@ -92,7 +149,12 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
       if (result?.albumId) {
         if (coverFile) {
           const tfd = new FormData();
-          tfd.append("file", coverFile);
+          try {
+            const blob = await cropImageToBlob(coverFile, coverPos);
+            tfd.append("file", new File([blob], "cover.jpg", { type: "image/jpeg" }));
+          } catch {
+            tfd.append("file", coverFile);
+          }
           tfd.append("albumId", result.albumId);
           await fetch("/api/upload-thumbnail", { method: "POST", body: tfd });
         }
@@ -106,7 +168,7 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
   }
 
   const coverStyle: React.CSSProperties = coverPreviewUrl
-    ? { backgroundImage: `url('${coverPreviewUrl}')`, backgroundSize: "cover", backgroundPosition: "center" }
+    ? { backgroundImage: `url('${coverPreviewUrl}')`, backgroundSize: "cover", backgroundPosition: `${coverPos.x}% ${coverPos.y}%` }
     : presetIdx !== null
     ? { background: `linear-gradient(135deg, ${GRAD_PRESETS[presetIdx][0]}, ${GRAD_PRESETS[presetIdx][1]})` }
     : { background: `linear-gradient(135deg, ${GRAD_PRESETS[0][0]}, ${GRAD_PRESETS[0][1]})` };
@@ -255,32 +317,54 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
                     {/* Cover upload */}
                     <div className="ca-field">
                       <label>Cover image</label>
-                      <label
-                        htmlFor="ca-cover-input"
-                        className={`ca-cover-area${isDragging ? " drag" : ""}${coverPreviewUrl ? " has-img" : ""}`}
-                        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                        onDragLeave={() => setIsDragging(false)}
-                        onDrop={(e) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) applyCoverFile(f); }}
-                      >
-                        <input
-                          id="ca-cover-input"
-                          ref={coverInputRef}
-                          type="file"
-                          accept="image/*,image/heic,image/heif"
-                          style={{ display: "none" }}
-                          onChange={(e) => { const f = e.target.files?.[0]; if (f) applyCoverFile(f); }}
-                        />
-                        {coverPreviewUrl ? (
-                          <>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={coverPreviewUrl} alt="Cover preview" className="ca-cover-img" />
-                            <button type="button" className="ca-cover-remove" onClick={removeCover}>
-                              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                                <path d="M2 2l10 10M12 2L2 12" />
-                              </svg>
-                            </button>
-                          </>
-                        ) : (
+                      <input
+                        id="ca-cover-input"
+                        ref={coverInputRef}
+                        type="file"
+                        accept="image/*,image/heic,image/heif"
+                        style={{ display: "none" }}
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) applyCoverFile(f); }}
+                      />
+                      {coverPreviewUrl ? (
+                        <div
+                          ref={coverAreaRef}
+                          className={`ca-cover-area has-img${isDraggingCover ? " grabbing" : ""}`}
+                          onMouseDown={(e) => { e.preventDefault(); startCoverDrag(e.clientX, e.clientY); }}
+                          onTouchStart={(e) => startCoverDrag(e.touches[0].clientX, e.touches[0].clientY)}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            ref={coverImgRef}
+                            src={coverPreviewUrl}
+                            alt="Cover preview"
+                            className="ca-cover-img"
+                            style={{ objectPosition: `${coverPos.x}% ${coverPos.y}%` }}
+                            draggable={false}
+                          />
+                          <div className="ca-cover-reposition-hint">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                              <path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M12 12h.01" />
+                              <path d="M3 12h18M12 3v18" />
+                            </svg>
+                            Drag to reposition
+                          </div>
+                          <label htmlFor="ca-cover-input" className="ca-cover-change-btn" onMouseDown={(e) => e.stopPropagation()}>
+                            Change
+                          </label>
+                          <button type="button" className="ca-cover-remove" onClick={removeCover}>
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                              <path d="M2 2l10 10M12 2L2 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ) : (
+                        <label
+                          htmlFor="ca-cover-input"
+                          className={`ca-cover-area${isDragging ? " drag" : ""}`}
+                          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                          onDragLeave={() => setIsDragging(false)}
+                          onDrop={(e) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files[0]; if (f) applyCoverFile(f); }}
+                        >
                           <div className="ca-cover-placeholder">
                             <div className="ca-cover-icon">
                               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
@@ -294,8 +378,8 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
                               <div className="ca-cover-sub">JPG, PNG, WebP, HEIC · Max 50 MB</div>
                             </div>
                           </div>
-                        )}
-                      </label>
+                        </label>
+                      )}
 
                       <div className="ca-preset-hint">Or pick a gradient preset:</div>
                       <div className="ca-presets">
@@ -493,6 +577,34 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
       </div>
     </>
   );
+}
+
+// ── Crop helper ───────────────────────────────────────────────────────────────
+
+function cropImageToBlob(file: File, pos: { x: number; y: number }): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const RATIO = 16 / 7;
+      const imgRatio = img.naturalWidth / img.naturalHeight;
+      let sx: number, sy: number, sw: number, sh: number;
+      if (imgRatio > RATIO) {
+        sh = img.naturalHeight; sw = sh * RATIO; sy = 0;
+        sx = (img.naturalWidth - sw) * (pos.x / 100);
+      } else {
+        sw = img.naturalWidth; sh = sw / RATIO; sx = 0;
+        sy = (img.naturalHeight - sh) * (pos.y / 100);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(sw); canvas.height = Math.round(sh);
+      canvas.getContext("2d")!.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((b) => b ? resolve(b) : reject(new Error("toBlob failed")), "image/jpeg", 0.92);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("load failed")); };
+    img.src = url;
+  });
 }
 
 // ── Small icon components ─────────────────────────────────────────────────────
@@ -881,7 +993,26 @@ const CSS = `
   }
   .ca-cover-area:hover { border-color: oklch(65% 0.012 80); background: oklch(89% 0.012 80); }
   .ca-cover-area.drag { border-color: oklch(44% 0.16 72); background: oklch(44% 0.16 72 / 0.06); }
-  .ca-cover-area.has-img { border-style: solid; border-color: oklch(80% 0.010 80); }
+  .ca-cover-area.has-img { border-style: solid; border-color: oklch(80% 0.010 80); cursor: grab; user-select: none; }
+  .ca-cover-area.has-img.grabbing { cursor: grabbing; }
+  .ca-cover-reposition-hint {
+    position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 5px;
+    background: oklch(11% 0.012 265 / 0.65); color: #fff; font-size: 11px;
+    padding: 5px 12px; border-radius: 20px; pointer-events: none;
+    backdrop-filter: blur(6px); white-space: nowrap;
+    opacity: 0; transition: opacity .2s;
+  }
+  .ca-cover-area.has-img:hover .ca-cover-reposition-hint { opacity: 1; }
+  .ca-cover-change-btn {
+    position: absolute; top: 10px; left: 10px;
+    background: oklch(11% 0.012 265 / 0.65); color: #fff;
+    font-size: 11px; font-weight: 500; padding: 4px 10px; border-radius: 6px;
+    cursor: pointer; backdrop-filter: blur(4px);
+    border: 1px solid oklch(100% 0 0 / 0.2);
+    opacity: 0; transition: opacity .2s;
+  }
+  .ca-cover-area.has-img:hover .ca-cover-change-btn { opacity: 1; }
   .ca-file-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
   .ca-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .ca-cover-placeholder { display: flex; flex-direction: column; align-items: center; gap: 10px; pointer-events: none; text-align: center; padding: 20px; }
