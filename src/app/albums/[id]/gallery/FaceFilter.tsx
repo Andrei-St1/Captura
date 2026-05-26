@@ -239,46 +239,65 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
         )}
 
         {status === "done" && visible.length > 0 && (
-          <div className="flex items-center gap-3 overflow-x-auto overflow-y-visible flex-1 min-w-0 py-2">
-            <span className="shrink-0 text-xs text-on-surface-variant font-medium">Filter by face</span>
+          <div className="flex items-center gap-4 overflow-x-auto overflow-y-visible flex-1 min-w-0 py-1 scrollbar-hide">
+
+            {visible.map((cluster) => {
+              const isSelected = selected === cluster.id;
+              const count = cluster.mediaIds.length;
+              return (
+                <button
+                  key={cluster.id}
+                  onClick={() => select(cluster.id)}
+                  title={`${count} photo${count !== 1 ? "s" : ""}`}
+                  className="shrink-0 flex flex-col items-center gap-1.5 group"
+                >
+                  <div className="relative">
+                    <div
+                      style={{
+                        width: 60, height: 60,
+                        borderRadius: "50%",
+                        backgroundImage: `url(${crops.get(cluster.id)})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center top",
+                        outline: isSelected ? "2.5px solid var(--color-primary)" : "2.5px solid transparent",
+                        outlineOffset: "2px",
+                        boxShadow: isSelected ? "0 0 0 1px color-mix(in srgb, var(--color-primary) 30%, transparent)" : "0 1px 4px rgba(0,0,0,0.15)",
+                        transition: "outline-color .2s, box-shadow .2s, transform .2s",
+                        transform: isSelected ? "scale(1.08)" : undefined,
+                      }}
+                    />
+                    <span
+                      className="absolute -bottom-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[9px] font-bold tabular-nums px-1"
+                      style={{
+                        background: isSelected ? "var(--color-primary)" : "var(--color-surface-container-high)",
+                        color: isSelected ? "#fff" : "var(--color-on-surface-variant)",
+                        border: "1.5px solid var(--color-surface-container-lowest)",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {count > 99 ? "99+" : count}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
 
             {selected && (
               <button
                 onClick={() => { setSelected(null); onFilter(null); }}
-                className="shrink-0 flex items-center gap-1 rounded-full border border-outline-variant/40 px-3 py-1 text-xs text-on-surface-variant hover:border-primary hover:text-primary transition"
+                className="shrink-0 flex items-center gap-1 rounded-full border border-outline-variant/40 px-3 py-1.5 text-xs text-on-surface-variant hover:border-primary hover:text-primary transition"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: "13px" }}>close</span>
-                All
+                Clear
               </button>
             )}
 
-            {visible.map((cluster) => (
-              <button
-                key={cluster.id}
-                onClick={() => select(cluster.id)}
-                title={`${cluster.mediaIds.length} photos`}
-                className={`shrink-0 flex flex-col items-center gap-1 transition-all duration-200 ${
-                  selected === cluster.id ? "scale-110" : "hover:scale-105 opacity-80 hover:opacity-100"
-                }`}
-              >
-                <div className={`rounded-full ring-2 ring-offset-2 ring-offset-surface-container-lowest transition-all shadow-sm ${
-                  selected === cluster.id ? "ring-primary" : "ring-outline-variant/30"
-                }`} style={{
-                  width: 52, height: 52, flexShrink: 0,
-                  backgroundImage: `url(${crops.get(cluster.id)})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }} />
-                <span className="text-[10px] text-on-surface-variant tabular-nums">{cluster.mediaIds.length}</span>
-              </button>
-            ))}
-
             <button
               onClick={handleDisable}
-              className="shrink-0 ml-auto flex items-center gap-1.5 rounded-xl border border-outline-variant/40 px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:border-red-400 hover:text-red-500 transition"
+              className="shrink-0 ml-auto flex items-center gap-1 rounded-full border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface-variant hover:border-red-400 hover:text-red-500 transition"
             >
-              <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>face_retouching_off</span>
-              Disable
+              <span className="material-symbols-outlined" style={{ fontSize: "13px" }}>close</span>
+              Faces
             </button>
           </div>
         )}

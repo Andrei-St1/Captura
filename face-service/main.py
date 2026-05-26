@@ -73,8 +73,20 @@ def serve():
             cy1 = max(0, y1 - pad_y)
             cx2 = min(w, x2 + pad_x)
             cy2 = min(h, y2 + pad_y)
+            # Force square before resize to avoid stretching
+            side = max(cx2 - cx1, cy2 - cy1)
+            if cx2 - cx1 < side:
+                expand = side - (cx2 - cx1)
+                cx1 = max(0, cx1 - expand // 2)
+                cx2 = min(w, cx1 + side)
+                cx1 = max(0, cx2 - side)
+            if cy2 - cy1 < side:
+                expand = side - (cy2 - cy1)
+                cy1 = max(0, cy1 - expand // 2)
+                cy2 = min(h, cy1 + side)
+                cy1 = max(0, cy2 - side)
             crop = img[cy1:cy2, cx1:cx2]
-            crop_sq = cv2.resize(crop, (80, 80))
+            crop_sq = cv2.resize(crop, (96, 96))
             _, buf = cv2.imencode(".jpg", crop_sq, [cv2.IMWRITE_JPEG_QUALITY, 85])
             crop_b64 = base64.b64encode(buf).decode()
 

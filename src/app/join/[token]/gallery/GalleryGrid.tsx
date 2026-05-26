@@ -353,21 +353,23 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
                 {visibleClusters.map((cluster) => {
                   const count = new Set(cluster.mediaIds).size;
                   const cropSrc = faceCrops.get(cluster.id);
+                  const isSel = selectedFace === cluster.id;
                   return (
                     <button
                       key={cluster.id}
-                      className={`og-face-chip${selectedFace === cluster.id ? " selected" : ""}`}
+                      className="og-face-chip"
                       onClick={() => handleFaceChipClick(cluster.id)}
                       title={`${count} photo${count !== 1 ? "s" : ""}`}
+                      style={{ outline: isSel ? "2.5px solid var(--og-gold)" : "2.5px solid transparent", outlineOffset: "2px", transform: isSel ? "scale(1.1)" : undefined }}
                     >
                       {cropSrc ? (
                         <div className="og-face-crop" style={{ backgroundImage: `url(${cropSrc})` }} />
                       ) : (
-                        <div style={{ width: "38px", height: "38px", borderRadius: "50%", background: "var(--og-gold-glow)", border: "1px solid var(--og-gold-b)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--og-gold)" }}>
+                        <div className="og-face-crop" style={{ background: "var(--og-gold-glow)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--og-gold)" }}>
                           <IconFace />
                         </div>
                       )}
-                      <span className="og-face-chip-count">{count > 99 ? "99+" : count}</span>
+                      <span className="og-face-chip-count" style={{ background: isSel ? "var(--og-gold)" : undefined, color: isSel ? "#000" : undefined }}>{count > 99 ? "99+" : count}</span>
                     </button>
                   );
                 })}
@@ -647,8 +649,8 @@ const CSS = `
   }
   .og-face-chip {
     position: relative;
-    width: 38px;
-    height: 38px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     border: 2px solid transparent;
     cursor: pointer;
@@ -661,11 +663,11 @@ const CSS = `
   .og-face-chip:hover { transform: scale(1.06); }
   .og-face-chip.selected { border-color: var(--og-gold); }
   .og-face-crop {
-    width: 38px;
-    height: 38px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     background-size: cover;
-    background-position: center;
+    background-position: center top;
   }
   .og-face-chip-count {
     position: absolute;
@@ -955,6 +957,7 @@ const CSS = `
   @media (max-width: 768px) {
     .og-toolbar { padding: 14px; }
     .og-face-chip { width: 34px; height: 34px; }
-    .og-face-crop { width: 34px; height: 34px; }
+    .og-face-chip { width: 42px; height: 42px; }
+    .og-face-crop { width: 42px; height: 42px; }
   }
 `;
