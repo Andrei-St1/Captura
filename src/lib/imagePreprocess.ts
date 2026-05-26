@@ -1,6 +1,6 @@
 const SKIP_CONVERT = new Set(["image/gif", "image/webp"]);
 const SKIP_CONVERT_SIZE = 200 * 1024; // WebP savings negligible below 200 KB
-const MAX_PX = 2560;
+const MAX_PX = 2048;
 
 export async function extractExifDate(file: File): Promise<string | null> {
   if (!file.type.startsWith("image/")) return null;
@@ -25,7 +25,7 @@ export async function convertToWebP(file: File): Promise<File> {
     canvas.getContext("2d")!.drawImage(bitmap, 0, 0, w, h);
     bitmap.close();
     const blob = await new Promise<Blob>((resolve, reject) =>
-      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), "image/webp", 0.85)
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), "image/webp", 0.80)
     );
     return new File([blob], file.name.replace(/\.[^.]+$/, ".webp"), { type: "image/webp" });
   } catch {

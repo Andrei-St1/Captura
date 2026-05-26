@@ -20,7 +20,7 @@ const MULTIPART_THRESHOLD = 50 * 1024 * 1024;
 const CHUNK_SIZE = 50 * 1024 * 1024;
 const PART_CONCURRENCY = 4;
 const PART_MAX_RETRIES = 3;
-const FILE_CONCURRENCY = 5;
+const FILE_CONCURRENCY = 3;
 const PRESIGN_BATCH_SIZE = 15;
 
 function formatBytes(bytes: number) {
