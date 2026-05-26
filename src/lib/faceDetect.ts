@@ -13,15 +13,21 @@ interface DetectedFace {
 
 export async function detectAndSaveFaces(mediaId: string, albumId: string, imageUrl: string) {
   const url = process.env.FACE_SERVICE_URL;
+  console.log("[faceDetect] FACE_SERVICE_URL:", url ?? "(not set)");
   if (!url) return;
 
   try {
+    console.log("[faceDetect] calling", `${url}/detect`, "for media", mediaId);
     const res = await fetch(`${url}/detect`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mediaId, albumId, imageUrl }),
     });
-    if (!res.ok) return;
+    console.log("[faceDetect] response status:", res.status);
+    if (!res.ok) {
+      console.error("[faceDetect] non-ok response:", await res.text());
+      return;
+    }
 
     const detected = (await res.json()) as DetectedFace[];
     if (!detected?.length) return;
@@ -65,7 +71,7 @@ export async function detectAndSaveFaces(mediaId: string, albumId: string, image
       })),
       { onConflict: "id" }
     );
-  } catch {
-    // face detection is best-effort, never block the upload
+  } catch (err) {
+    console.error("[faceDetect] error:", err);
   }
 }
