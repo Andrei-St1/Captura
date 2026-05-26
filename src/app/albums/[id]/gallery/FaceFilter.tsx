@@ -261,12 +261,14 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
                   selected === cluster.id ? "scale-110" : "hover:scale-105 opacity-80 hover:opacity-100"
                 }`}
               >
-                <div className={`rounded-full overflow-hidden ring-2 ring-offset-2 ring-offset-surface-container-lowest transition-all shadow-sm ${
+                <div className={`rounded-full ring-2 ring-offset-2 ring-offset-surface-container-lowest transition-all shadow-sm ${
                   selected === cluster.id ? "ring-primary" : "ring-outline-variant/30"
-                }`} style={{ width: 52, height: 52 }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={crops.get(cluster.id)!} alt="face" className="w-full h-full object-cover" />
-                </div>
+                }`} style={{
+                  width: 52, height: 52, flexShrink: 0,
+                  backgroundImage: `url(${crops.get(cluster.id)})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }} />
                 <span className="text-[10px] text-on-surface-variant tabular-nums">{cluster.mediaIds.length}</span>
               </button>
             ))}

@@ -361,8 +361,7 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
                       title={`${count} photo${count !== 1 ? "s" : ""}`}
                     >
                       {cropSrc ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={cropSrc} alt="face" />
+                        <div className="og-face-crop" style={{ backgroundImage: `url(${cropSrc})` }} />
                       ) : (
                         <div style={{ width: "38px", height: "38px", borderRadius: "50%", background: "var(--og-gold-glow)", border: "1px solid var(--og-gold-b)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--og-gold)" }}>
                           <IconFace />
@@ -661,12 +660,12 @@ const CSS = `
   }
   .og-face-chip:hover { transform: scale(1.06); }
   .og-face-chip.selected { border-color: var(--og-gold); }
-  .og-face-chip img {
+  .og-face-crop {
     width: 38px;
     height: 38px;
-    object-fit: cover;
     border-radius: 50%;
-    display: block;
+    background-size: cover;
+    background-position: center;
   }
   .og-face-chip-count {
     position: absolute;
@@ -956,6 +955,6 @@ const CSS = `
   @media (max-width: 768px) {
     .og-toolbar { padding: 14px; }
     .og-face-chip { width: 34px; height: 34px; }
-    .og-face-chip img { width: 34px; height: 34px; }
+    .og-face-crop { width: 34px; height: 34px; }
   }
 `;
