@@ -99,12 +99,6 @@ export default async function GalleryPage({
           </div>
 
           <div className="gl-header-right">
-            {totalCount > 0 && (
-              <div className="gl-sort-group">
-                <a href={`/join/${token}/gallery`} className={`gl-sort-btn${sort !== "taken" ? " active" : ""}`}>Upload</a>
-                <a href={`/join/${token}/gallery?sort=taken`} className={`gl-sort-btn${sort === "taken" ? " active" : ""}`}>Taken</a>
-              </div>
-            )}
             <span className="gl-count">{totalCount} {totalCount === 1 ? "file" : "files"}</span>
           </div>
         </header>
@@ -218,29 +212,6 @@ const CSS = `
   .gl-count {
     font-size: 13px;
     color: var(--cs-muted);
-  }
-
-  .gl-sort-group {
-    display: flex;
-    border-radius: 7px;
-    border: 1px solid var(--cs-border);
-    overflow: hidden;
-  }
-  .gl-sort-btn {
-    padding: 4px 9px;
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--cs-muted);
-    text-decoration: none;
-    transition: background .15s, color .15s;
-  }
-  .gl-sort-btn.active {
-    background: var(--cs-bg-alt);
-    color: var(--cs-text);
-  }
-  .gl-sort-btn:hover:not(.active) {
-    background: var(--cs-bg-alt);
-    color: var(--cs-text);
   }
 
   /* ── Main ── */
