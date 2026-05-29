@@ -4,6 +4,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireAlbumPin } from "@/lib/pin";
 import { getScheme, schemeToCss } from "@/lib/colorSchemes";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 type AlbumStatus = "not_open" | "open" | "closed" | "archived" | "qr_disabled";
 
@@ -142,6 +143,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
         {/* ── RIGHT PANEL ── */}
         <div className="gw-right">
           <Link href="/" className="gw-wordmark">Captura</Link>
+          <LanguageSwitcher className="gw-lang-btn" />
 
           <div className="gw-tag">{t("inviteTag")}</div>
 
@@ -381,6 +383,15 @@ const CSS = `
   }
   .gw-wordmark:hover { opacity: 1; }
 
+  .gw-lang-btn {
+    position: absolute; top: 32px; left: 36px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+    color: var(--cs-muted); background: var(--cs-bg-alt);
+    border: 1px solid var(--cs-border); border-radius: 6px;
+    padding: 4px 9px; cursor: pointer; transition: color 0.15s;
+  }
+  .gw-lang-btn:hover { color: var(--cs-text); }
+
   .gw-tag {
     display: inline-flex; align-items: center; gap: 6px;
     font-size: 10px; font-weight: 500; letter-spacing: 0.14em;
@@ -527,6 +538,7 @@ const CSS = `
       min-height: unset;
     }
     .gw-wordmark { top: 16px; right: 16px; font-size: 13px; }
+    .gw-lang-btn { top: 16px; left: 16px; }
     .gw-heading { font-size: clamp(34px, 9vw, 52px); }
     .gw-btn-primary, .gw-btn-secondary { padding: 13px 20px; font-size: 14px; }
   }

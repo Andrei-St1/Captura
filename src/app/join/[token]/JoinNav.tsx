@@ -5,7 +5,6 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 interface Props {
   token: string;
@@ -36,14 +35,7 @@ export function JoinNav({ token, showGallery }: Props) {
       <style>{`
         .jn-tabs   { display: flex; }
         .jn-bottom { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999; }
-        .jn-lang-btn {
-          font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
-          color: var(--cs-muted); background: var(--cs-bg-alt);
-          border: 1px solid var(--cs-border); border-radius: 6px;
-          padding: 4px 9px; cursor: pointer; transition: color 0.15s;
-        }
-        .jn-lang-btn:hover { color: var(--cs-text); }
-        @media (max-width: 768px) {
+@media (max-width: 768px) {
           .jn-tabs   { display: none; }
           .jn-bottom { display: flex; }
         }
@@ -67,7 +59,6 @@ export function JoinNav({ token, showGallery }: Props) {
             {t("navGallery")}
           </TabLink>
         </div>
-        <LanguageSwitcher className="jn-lang-btn" />
       </div>
 
       {/* ── Mobile: fixed bottom nav via portal — escapes all stacking contexts ── */}
