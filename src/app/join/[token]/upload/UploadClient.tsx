@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { extractExifDate, convertToWebP } from "@/lib/imagePreprocess";
 
 interface FileItem {
@@ -78,6 +79,7 @@ async function abortMultipart(uploadId: string, filePath: string) {
 }
 
 export function UploadClient({ albumId, albumTitle, token }: { albumId: string; albumTitle: string; token: string }) {
+  const t = useTranslations("upload");
   const [files, setFiles] = useState<FileItem[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [allDone, setAllDone] = useState(false);
@@ -452,10 +454,10 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
           </svg>
         </div>
         <h2 className="font-noto-serif text-2xl font-light text-on-surface">
-          {doneCount} {doneCount === 1 ? "file" : "files"} shared
+          {doneCount} {doneCount === 1 ? "file" : "files"} {t("successTitle")}
         </h2>
         <p className="mt-2 text-sm text-on-surface-variant">
-          Added to <span className="font-medium text-on-surface">{albumTitle}</span>.
+          {t("successSubtitle")} <span className="font-medium text-on-surface">{albumTitle}</span>.
         </p>
         <div className="mt-6 flex flex-col gap-3">
           <button
@@ -463,13 +465,13 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
             className="w-full rounded-xl py-3 text-sm font-semibold text-white transition hover:opacity-90"
             style={{ background: "oklch(44% 0.16 72)" }}
           >
-            Share more
+            {t("shareMore")}
           </button>
           <Link
             href={`/join/${token}`}
             className="w-full rounded-xl border border-outline-variant/30 py-3 text-sm font-medium text-on-surface-variant hover:border-primary hover:text-primary transition text-center"
           >
-            Back to album
+            {t("backToAlbum")}
           </Link>
         </div>
       </div>
@@ -496,12 +498,16 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
           {isDragging ? "download" : "add_a_photo"}
         </span>
         <p className="text-sm font-medium text-on-surface">
-          {isDragging ? "Drop to add" : "Select photos & videos"}
+          {isDragging ? t("dropzone.dropHint") : t("dropzone.label")}
         </p>
         <p className="text-xs text-on-surface-variant mt-1">
-          Photos up to 50 MB · Videos up to 500 MB
+          {t("dropzone.hint")}
         </p>
       </div>
+
+      <p className="text-xs text-on-surface-variant text-center px-2">
+        {t("batchTip")}
+      </p>
 
       {/* File list */}
       {files.length > 0 && (

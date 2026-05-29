@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { logout } from "@/app/auth/actions";
 import { createPortalSession } from "@/app/stripe/actions";
 import { createAlbum } from "@/app/albums/actions";
@@ -21,9 +22,10 @@ const GRAD_PRESETS: [string, string][] = [
   ["oklch(72% 0.08 320)", "oklch(66% 0.06 300)"],
 ];
 
-const STEP_LABELS = ["Details", "Cover & Storage", "Dates & Settings"];
-
 export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
+  const t = useTranslations("createAlbum");
+  const tc = useTranslations("common");
+  const STEP_LABELS = [t("nameYourAlbum").replace(".", ""), t("coverStorage").replace(".", ""), t("datesSettings").replace(".", "")];
   const submittingRef = useRef(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const remaining = planStorageGb - allocatedGb;
@@ -192,17 +194,17 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
                   <path d="M6 16l7 7L26 9" />
                 </svg>
               </div>
-              <div className="ca-success-title">Album <em>created!</em></div>
-              <div className="ca-success-sub">"{doneTitle}" is live. Share the QR code with your guests.</div>
+              <div className="ca-success-title">{t("albumCreated")}</div>
+              <div className="ca-success-sub">"{doneTitle}" {t("albumLive")}</div>
               <div className="ca-success-actions">
                 <Link href={`/albums/${doneId}`} className="ca-btn-primary" style={{ textDecoration: "none" }}>
-                  View album →
+                  {t("viewAlbum")}
                 </Link>
                 <button className="ca-btn-outline" onClick={() => {
                   setDoneId(null); setDoneTitle(""); setTitle(""); setStep(0);
                   setError(null); setCoverFile(null); setCoverPreviewUrl(null); setPresetIdx(null);
                 }}>
-                  Create another
+                  {t("createAnother")}
                 </button>
               </div>
             </div>
@@ -226,22 +228,22 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                 <path d="M10 3L5 8l5 5" />
               </svg>
-              <span className="ca-back-text">Back</span>
+              <span className="ca-back-text">{t("back")}</span>
             </Link>
             <div className="ca-topbar-div" />
             <div className="ca-topbar-crumb">
-              <Link href="/dashboard">Dashboard</Link> / <Link href="/albums">Albums</Link> / <span>Create</span>
+              <Link href="/dashboard">{tc("dashboard")}</Link> / <Link href="/albums">{tc("albums")}</Link> / <span>Create</span>
             </div>
             <div className="ca-topbar-actions">
-              <Link href="/dashboard" className="ca-btn-outline">Discard</Link>
+              <Link href="/dashboard" className="ca-btn-outline">{t("discard")}</Link>
               <button
                 className="ca-btn-primary"
                 onClick={handleSubmit}
                 disabled={loading || remaining <= 0}
               >
                 {loading
-                  ? <><Spinner /> Creating…</>
-                  : <><CheckIcon /> Create album</>}
+                  ? <><Spinner /> {t("creating")}</>
+                  : <><CheckIcon /> {t("createAlbum")}</>}
               </button>
             </div>
           </div>
@@ -274,30 +276,30 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
               {step === 0 && (
                 <div>
                   <div className="ca-section-head">
-                    <div className="ca-step-num">Step 1 of 3</div>
-                    <div className="ca-section-title">Name your <em>album.</em></div>
-                    <div className="ca-section-sub">Give your album a title. Guests will see this when they scan your QR code.</div>
+                    <div className="ca-step-num">{t("step1")}</div>
+                    <div className="ca-section-title">{t("nameYourAlbum")}</div>
+                    <div className="ca-section-sub">{t("nameDesc")}</div>
                   </div>
                   <div className="ca-fields">
                     <div className={`ca-field${titleErr ? " err" : ""}`}>
-                      <label>Album title <span className="ca-req">*</span></label>
+                      <label>{t("albumTitle")} <span className="ca-req">*</span></label>
                       <input
                         className="ca-input"
                         type="text"
-                        placeholder="e.g. Sarah & James Wedding"
+                        placeholder={t("albumTitlePlaceholder")}
                         maxLength={60}
                         value={title}
                         autoFocus
                         onChange={(e) => { setTitle(e.target.value); if (e.target.value) setTitleErr(false); }}
                         onKeyDown={(e) => { if (e.key === "Enter") tryGoStep(1); }}
                       />
-                      {titleErr && <div className="ca-field-err">Album title is required.</div>}
+                      {titleErr && <div className="ca-field-err">{t("albumTitleRequired")}</div>}
                     </div>
                   </div>
                   <div className="ca-section-nav">
                     <span />
                     <button className="ca-btn-next" onClick={() => tryGoStep(1)}>
-                      Next: Cover & Storage
+                      {t("nextCoverStorage")}
                       <ArrowIcon />
                     </button>
                   </div>
@@ -308,15 +310,15 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
               {step === 1 && (
                 <div>
                   <div className="ca-section-head">
-                    <div className="ca-step-num">Step 2 of 3</div>
-                    <div className="ca-section-title">Cover & <em>storage.</em></div>
-                    <div className="ca-section-sub">Add a cover photo and allocate how much storage this album can use.</div>
+                    <div className="ca-step-num">{t("step2")}</div>
+                    <div className="ca-section-title">{t("coverStorage")}</div>
+                    <div className="ca-section-sub">{t("coverDesc")}</div>
                   </div>
                   <div className="ca-fields">
 
                     {/* Cover upload */}
                     <div className="ca-field">
-                      <label>Cover image</label>
+                      <label>{t("coverImage")}</label>
                       <input
                         id="ca-cover-input"
                         ref={coverInputRef}
@@ -346,10 +348,10 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
                               <path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M12 12h.01" />
                               <path d="M3 12h18M12 3v18" />
                             </svg>
-                            Drag to reposition
+                            {t("dragToReposition")}
                           </div>
                           <label htmlFor="ca-cover-input" className="ca-cover-change-btn" onMouseDown={(e) => e.stopPropagation()}>
-                            Change
+                            {t("change")}
                           </label>
                           <button type="button" className="ca-cover-remove" onClick={removeCover}>
                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -374,14 +376,14 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
                               </svg>
                             </div>
                             <div>
-                              <div className="ca-cover-label"><strong>Click to upload</strong> or drag & drop</div>
-                              <div className="ca-cover-sub">JPG, PNG, WebP, HEIC · Max 50 MB</div>
+                              <div className="ca-cover-label"><strong>{t("clickToUpload")}</strong> {t("dragDrop")}</div>
+                              <div className="ca-cover-sub">{t("coverFileTypes")}</div>
                             </div>
                           </div>
                         </label>
                       )}
 
-                      <div className="ca-preset-hint">Or pick a gradient preset:</div>
+                      <div className="ca-preset-hint">{t("orPickGradient")}</div>
                       <div className="ca-presets">
                         {GRAD_PRESETS.map(([c1, c2], i) => (
                           <button
@@ -397,11 +399,11 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
 
                     {/* Storage slider */}
                     <div className="ca-field">
-                      <label>Allocated storage</label>
+                      <label>{t("allocatedStorage")}</label>
                       <div className="ca-storage-wrap">
                         <div className="ca-storage-value-row">
                           <div className="ca-storage-big">{inputGb} <span>GB</span></div>
-                          <div className="ca-storage-avail">{remaining} GB available</div>
+                          <div className="ca-storage-avail">{remaining} {t("gbAvailable")}</div>
                         </div>
                         <input
                           type="range"
@@ -418,16 +420,16 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
                           <span>{remaining} GB</span>
                         </div>
                         <div className="ca-storage-rem">
-                          After allocation: <strong>{remaining - inputGb} GB</strong> remaining in plan
+                          {t("afterAllocation")} <strong>{remaining - inputGb} GB</strong> {t("remainingInPlan")}
                         </div>
                       </div>
                     </div>
                   </div>
 
                   <div className="ca-section-nav">
-                    <button className="ca-btn-back" onClick={() => setStep(0)}>← Back</button>
+                    <button className="ca-btn-back" onClick={() => setStep(0)}>{t("back")}</button>
                     <button className="ca-btn-next" onClick={() => setStep(2)}>
-                      Next: Dates & Settings
+                      {t("nextDatesSettings")}
                       <ArrowIcon />
                     </button>
                   </div>
@@ -438,29 +440,29 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
               {step === 2 && (
                 <div>
                   <div className="ca-section-head">
-                    <div className="ca-step-num">Step 3 of 3</div>
-                    <div className="ca-section-title">Dates & <em>settings.</em></div>
-                    <div className="ca-section-sub">Control when guests can upload and who can see the photos.</div>
+                    <div className="ca-step-num">{t("step3")}</div>
+                    <div className="ca-section-title">{t("datesSettings")}</div>
+                    <div className="ca-section-sub">{t("datesDesc")}</div>
                   </div>
                   <div className="ca-fields">
 
                     <div className="ca-date-grid">
                       <div className="ca-field">
-                        <label>Upload opens</label>
+                        <label>{t("uploadOpens")}</label>
                         <input className="ca-input" type="datetime-local" value={openDate} onChange={(e) => setOpenDate(e.target.value)} />
-                        <div className="ca-field-hint">Leave empty to open immediately.</div>
+                        <div className="ca-field-hint">{t("leaveEmptyOpen")}</div>
                       </div>
                       <div className="ca-field">
-                        <label>Upload closes</label>
+                        <label>{t("uploadCloses")}</label>
                         <input className="ca-input" type="datetime-local" value={closeDate} onChange={(e) => setCloseDate(e.target.value)} />
-                        <div className="ca-field-hint">Leave empty for no close date.</div>
+                        <div className="ca-field-hint">{t("leaveEmptyClose")}</div>
                       </div>
                     </div>
 
                     <div className="ca-toggle-field">
                       <div>
-                        <div className="ca-toggle-label">Guest gallery visible</div>
-                        <div className="ca-toggle-desc">When enabled, guests can browse all uploaded photos together.</div>
+                        <div className="ca-toggle-label">{t("guestGalleryVisible")}</div>
+                        <div className="ca-toggle-desc">{t("guestGalleryDesc")}</div>
                       </div>
                       <button
                         type="button"
@@ -473,8 +475,8 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
 
                     <div className="ca-toggle-field">
                       <div>
-                        <div className="ca-toggle-label">Require PIN</div>
-                        <div className="ca-toggle-desc">Guests must enter a 4-digit PIN before accessing the album.</div>
+                        <div className="ca-toggle-label">{t("requirePin")}</div>
+                        <div className="ca-toggle-desc">{t("requirePinDesc")}</div>
                       </div>
                       <button
                         type="button"
@@ -487,7 +489,7 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
 
                     {pinRequired && (
                       <div className="ca-field">
-                        <label>4-digit PIN <span className="ca-req">*</span></label>
+                        <label>{t("fourDigitPin")} <span className="ca-req">*</span></label>
                         <input
                           className="ca-input"
                           type="text"
@@ -497,14 +499,14 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
                           value={pin}
                           onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
                         />
-                        <div className="ca-field-hint">Guests enter this before seeing the album.</div>
+                        <div className="ca-field-hint">{t("pinHint")}</div>
                       </div>
                     )}
 
                     <div className="ca-toggle-field">
                       <div>
-                        <div className="ca-toggle-label">Face Finder</div>
-                        <div className="ca-toggle-desc">Allow guests to filter photos by face — they tap a face bubble to see only photos featuring that person.</div>
+                        <div className="ca-toggle-label">{t("faceFinder")}</div>
+                        <div className="ca-toggle-desc">{t("faceFinderDesc")}</div>
                       </div>
                       <button
                         type="button"
@@ -517,15 +519,15 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
                   </div>
 
                   <div className="ca-section-nav">
-                    <button className="ca-btn-back" onClick={() => setStep(1)}>← Back</button>
+                    <button className="ca-btn-back" onClick={() => setStep(1)}>{t("back")}</button>
                     <button
                       className="ca-btn-primary"
                       onClick={handleSubmit}
                       disabled={loading || remaining <= 0}
                     >
                       {loading
-                        ? <><Spinner /> Creating…</>
-                        : <><CheckIcon /> Create album</>}
+                        ? <><Spinner /> {t("creating")}</>
+                        : <><CheckIcon /> {t("createAlbum")}</>}
                     </button>
                   </div>
                 </div>
@@ -534,7 +536,7 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
 
             {/* ── Right: live preview ── */}
             <div className="ca-aside">
-              <div className="ca-aside-label">Live preview</div>
+              <div className="ca-aside-label">{t("livePreview")}</div>
               <div className="ca-preview-card">
                 <div className="ca-preview-cover" style={coverStyle}>
                   <div className="ca-preview-grad" />
@@ -544,15 +546,15 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
                 </div>
                 <div className="ca-preview-body">
                   <div className={`ca-preview-title${!title ? " empty" : ""}`}>
-                    {title || "Untitled album"}
+                    {title || t("untitledAlbum")}
                   </div>
                   <div className="ca-preview-meta-item">
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <rect x="1" y="1" width="10" height="10" rx="1" /><path d="M1 5h10M4 1v4" />
                     </svg>
                     {openDate || closeDate
-                      ? `${openDate ? fmtDate(openDate) : "Now"} – ${closeDate ? fmtDate(closeDate) : "No end"}`
-                      : "Dates not set"}
+                      ? `${openDate ? fmtDate(openDate) : t("now")} – ${closeDate ? fmtDate(closeDate) : t("noEnd")}`
+                      : t("datesNotSet")}
                   </div>
                   <div className="ca-preview-storage-row">
                     <div className="ca-preview-storage-labels">
@@ -569,7 +571,7 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                   <circle cx="8" cy="8" r="6" /><path d="M8 7v4M8 5v.5" />
                 </svg>
-                <p>Guests don't need an account — they scan your QR code and upload directly from their phone.</p>
+                <p>{t("guestHint")}</p>
               </div>
             </div>
           </div>
@@ -636,6 +638,7 @@ function ArrowIcon() {
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
 function Sidebar({ user }: { user: Props["user"] }) {
+  const tc = useTranslations("common");
   return (
     <aside className="ca-sidebar">
       <div className="ca-sidebar-logo">
@@ -648,19 +651,19 @@ function Sidebar({ user }: { user: Props["user"] }) {
             <rect x="1" y="1" width="6" height="6" rx="1" /><rect x="9" y="1" width="6" height="6" rx="1" />
             <rect x="1" y="9" width="6" height="6" rx="1" /><rect x="9" y="9" width="6" height="6" rx="1" />
           </svg>
-          Dashboard
+          {tc("dashboard")}
         </Link>
         <Link href="/albums" className="ca-nav-item active">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
             <rect x="2" y="4" width="12" height="10" rx="1.5" /><path d="M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" /><circle cx="8" cy="9" r="2" />
           </svg>
-          Albums
+          {tc("albums")}
         </Link>
         <Link href="/settings" className="ca-nav-item">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
             <circle cx="8" cy="8" r="2.5" /><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.22 3.22l1.42 1.42M11.36 11.36l1.42 1.42M3.22 12.78l1.42-1.42M11.36 4.64l1.42-1.42" />
           </svg>
-          Settings
+          {tc("settings")}
         </Link>
         <div className="ca-nav-div" />
         <form action={createPortalSession} style={{ width: "100%" }}>
@@ -668,7 +671,7 @@ function Sidebar({ user }: { user: Props["user"] }) {
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
               <rect x="1" y="3" width="14" height="10" rx="1.5" /><path d="M1 6h14M4 10h3" />
             </svg>
-            Billing
+            {tc("billing")}
           </button>
         </form>
         <form action={logout} style={{ width: "100%" }}>
@@ -676,7 +679,7 @@ function Sidebar({ user }: { user: Props["user"] }) {
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
               <path d="M6 14H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h4" /><path d="M11 11l3-3-3-3" /><path d="M14 8H6" />
             </svg>
-            Sign out
+            {tc("signOut")}
           </button>
         </form>
       </nav>

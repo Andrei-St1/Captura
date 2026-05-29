@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { logout } from "@/app/auth/actions";
 import { createPortalSession } from "@/app/stripe/actions";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export interface SidebarUser {
   displayName: string;
@@ -20,6 +22,7 @@ export interface SidebarProps {
 
 export function AppSidebar({ user, plan, usage, storageGb }: SidebarProps) {
   const pathname = usePathname();
+  const t = useTranslations("common");
 
   function active(href: string) {
     if (href === "/dashboard") return pathname === href;
@@ -39,15 +42,15 @@ export function AppSidebar({ user, plan, usage, storageGb }: SidebarProps) {
         <nav className="db-sidebar-nav">
           <Link href="/dashboard" className={`db-nav-item${active("/dashboard") ? " active" : ""}`}>
             <NavIcon path="dashboard" on={active("/dashboard")} />
-            Dashboard
+            {t("dashboard")}
           </Link>
           <Link href="/albums" className={`db-nav-item${active("/albums") ? " active" : ""}`}>
             <NavIcon path="albums" on={active("/albums")} />
-            Albums
+            {t("albums")}
           </Link>
           <Link href="/settings" className={`db-nav-item${active("/settings") ? " active" : ""}`}>
             <NavIcon path="settings" on={active("/settings")} />
-            Settings
+            {t("settings")}
           </Link>
 
           <div className="db-nav-divider" />
@@ -55,14 +58,14 @@ export function AppSidebar({ user, plan, usage, storageGb }: SidebarProps) {
           <form action={createPortalSession} style={{ width: "100%" }}>
             <button type="submit" className="db-nav-item">
               <NavIcon path="billing" on={false} />
-              Billing
+              {t("billing")}
             </button>
           </form>
 
           <form action={logout} style={{ width: "100%" }}>
             <button type="submit" className="db-nav-item">
               <NavIcon path="signout" on={false} />
-              Sign out
+              {t("signOut")}
             </button>
           </form>
         </nav>
@@ -76,7 +79,7 @@ export function AppSidebar({ user, plan, usage, storageGb }: SidebarProps) {
             </div>
           </div>
           <div className="db-storage-label">
-            <span>Storage</span>
+            <span>{t("storage")}</span>
             <span>{usage.storagePercent}%</span>
           </div>
           <div className="db-storage-track">
@@ -89,6 +92,9 @@ export function AppSidebar({ user, plan, usage, storageGb }: SidebarProps) {
           </div>
           <div style={{ fontSize: 11, color: "oklch(58% 0.010 265)", marginTop: 5 }}>
             {usage.usedStorageGb} GB / {storageGb ?? "—"} GB
+          </div>
+          <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
+            <LanguageSwitcher className="db-lang-btn" />
           </div>
         </div>
       </aside>
@@ -188,6 +194,13 @@ const CSS = `
   .db-storage-label  { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 6px; }
   .db-storage-track  { height: 5px; background: var(--bg4); border-radius: 99px; overflow: hidden; }
   .db-storage-fill   { height: 100%; border-radius: 99px; transition: width 0.4s; }
+  .db-lang-btn {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+    color: var(--muted2); background: var(--bg3);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 3px 8px; cursor: pointer; transition: color 0.15s, background 0.15s;
+  }
+  .db-lang-btn:hover { color: var(--text); background: var(--bg4); }
 
   @media (max-width: 760px) {
     .db-sidebar { display: none; }

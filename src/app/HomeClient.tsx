@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 const PHOTO_COLORS = [
   "oklch(28% 0.06 30)", "oklch(25% 0.05 200)", "oklch(30% 0.04 280)",
@@ -9,26 +10,13 @@ const PHOTO_COLORS = [
   "oklch(27% 0.06 10)", "oklch(24% 0.04 240)",
 ];
 
-const STEPS = [
-  { num: "01", title: "Create your album", desc: "Set a title, upload window, and welcome message. Takes under a minute." },
-  { num: "02", title: "Share the QR code", desc: "Print it, project it, or link it. Each album gets multiple codes you can enable or disable." },
-  { num: "03", title: "Guests upload, instantly", desc: "No account needed. They scan, add their name, and drop photos or videos." },
-  { num: "04", title: "Download everything", desc: "Browse your gallery, filter by face, and export a ZIP of every upload." },
-];
-
-const FEATURES = [
-  { title: "Multiple QR codes", desc: "Create several codes per album — one for the ceremony, one for the reception. Enable or disable each independently.", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><circle cx="17.5" cy="17.5" r="2.5"/></svg> },
-  { title: "Face detection", desc: "Filter your gallery by detected faces. Find every photo of a specific person in seconds — visible to hosts only.", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/><circle cx="19" cy="10" r="3"/><path d="M22 18c0-2-1.3-3.5-3-4"/></svg> },
-  { title: "Time-gated uploads", desc: "Albums open and close on the dates you choose. No late submissions, no manual closing.", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5M16 4v5"/></svg> },
-  { title: "ZIP bulk download", desc: "Export every photo and video in one click. Original quality, full resolution, organized by upload time.", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 3v12M8 11l4 4 4-4"/><rect x="4" y="17" width="16" height="4" rx="1"/></svg> },
-  { title: "Welcome card", desc: "A branded landing page with your event title, message, cover photo, and location — the first thing guests see.", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg> },
-  { title: "Guest gallery toggle", desc: "Choose whether guests can browse all uploads together, or keep everything private until you share it.", icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 12S5 5 12 5s11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg> },
-];
-
-const PLANS = [
-  { name: "Starter", price: "0", period: "/ mo", desc: "Everything you need to try Captura for a single event.", featured: false, cta: "Get started free", features: ["1 active album", "5 GB storage", "Unlimited guest uploads", "QR code sharing", "ZIP download", "Welcome card"] },
-  { name: "Pro", price: "19", period: "/ mo", desc: "For photographers and regular event hosts who want full control.", featured: true, cta: "Start Pro trial", features: ["10 active albums", "100 GB storage", "Multiple QR codes per album", "Face detection filtering", "Guest gallery toggle", "Time-gated upload windows", "Priority support"] },
-  { name: "Business", price: "79", period: "/ mo", desc: "For agencies and studios running dozens of events a year.", featured: false, cta: "Contact sales", features: ["Unlimited albums", "1 TB storage", "Custom branding on welcome card", "Team member access", "Advanced analytics", "Dedicated account manager", "SLA & invoice billing"] },
+const FEATURE_ICONS = [
+  <svg key="qr" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>,
+  <svg key="face" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/><circle cx="19" cy="10" r="3"/><path d="M22 18c0-2-1.3-3.5-3-4"/></svg>,
+  <svg key="time" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5M16 4v5"/></svg>,
+  <svg key="zip" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 3v12M8 11l4 4 4-4"/><rect x="4" y="17" width="16" height="4" rx="1"/></svg>,
+  <svg key="card" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>,
+  <svg key="eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 12S5 5 12 5s11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>,
 ];
 
 function useReveal() {
@@ -51,6 +39,7 @@ function useReveal() {
 }
 
 function CameraAnimation() {
+  const t = useTranslations("home");
   const stageRef = useRef<HTMLDivElement>(null);
   const counterRef = useRef<HTMLDivElement>(null);
   const checkRef = useRef<SVGPathElement>(null);
@@ -155,7 +144,7 @@ function CameraAnimation() {
           </div>
           <div ref={ledRef} className="hp-camera-led" />
         </div>
-        <div className="hp-label">Guest&apos;s phone</div>
+        <div className="hp-label">{t("animGuestPhone")}</div>
       </div>
 
       {/* Dotted paths */}
@@ -173,7 +162,7 @@ function CameraAnimation() {
           </svg>
           <div ref={counterRef} className="hp-cloud-counter">0</div>
         </div>
-        <div className="hp-label">Your album</div>
+        <div className="hp-label">{t("animYourAlbum")}</div>
       </div>
 
       <div ref={particlesRef} style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 3, overflow: "hidden", borderRadius: 24 }} />
@@ -182,10 +171,33 @@ function CameraAnimation() {
 }
 
 export function HomeClient({ isLoggedIn }: { isLoggedIn: boolean }) {
+  const t = useTranslations("home");
   const [scrolled, setScrolled]   = useState(false);
   const [theme, setTheme]         = useState<"dark" | "light">("light");
   const [menuOpen, setMenuOpen]   = useState(false);
   useReveal();
+
+  const STEPS = [
+    { num: t("step1Num"), title: t("step1Title"), desc: t("step1Desc") },
+    { num: t("step2Num"), title: t("step2Title"), desc: t("step2Desc") },
+    { num: t("step3Num"), title: t("step3Title"), desc: t("step3Desc") },
+    { num: t("step4Num"), title: t("step4Title"), desc: t("step4Desc") },
+  ];
+
+  const FEATURES = [
+    { title: t("feat1Title"), desc: t("feat1Desc"), icon: FEATURE_ICONS[0] },
+    { title: t("feat2Title"), desc: t("feat2Desc"), icon: FEATURE_ICONS[1] },
+    { title: t("feat3Title"), desc: t("feat3Desc"), icon: FEATURE_ICONS[2] },
+    { title: t("feat4Title"), desc: t("feat4Desc"), icon: FEATURE_ICONS[3] },
+    { title: t("feat5Title"), desc: t("feat5Desc"), icon: FEATURE_ICONS[4] },
+    { title: t("feat6Title"), desc: t("feat6Desc"), icon: FEATURE_ICONS[5] },
+  ];
+
+  const PLANS = [
+    { name: t("plan1Name"), price: "0", period: t("periodPerMonth"), desc: t("plan1Desc"), featured: false, cta: t("plan1Cta"), features: [t("plan1Feat1"), t("plan1Feat2"), t("plan1Feat3"), t("plan1Feat4"), t("plan1Feat5"), t("plan1Feat6")] },
+    { name: t("plan2Name"), price: "19", period: t("periodPerMonth"), desc: t("plan2Desc"), featured: true, cta: t("plan2Cta"), features: [t("plan2Feat1"), t("plan2Feat2"), t("plan2Feat3"), t("plan2Feat4"), t("plan2Feat5"), t("plan2Feat6"), t("plan2Feat7")] },
+    { name: t("plan3Name"), price: "79", period: t("periodPerMonth"), desc: t("plan3Desc"), featured: false, cta: t("plan3Cta"), features: [t("plan3Feat1"), t("plan3Feat2"), t("plan3Feat3"), t("plan3Feat4"), t("plan3Feat5"), t("plan3Feat6"), t("plan3Feat7")] },
+  ];
 
   useEffect(() => {
     const saved = localStorage.getItem("captura-theme");
@@ -383,9 +395,9 @@ export function HomeClient({ isLoggedIn }: { isLoggedIn: boolean }) {
         </Link>
 
         <ul className="hp-nav-links">
-          <li><a href="#how">How it works</a></li>
-          <li><a href="#pricing">Pricing</a></li>
-          {!isLoggedIn && <li><Link href="/login">Sign in</Link></li>}
+          <li><a href="#how">{t("navHow")}</a></li>
+          <li><a href="#pricing">{t("navPricing")}</a></li>
+          {!isLoggedIn && <li><Link href="/login">{t("navSignIn")}</Link></li>}
         </ul>
 
         <div className="hp-nav-divider" />
@@ -401,12 +413,12 @@ export function HomeClient({ isLoggedIn }: { isLoggedIn: boolean }) {
 
         {isLoggedIn ? (
           <Link href="/dashboard" className="hp-nav-cta">
-            Dashboard
+            {t("navDashboard")}
             <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
           </Link>
         ) : (
           <Link href="/register" className="hp-nav-cta">
-            Get started
+            {t("navGetStarted")}
             <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
           </Link>
         )}
@@ -421,20 +433,20 @@ export function HomeClient({ isLoggedIn }: { isLoggedIn: boolean }) {
         <ul className="hp-mobile-links">
           <li>
             <a href="#how" onClick={() => setMenuOpen(false)}>
-              How it works
+              {t("navHow")}
               <svg viewBox="0 0 16 16"><path d="M5 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </a>
           </li>
           <li>
             <a href="#pricing" onClick={() => setMenuOpen(false)}>
-              Pricing
+              {t("navPricing")}
               <svg viewBox="0 0 16 16"><path d="M5 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </a>
           </li>
           {!isLoggedIn && (
             <li>
               <Link href="/login" onClick={() => setMenuOpen(false)}>
-                Sign in
+                {t("navSignIn")}
                 <svg viewBox="0 0 16 16"><path d="M5 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </Link>
             </li>
@@ -442,16 +454,16 @@ export function HomeClient({ isLoggedIn }: { isLoggedIn: boolean }) {
         </ul>
         <div className="hp-mobile-footer">
           <div style={{ fontSize: 12, color: "var(--muted)", letterSpacing: "0.06em" }}>
-            Try it free · No card required
+            {t("mobileMenuFree")}
           </div>
           {isLoggedIn ? (
             <Link href="/dashboard" className="hp-mobile-cta" onClick={() => setMenuOpen(false)}>
-              Go to Dashboard
+              {t("mobileGoToDashboard")}
               <svg viewBox="0 0 16 16"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </Link>
           ) : (
             <Link href="/register" className="hp-mobile-cta" onClick={() => setMenuOpen(false)}>
-              Get started free
+              {t("mobileGetStartedFree")}
               <svg viewBox="0 0 16 16"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </Link>
           )}
@@ -463,23 +475,23 @@ export function HomeClient({ isLoggedIn }: { isLoggedIn: boolean }) {
         <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -60%)", width: 700, height: 700, background: "radial-gradient(circle, oklch(76% 0.13 82 / 0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
 
         <div className="hp-hero-badge hp-badge" style={{ display: "inline-flex", alignItems: "center", gap: 8, borderRadius: 100, padding: "6px 16px", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 32 }}>
-          ✦ <span style={{ color: "var(--gold)" }}>No app download required</span> for guests
+          ✦ <span style={{ color: "var(--gold)" }}>{t("heroBadge")}</span> {t("heroBadgeSuffix")}
         </div>
 
         <h1 className="hp-serif hp-hero-title" style={{ fontSize: "clamp(52px, 7vw, 96px)", fontWeight: 300, lineHeight: 1.05, letterSpacing: "-0.02em" }}>
-          Every shot,<br /><em style={{ fontStyle: "italic" }}>from every guest.</em>
+          {t("heroTitle1")}<br /><em style={{ fontStyle: "italic" }}>{t("heroTitle2")}</em>
         </h1>
 
         <p className="hp-hero-sub" style={{ marginTop: 24, fontSize: "clamp(15px, 1.8vw, 18px)", maxWidth: 520, lineHeight: 1.7 }}>
-          Create a shared album, share a QR code. Guests upload photos from their phone — no account, no friction.
+          {t("heroSub")}
         </p>
 
         <div className="hp-hero-cta" style={{ marginTop: 40, display: "flex", gap: 16, alignItems: "center" }}>
           <Link href="/register" style={{ background: "var(--gold)", color: "var(--bg)", padding: "14px 32px", borderRadius: 8, fontSize: 15, fontWeight: 500, letterSpacing: "0.03em", textDecoration: "none", display: "inline-block" }}>
-            Create your first album
+            {t("heroCreateAlbum")}
           </Link>
           <a href="#how" style={{ color: "var(--muted)", fontSize: 15, textDecoration: "none", display: "flex", alignItems: "center", gap: 8 }}>
-            See how it works
+            {t("heroSeeHow")}
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </a>
         </div>
@@ -503,16 +515,16 @@ export function HomeClient({ isLoggedIn }: { isLoggedIn: boolean }) {
               </svg>
             </div>
             <div style={{ flex: 1, textAlign: "left" }}>
-              <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 8 }}>Wedding · June 2026</div>
+              <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 8 }}>{t("heroCardDate")}</div>
               <div className="hp-serif" style={{ fontSize: 28, fontWeight: 400, marginBottom: 8, color: "var(--text)" }}>Sarah &amp; James</div>
               <div style={{ fontSize: 13, color: "var(--muted)", display: "flex", flexDirection: "column", gap: 4 }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 2a4 4 0 100 8A4 4 0 008 2zM2 14c0-2.2 2.7-4 6-4s6 1.8 6 4"/></svg>
-                  247 uploads
+                  {t("heroCardUploads")}
                 </span>
                 <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M5 3V1M11 3V1M2 7h12"/></svg>
-                  Closes Jun 15
+                  {t("heroCardCloses")}
                 </span>
               </div>
             </div>
@@ -526,16 +538,16 @@ export function HomeClient({ isLoggedIn }: { isLoggedIn: boolean }) {
 
         <div className="hp-scroll-ind" style={{ marginTop: 48, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>
           <div className="hp-scroll-line" />
-          <span>scroll</span>
+          <span>{t("heroScroll")}</span>
         </div>
       </section>
 
       {/* ANIMATION SECTION */}
       <section id="how" className="hp-how-section" style={{ padding: "120px 24px", display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <div className="hp-section-label">In motion</div>
-        <h2 className="hp-serif hp-section-title" style={{ fontSize: "clamp(36px, 4.5vw, 60px)", fontWeight: 300, lineHeight: 1.1, textAlign: "center", marginBottom: 16 }}>Guests snap.<br />You receive.</h2>
+        <div className="hp-section-label">{t("animLabel")}</div>
+        <h2 className="hp-serif hp-section-title" style={{ fontSize: "clamp(36px, 4.5vw, 60px)", fontWeight: 300, lineHeight: 1.1, textAlign: "center", marginBottom: 16 }}>{t("animTitle1")}<br />{t("animTitle2")}</h2>
         <p className="hp-section-sub" style={{ fontSize: 16, textAlign: "center", maxWidth: 480, lineHeight: 1.7, marginBottom: 80 }}>
-          The moment a guest scans your QR code, their photos fly straight into your album.
+          {t("animSub")}
         </p>
         <CameraAnimation />
 
@@ -552,9 +564,9 @@ export function HomeClient({ isLoggedIn }: { isLoggedIn: boolean }) {
 
       {/* FEATURES */}
       <section className="hp-features-section" style={{ padding: "120px 24px", display: "flex", flexDirection: "column", alignItems: "center", background: "var(--bg2)" }}>
-        <div className="hp-section-label">Features</div>
-        <h2 className="hp-serif hp-section-title" style={{ fontSize: "clamp(36px, 4.5vw, 60px)", fontWeight: 300, lineHeight: 1.1, textAlign: "center", marginBottom: 16 }}>Built for real events</h2>
-        <p className="hp-section-sub" style={{ fontSize: 16, textAlign: "center", maxWidth: 480, lineHeight: 1.7, marginBottom: 60 }}>Every detail designed to keep hosts in control and guests happy.</p>
+        <div className="hp-section-label">{t("featuresLabel")}</div>
+        <h2 className="hp-serif hp-section-title" style={{ fontSize: "clamp(36px, 4.5vw, 60px)", fontWeight: 300, lineHeight: 1.1, textAlign: "center", marginBottom: 16 }}>{t("featuresTitle")}</h2>
+        <p className="hp-section-sub" style={{ fontSize: 16, textAlign: "center", maxWidth: 480, lineHeight: 1.7, marginBottom: 60 }}>{t("featuresSub")}</p>
         <div className="hp-features-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, width: "100%", maxWidth: 1000 }}>
           {FEATURES.map((f) => (
             <div key={f.title} className="hp-reveal hp-feature" style={{ borderRadius: 14, padding: "32px 28px", display: "flex", flexDirection: "column", gap: 14 }}>
@@ -570,13 +582,13 @@ export function HomeClient({ isLoggedIn }: { isLoggedIn: boolean }) {
 
       {/* PRICING */}
       <section id="pricing" className="hp-pricing-section" style={{ padding: "120px 24px", display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <div className="hp-section-label">Pricing</div>
-        <h2 className="hp-serif hp-section-title" style={{ fontSize: "clamp(36px, 4.5vw, 60px)", fontWeight: 300, lineHeight: 1.1, textAlign: "center", marginBottom: 16 }}>Simple, honest plans</h2>
-        <p className="hp-section-sub" style={{ fontSize: 16, textAlign: "center", maxWidth: 480, lineHeight: 1.7, marginBottom: 64 }}>Start free. Grow as your events do.</p>
+        <div className="hp-section-label">{t("pricingLabel")}</div>
+        <h2 className="hp-serif hp-section-title" style={{ fontSize: "clamp(36px, 4.5vw, 60px)", fontWeight: 300, lineHeight: 1.1, textAlign: "center", marginBottom: 16 }}>{t("pricingTitle")}</h2>
+        <p className="hp-section-sub" style={{ fontSize: 16, textAlign: "center", maxWidth: 480, lineHeight: 1.7, marginBottom: 64 }}>{t("pricingSub")}</p>
         <div className="hp-plans-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 320px)", gap: 24 }}>
           {PLANS.map((plan) => (
             <div key={plan.name} className={`hp-reveal hp-plan${plan.featured ? " featured" : ""}`} style={{ borderRadius: 20, padding: "40px 36px", display: "flex", flexDirection: "column", position: "relative" }}>
-              {plan.featured && <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: "var(--gold)", color: "var(--bg)", fontSize: 11, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase", padding: "4px 14px", borderRadius: 100, whiteSpace: "nowrap" }}>Most popular</div>}
+              {plan.featured && <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: "var(--gold)", color: "var(--bg)", fontSize: 11, fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase", padding: "4px 14px", borderRadius: 100, whiteSpace: "nowrap" }}>{t("pricingMostPopular")}</div>}
               <div style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 16 }}>{plan.name}</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 8 }}>
                 <span style={{ fontSize: 20, color: "var(--muted)", alignSelf: "flex-start", marginTop: 8 }}>$</span>
@@ -608,33 +620,33 @@ export function HomeClient({ isLoggedIn }: { isLoggedIn: boolean }) {
         <div className="hp-reveal hp-card hp-cta-card" style={{ width: "100%", maxWidth: 900, border: "1px solid oklch(76% 0.13 82 / 0.2)", borderRadius: 24, padding: "72px 64px", textAlign: "center", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 600, height: 300, background: "radial-gradient(ellipse, oklch(76% 0.13 82 / 0.07) 0%, transparent 70%)", pointerEvents: "none" }} />
           <h2 className="hp-serif hp-section-title" style={{ fontSize: "clamp(36px, 4vw, 56px)", fontWeight: 300, lineHeight: 1.1, marginBottom: 16, position: "relative" }}>
-            Your next event<br />deserves <em style={{ fontStyle: "italic" }}>every photo.</em>
+            {t("ctaTitle1")}<br />{t("ctaTitle2")} <em style={{ fontStyle: "italic" }}>{t("ctaTitle3")}</em>
           </h2>
           <p className="hp-section-sub" style={{ fontSize: 16, marginBottom: 40, maxWidth: 400, marginLeft: "auto", marginRight: "auto", position: "relative", lineHeight: 1.7 }}>
-            Set up your first album in under two minutes. No credit card required.
+            {t("ctaSub")}
           </p>
           <Link href="/register" style={{ background: "var(--gold)", color: "var(--bg)", padding: "14px 32px", borderRadius: 8, fontSize: 15, fontWeight: 500, letterSpacing: "0.03em", textDecoration: "none", display: "inline-block", position: "relative" }}>
-            Create a free album
+            {t("ctaButton")}
           </Link>
-          <p className="hp-section-sub" style={{ fontSize: 12, marginTop: 16, position: "relative" }}>Free forever · No app download for guests · Cancel anytime</p>
+          <p className="hp-section-sub" style={{ fontSize: 12, marginTop: 16, position: "relative" }}>{t("ctaFootnote")}</p>
         </div>
       </section>
 
       {/* FAQ */}
       <section className="hp-faq-section" style={{ padding: "80px 48px", maxWidth: 900, margin: "0 auto" }}>
         <h2 className="hp-serif" style={{ fontSize: "clamp(28px, 3vw, 42px)", fontWeight: 300, textAlign: "center", marginBottom: 48, color: "var(--text)" }}>
-          Frequently asked questions
+          {t("faqTitle")}
         </h2>
         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
           {[
-            { q: "What is Captura?", a: "Captura is a web app for collecting photos and videos from event guests. Create a shared album, generate a QR code, and guests scan it to upload directly from their phone — no app download or account required." },
-            { q: "Do guests need to download an app to upload photos?", a: "No. Guests scan a QR code which opens a page in their phone's browser. They enter their name and upload photos or videos. Zero friction, zero downloads." },
-            { q: "What events is Captura good for?", a: "Weddings, birthday parties, corporate events, reunions, graduations, baby showers, sports events, conferences — any occasion where you want to crowdsource photos from attendees." },
-            { q: "Can I collect photos from wedding guests without an app?", a: "Yes. Captura is designed exactly for this. Print or display a QR code at your venue. Guests scan and upload from any phone browser. You download everything as a ZIP after the event." },
-            { q: "How does the face detection work?", a: "After guests upload photos, Captura automatically detects and groups faces. As the album owner, you can filter your gallery to see every photo that features a specific person." },
-            { q: "Can I limit when guests can upload photos?", a: "Yes. Each album can have an open date and a close date. Uploads are automatically restricted to that window — no manual closing needed." },
-            { q: "How do I download all the event photos?", a: "You can download all photos and videos as a single ZIP file from your gallery with one click." },
-            { q: "Is there a free plan?", a: "Yes. The Starter plan is free and includes 1 album and 5 GB of storage — enough to try Captura for a single event." },
+            { q: t("faq1Q"), a: t("faq1A") },
+            { q: t("faq2Q"), a: t("faq2A") },
+            { q: t("faq3Q"), a: t("faq3A") },
+            { q: t("faq4Q"), a: t("faq4A") },
+            { q: t("faq5Q"), a: t("faq5A") },
+            { q: t("faq6Q"), a: t("faq6A") },
+            { q: t("faq7Q"), a: t("faq7A") },
+            { q: t("faq8Q"), a: t("faq8A") },
           ].map(({ q, a }, i) => (
             <div key={i} className="hp-faq-item" style={{ padding: "24px 0" }}>
               <h3 style={{ fontSize: 15, fontWeight: 500, color: "var(--text)", marginBottom: 10 }}>{q}</h3>
@@ -649,12 +661,12 @@ export function HomeClient({ isLoggedIn }: { isLoggedIn: boolean }) {
       <footer className="hp-footer hp-footer-grid" style={{ padding: 48, display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: 48, alignItems: "start" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div className="hp-serif" style={{ fontSize: 20, color: "var(--gold)", letterSpacing: "0.08em" }}>Captura</div>
-          <div style={{ fontSize: 13, color: "var(--muted)", maxWidth: 220, lineHeight: 1.6 }}>Crowd-sourced event photos, without the friction.</div>
+          <div style={{ fontSize: 13, color: "var(--muted)", maxWidth: 220, lineHeight: 1.6 }}>{t("footerTagline")}</div>
         </div>
         {[
-          ["Product", [["How it works", "#how"], ["Pricing", "#pricing"], ["Face detection", "#"], ["Guest uploads", "#"]]],
-          ["Company", [["About", "#"], ["Blog", "#"], ["Careers", "#"], ["Press", "#"]]],
-          ["Legal", [["Privacy", "#"], ["Terms", "#"], ["Security", "#"], ["GDPR", "#"]]],
+          [t("footerProduct"), [[t("footerHowItWorks"), "#how"], [t("footerPricing"), "#pricing"], [t("footerFaceDetection"), "#"], [t("footerGuestUploads"), "#"]]],
+          [t("footerCompany"), [[t("footerAbout"), "#"], [t("footerBlog"), "#"], [t("footerCareers"), "#"], [t("footerPress"), "#"]]],
+          [t("footerLegal"), [[t("footerPrivacy"), "#"], [t("footerTerms"), "#"], [t("footerSecurity"), "#"], [t("footerGDPR"), "#"]]],
         ].map(([title, links]) => (
           <div key={title as string} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 4 }}>{title as string}</div>
@@ -665,8 +677,8 @@ export function HomeClient({ isLoggedIn }: { isLoggedIn: boolean }) {
         ))}
       </footer>
       <div className="hp-footer" style={{ padding: "20px 48px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: "var(--muted)" }}>
-        <span>© 2026 Captura. All rights reserved.</span>
-        <span>Made for moments worth keeping.</span>
+        <span>{t("footerCopyright")}</span>
+        <span>{t("footerMotto")}</span>
       </div>
     </div>
   );

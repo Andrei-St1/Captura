@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { extractExifDate, convertToWebP } from "@/lib/imagePreprocess";
+import { useTranslations } from "next-intl";
 
 interface Props {
   albumId: string;
@@ -71,6 +72,7 @@ async function abortMultipart(uploadId: string, filePath: string) {
 }
 
 export function OwnerUploadButton({ albumId, compact }: Props) {
+  const t = useTranslations("gallery");
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -373,12 +375,12 @@ export function OwnerUploadButton({ albumId, compact }: Props) {
             <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
             </svg>
-            {progress ? `${progress.done}/${progress.total}…` : "Uploading…"}
+            {progress ? t("uploadingProgress", { done: progress.done, total: progress.total }) : t("uploading")}
           </>
         ) : (
           <>
             <span className="material-symbols-outlined" style={{ fontSize: compact ? "15px" : "18px" }}>upload</span>
-            {compact ? "Upload" : "Upload photos"}
+            {compact ? t("upload") : t("uploadPhotos")}
           </>
         )}
       </button>

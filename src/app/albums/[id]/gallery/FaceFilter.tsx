@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 
 interface FaceCluster {
   id: string;
@@ -62,6 +63,7 @@ async function cropToDataUrl(
 }
 
 export function FaceFilter({ items, albumId, onFilter }: Props) {
+  const t = useTranslations("gallery");
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [showConfirm, setShowConfirm] = useState(false);
   const [enabled, setEnabled] = useState(false);
@@ -170,11 +172,11 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
                 <span className="material-symbols-outlined text-primary" style={{ fontSize: "22px" }}>face</span>
               </div>
               <div>
-                <h3 className="font-noto-serif text-lg text-on-surface">Enable face filter</h3>
+                <h3 className="font-noto-serif text-lg text-on-surface">{t("enableFaceFilter")}</h3>
                 <p className="mt-1 text-sm text-on-surface-variant leading-relaxed">
-                  Captura will group photos by the faces that appear in them. This may take a few moments depending on album size.
+                  {t("faceFilterDescription")}
                 </p>
-                <p className="mt-2 text-xs text-outline">Results are saved — next visit will be instant.</p>
+                <p className="mt-2 text-xs text-outline">{t("faceFilterHint")}</p>
               </div>
             </div>
             <div className="flex gap-3">
@@ -182,13 +184,13 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
                 onClick={() => setShowConfirm(false)}
                 className="flex-1 rounded-xl border border-outline-variant/40 py-2.5 text-sm font-medium text-on-surface-variant hover:bg-surface-container transition"
               >
-                Cancel
+                {t("cancel")}
               </button>
               <button
                 onClick={handleEnable}
                 className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-white hover:bg-primary/90 transition"
               >
-                Enable
+                {t("enable")}
               </button>
             </div>
           </div>
@@ -203,7 +205,7 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
             className="flex items-center gap-2 rounded-xl border border-outline-variant/40 px-4 py-2 text-xs font-medium text-on-surface-variant hover:border-primary hover:text-primary transition"
           >
             <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>face</span>
-            Filter by face
+            {t("filterByFace")}
           </button>
         )}
 
@@ -214,8 +216,8 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
               <span className="material-symbols-outlined text-primary absolute inset-0 flex items-center justify-center" style={{ fontSize: "16px" }}>face</span>
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium text-on-surface">Finding faces{dots}</span>
-              <span className="text-xs text-on-surface-variant">Scanning photos and grouping similar faces</span>
+              <span className="text-sm font-medium text-on-surface">{t("findingFaces")}{dots}</span>
+              <span className="text-xs text-on-surface-variant">{t("scanningPhotos")}</span>
             </div>
             <div className="flex-1 max-w-[160px] ml-auto">
               <div className="h-1 w-full rounded-full bg-outline-variant/20 overflow-hidden">
@@ -227,13 +229,13 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
 
         {status === "done" && visible.length === 0 && (
           <div className="flex items-center gap-3 flex-1">
-            <p className="text-xs text-on-surface-variant flex-1">No recurring faces detected.</p>
+            <p className="text-xs text-on-surface-variant flex-1">{t("noRecurringFaces")}</p>
             <button
               onClick={handleDisable}
               className="flex items-center gap-1.5 rounded-xl border border-outline-variant/40 px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:border-red-400 hover:text-red-500 transition"
             >
               <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>close</span>
-              Disable
+              {t("disable")}
             </button>
           </div>
         )}
@@ -288,7 +290,7 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
                 className="shrink-0 flex items-center gap-1 rounded-full border border-outline-variant/40 px-3 py-1.5 text-xs text-on-surface-variant hover:border-primary hover:text-primary transition"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: "13px" }}>close</span>
-                Clear
+                {t("clear")}
               </button>
             )}
 
@@ -297,15 +299,15 @@ export function FaceFilter({ items, albumId, onFilter }: Props) {
               className="shrink-0 ml-auto flex items-center gap-1 rounded-full border border-outline-variant/30 px-3 py-1.5 text-xs text-on-surface-variant hover:border-red-400 hover:text-red-500 transition"
             >
               <span className="material-symbols-outlined" style={{ fontSize: "13px" }}>close</span>
-              Faces
+              {t("faces")}
             </button>
           </div>
         )}
 
         {status === "error" && (
           <div className="flex items-center gap-3 flex-1">
-            <p className="text-xs text-red-500 flex-1">Failed to load faces. <button onClick={load} className="underline">Retry</button></p>
-            <button onClick={handleDisable} className="text-xs text-on-surface-variant hover:text-on-surface transition">Dismiss</button>
+            <p className="text-xs text-red-500 flex-1">{t("failedToLoadFaces")} <button onClick={load} className="underline">{t("retry")}</button></p>
+            <button onClick={handleDisable} className="text-xs text-on-surface-variant hover:text-on-surface transition">{t("dismiss")}</button>
           </div>
         )}
       </div>

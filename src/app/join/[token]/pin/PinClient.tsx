@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { verifyAlbumPin } from "./actions";
+import { useTranslations } from "next-intl";
 
 interface Props {
   token: string;
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function PinClient({ token, albumId, albumTitle, pinHash, hasError }: Props) {
+  const t = useTranslations("pin");
   const [digits, setDigits] = useState(["", "", "", ""]);
   const [shake, setShake]   = useState(false);
   const inputRefs = useRef<Array<HTMLInputElement | null>>([null, null, null, null]);
@@ -61,9 +63,9 @@ export function PinClient({ token, albumId, albumTitle, pinHash, hasError }: Pro
             </svg>
           </div>
 
-          <h1 className="pin-title">Protected album</h1>
+          <h1 className="pin-title">{t("protectedAlbum")}</h1>
           <p className="pin-sub">
-            <em>{albumTitle}</em> requires a PIN to access.
+            <em>{albumTitle}</em> {t("requiresPin")}
           </p>
 
           <form ref={formRef} action={verifyAlbumPin} className={`pin-form${shake ? " shake" : ""}`}>
@@ -90,11 +92,11 @@ export function PinClient({ token, albumId, albumTitle, pinHash, hasError }: Pro
             </div>
 
             {(hasError || shake) && (
-              <p className="pin-error">Incorrect PIN. Try again.</p>
+              <p className="pin-error">{t("incorrectPin")}</p>
             )}
 
             <button type="submit" className="pin-btn" disabled={digits.filter(Boolean).length < 4}>
-              Continue →
+              {t("continue")}
             </button>
           </form>
 

@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations, useLocale } from "next-intl";
 import { getAlbumQRCodesForDashboard } from "@/app/albums/qr-actions";
 
 interface Album {
@@ -45,9 +46,9 @@ function getStatus(album: Album): "active" | "scheduled" | "archived" {
   return "active";
 }
 
-function formatDate(iso: string | null): string {
+function formatDate(iso: string | null, locale: string): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-GB", {
+  return new Date(iso).toLocaleDateString(locale === "ro" ? "ro-RO" : "en-GB", {
     day: "numeric",
     month: "short",
   });
@@ -164,6 +165,7 @@ function StorageBar({
   fillClass = "al-storage-fill",
   labelClass = "al-storage-row",
 }: StorageBarProps) {
+  const t = useTranslations("albums");
   const pct =
     allocatedGb > 0
       ? Math.min(100, (usedBytes / (allocatedGb * 1024 ** 3)) * 100)
@@ -173,7 +175,7 @@ function StorageBar({
   return (
     <>
       <div className={labelClass}>
-        <span>{formatBytes(usedBytes)} used</span>
+        <span>{formatBytes(usedBytes)} {t("used")}</span>
         <span>{allocatedGb} GB</span>
       </div>
       <div className={trackClass}>
@@ -188,10 +190,11 @@ function StorageBar({
 
 /* ── STATUS BADGE ── */
 function StatusBadge({ status }: { status: "active" | "scheduled" | "archived" }) {
+  const t = useTranslations("albums");
   const labels: Record<string, string> = {
-    active: "Active",
-    scheduled: "Scheduled",
-    archived: "Archived",
+    active: t("statusActive"),
+    scheduled: t("statusScheduled"),
+    archived: t("statusArchived"),
   };
   return (
     <span className={`al-status-badge ${status}`}>{labels[status]}</span>
@@ -201,6 +204,8 @@ function StatusBadge({ status }: { status: "active" | "scheduled" | "archived" }
 /* ── GRID CARD ── */
 function GridCard({ album, index, onQR }: { album: Album; index: number; onQR: (id: string, title: string) => void }) {
   const router = useRouter();
+  const t = useTranslations("albums");
+  const locale = useLocale();
   const [c1, c2] = COVER_GRADIENTS[index % COVER_GRADIENTS.length];
   const status = getStatus(album);
   const mediaCount = album.media?.[0]?.count ?? 0;
@@ -226,11 +231,11 @@ function GridCard({ album, index, onQR }: { album: Album; index: number; onQR: (
         <div className="al-album-meta-row">
           <div className="al-album-meta">
             <IconCamera />
-            <strong>{mediaCount.toLocaleString()}</strong> photos
+            <strong>{mediaCount.toLocaleString()}</strong> {mediaCount === 1 ? t("photo") : t("photos")}
           </div>
           <div className="al-album-meta">
             <IconCalendar />
-            {formatDate(album.open_date)} – {formatDate(album.close_date)}
+            {formatDate(album.open_date, locale)} – {formatDate(album.close_date, locale)}
           </div>
         </div>
 
@@ -245,13 +250,13 @@ function GridCard({ album, index, onQR }: { album: Album; index: number; onQR: (
 
       <div className="al-album-footer">
         <Link href={`/albums/${album.id}`} className="al-af-btn gold" onClick={(e) => e.stopPropagation()}>
-          Manage
+          {t("manage")}
         </Link>
         <button className="al-af-btn" onClick={(e) => { e.stopPropagation(); onQR(album.id, album.title); }}>
-          QR code
+          {t("qrCode")}
         </button>
         <Link href={`/albums/${album.id}/gallery`} className="al-af-btn" onClick={(e) => e.stopPropagation()}>
-          Gallery
+          {t("gallery")}
         </Link>
       </div>
     </div>
@@ -261,6 +266,8 @@ function GridCard({ album, index, onQR }: { album: Album; index: number; onQR: (
 /* ── LIST CARD ── */
 function ListCard({ album, index, onQR }: { album: Album; index: number; onQR: (id: string, title: string) => void }) {
   const router = useRouter();
+  const t = useTranslations("albums");
+  const locale = useLocale();
   const [c1, c2] = COVER_GRADIENTS[index % COVER_GRADIENTS.length];
   const status = getStatus(album);
   const mediaCount = album.media?.[0]?.count ?? 0;
@@ -292,11 +299,11 @@ function ListCard({ album, index, onQR }: { album: Album; index: number; onQR: (
         <div className="al-list-meta">
           <div className="al-album-meta">
             <IconCamera />
-            <strong>{mediaCount.toLocaleString()}</strong> photos
+            <strong>{mediaCount.toLocaleString()}</strong> {mediaCount === 1 ? t("photo") : t("photos")}
           </div>
           <div className="al-album-meta">
             <IconCalendar />
-            {formatDate(album.open_date)} – {formatDate(album.close_date)}
+            {formatDate(album.open_date, locale)} – {formatDate(album.close_date, locale)}
           </div>
         </div>
       </div>
@@ -316,13 +323,13 @@ function ListCard({ album, index, onQR }: { album: Album; index: number; onQR: (
         </div>
         <div className="al-list-actions">
           <Link href={`/albums/${album.id}`} className="al-list-action gold" onClick={(e) => e.stopPropagation()}>
-            Manage
+            {t("manage")}
           </Link>
           <button className="al-list-action" onClick={(e) => { e.stopPropagation(); onQR(album.id, album.title); }}>
-            QR code
+            {t("qrCode")}
           </button>
           <Link href={`/albums/${album.id}/gallery`} className="al-list-action" onClick={(e) => e.stopPropagation()}>
-            Gallery
+            {t("gallery")}
           </Link>
         </div>
       </div>
@@ -335,6 +342,7 @@ type QRItem = { id: string; label: string; enabled: boolean; joinUrl: string; da
 
 export function AlbumsClient({ albums, totalCount, activeCount }: Props) {
   const router = useRouter();
+  const t = useTranslations("albums");
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<Sort>("recent");
@@ -401,10 +409,10 @@ export function AlbumsClient({ albums, totalCount, activeCount }: Props) {
   }, [albums, filter, search, sort]);
 
   const pills: { key: Filter; label: string }[] = [
-    { key: "all", label: "All" },
-    { key: "active", label: "Active" },
-    { key: "scheduled", label: "Scheduled" },
-    { key: "archived", label: "Archived" },
+    { key: "all", label: t("filterAll") },
+    { key: "active", label: t("filterActive") },
+    { key: "scheduled", label: t("filterScheduled") },
+    { key: "archived", label: t("filterArchived") },
   ];
 
   return (
@@ -412,15 +420,15 @@ export function AlbumsClient({ albums, totalCount, activeCount }: Props) {
       {/* TOPBAR */}
       <div className="al-topbar">
         <div>
-          <div className="al-page-title">Albums</div>
+          <div className="al-page-title">{t("title")}</div>
           <div className="al-page-sub">
-            {totalCount} album{totalCount !== 1 ? "s" : ""} &middot; {activeCount} active
+            {totalCount} {totalCount !== 1 ? t("albumPlural") : t("album")} &middot; {activeCount} {t("active")}
           </div>
         </div>
         <div>
           <Link href="/albums/create" className="al-btn-primary">
             <IconPlus />
-            Create album
+            {t("createAlbum")}
           </Link>
         </div>
       </div>
@@ -449,7 +457,7 @@ export function AlbumsClient({ albums, totalCount, activeCount }: Props) {
             <input
               className="al-search-input"
               type="text"
-              placeholder="Search albums…"
+              placeholder={t("searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -462,10 +470,10 @@ export function AlbumsClient({ albums, totalCount, activeCount }: Props) {
               value={sort}
               onChange={(e) => setSort(e.target.value as Sort)}
             >
-              <option value="recent">Most recent</option>
-              <option value="name">Name A–Z</option>
-              <option value="media">Most photos</option>
-              <option value="storage">Storage used</option>
+              <option value="recent">{t("sortRecent")}</option>
+              <option value="name">{t("sortName")}</option>
+              <option value="media">{t("sortMedia")}</option>
+              <option value="storage">{t("sortStorage")}</option>
             </select>
             <div className="al-sort-chev">
               <IconChevron />
@@ -500,18 +508,17 @@ export function AlbumsClient({ albums, totalCount, activeCount }: Props) {
             <div className="al-empty-icon">
               <IconPhoto />
             </div>
-            <div className="al-empty-title">No albums yet.</div>
+            <div className="al-empty-title">{t("noAlbumsYet")}</div>
             <div className="al-empty-sub">
-              Create your first album and share a QR code with your guests.
-              They upload — you collect everything.
+              {t("noAlbumsDesc")}
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
               <Link href="/albums/create" className="al-btn-primary">
                 <IconPlus />
-                Create your first album
+                {t("createFirstAlbum")}
               </Link>
               <div className="al-empty-hint">
-                Free on all plans &middot; No app for guests
+                {t("freeOnAllPlans")}
               </div>
             </div>
           </div>
@@ -520,7 +527,7 @@ export function AlbumsClient({ albums, totalCount, activeCount }: Props) {
             <div className="al-results-bar">
               <div className="al-results-count">
                 <strong>{displayed.length}</strong>{" "}
-                {displayed.length === 1 ? "album" : "albums"}
+                {displayed.length === 1 ? t("album") : t("albumPlural")}
               </div>
             </div>
 
@@ -530,10 +537,9 @@ export function AlbumsClient({ albums, totalCount, activeCount }: Props) {
                 <div className="al-empty-icon">
                   <IconNoResults />
                 </div>
-                <div className="al-empty-title">No results</div>
+                <div className="al-empty-title">{t("noResults")}</div>
                 <div className="al-empty-sub">
-                  No albums match your current search or filter. Try adjusting
-                  your query.
+                  {t("noAlbumsMatch")}
                 </div>
                 <button
                   className="al-btn-primary"
@@ -542,7 +548,7 @@ export function AlbumsClient({ albums, totalCount, activeCount }: Props) {
                     setSearch("");
                   }}
                 >
-                  Clear filter
+                  {t("clearFilter")}
                 </button>
               </div>
             ) : view === "grid" ? (
@@ -568,7 +574,7 @@ export function AlbumsClient({ albums, totalCount, activeCount }: Props) {
           <div className="al-qr-modal" onClick={(e) => e.stopPropagation()}>
             <div className="al-qr-modal-head">
               <div>
-                <div className="al-qr-modal-title">QR Codes</div>
+                <div className="al-qr-modal-title">{t("qrModalTitle")}</div>
                 <div className="al-qr-modal-sub">{qrModal.albumTitle}</div>
               </div>
               <button className="al-qr-modal-x" onClick={() => setQrModal(null)} aria-label="Close">
@@ -580,19 +586,19 @@ export function AlbumsClient({ albums, totalCount, activeCount }: Props) {
             <div className="al-qr-modal-body">
               {qrLoading ? (
                 <div style={{ textAlign: "center", padding: "32px 0", color: "var(--al-muted)", fontSize: 13 }}>
-                  Loading QR codes…
+                  {t("loadingQrCodes")}
                 </div>
               ) : qrItems.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "32px 0" }}>
                   <div style={{ fontSize: 13, color: "var(--al-muted2)", marginBottom: 12 }}>
-                    No QR codes for this album.
+                    {t("noQrCodes")}
                   </div>
                   <button
                     className="al-qr-modal-btn al-qr-modal-btn-gold"
                     style={{ maxWidth: 200, margin: "0 auto", display: "block" }}
                     onClick={() => { setQrModal(null); router.push(`/albums/${qrModal.albumId}`); }}
                   >
-                    Go to album →
+                    {t("goToAlbum")}
                   </button>
                 </div>
               ) : (
@@ -607,7 +613,7 @@ export function AlbumsClient({ albums, totalCount, activeCount }: Props) {
                         {qr.label}
                         {!qr.enabled && (
                           <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 20, background: "var(--al-bg3)", color: "var(--al-muted2)" }}>
-                            disabled
+                            {t("disabled")}
                           </span>
                         )}
                       </div>

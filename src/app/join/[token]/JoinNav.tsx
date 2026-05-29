@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 interface Props {
   token: string;
@@ -19,6 +21,7 @@ const dim    = "var(--cs-dim)";
 
 export function JoinNav({ token, showGallery }: Props) {
   const pathname = usePathname();
+  const t = useTranslations("join");
   const isUpload  = pathname.endsWith("/upload");
   const isGallery = pathname.endsWith("/gallery");
   const [mounted, setMounted] = useState(false);
@@ -33,6 +36,13 @@ export function JoinNav({ token, showGallery }: Props) {
       <style>{`
         .jn-tabs   { display: flex; }
         .jn-bottom { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999; }
+        .jn-lang-btn {
+          font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+          color: var(--cs-muted); background: var(--cs-bg-alt);
+          border: 1px solid var(--cs-border); border-radius: 6px;
+          padding: 4px 9px; cursor: pointer; transition: color 0.15s;
+        }
+        .jn-lang-btn:hover { color: var(--cs-text); }
         @media (max-width: 768px) {
           .jn-tabs   { display: none; }
           .jn-bottom { display: flex; }
@@ -40,21 +50,24 @@ export function JoinNav({ token, showGallery }: Props) {
       `}</style>
 
       {/* ── Desktop: segmented tab control (inline in header) ── */}
-      <div className="jn-tabs" style={{
-        background: bg2,
-        border: `1px solid ${border}`,
-        borderRadius: "10px",
-        padding: "3px",
-        gap: "2px",
-      }}>
-        <TabLink href={`/join/${token}/upload`} active={isUpload}>
-          <CamIcon size={14} active={isUpload} />
-          Upload
-        </TabLink>
-        <TabLink href={`/join/${token}/gallery`} active={isGallery}>
-          <GridIcon size={14} active={isGallery} />
-          Gallery
-        </TabLink>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="jn-tabs" style={{
+          background: bg2,
+          border: `1px solid ${border}`,
+          borderRadius: "10px",
+          padding: "3px",
+          gap: "2px",
+        }}>
+          <TabLink href={`/join/${token}/upload`} active={isUpload}>
+            <CamIcon size={14} active={isUpload} />
+            {t("navUpload")}
+          </TabLink>
+          <TabLink href={`/join/${token}/gallery`} active={isGallery}>
+            <GridIcon size={14} active={isGallery} />
+            {t("navGallery")}
+          </TabLink>
+        </div>
+        <LanguageSwitcher className="jn-lang-btn" />
       </div>
 
       {/* ── Mobile: fixed bottom nav via portal — escapes all stacking contexts ── */}
@@ -68,10 +81,10 @@ export function JoinNav({ token, showGallery }: Props) {
           alignItems: "center",
           padding: "4px 0 calc(4px + env(safe-area-inset-bottom, 0px))",
         }}>
-          <BottomTab href={`/join/${token}/upload`} active={isUpload} label="Upload">
+          <BottomTab href={`/join/${token}/upload`} active={isUpload} label={t("navUpload")}>
             <CamIcon size={20} active={isUpload} />
           </BottomTab>
-          <BottomTab href={`/join/${token}/gallery`} active={isGallery} label="Gallery">
+          <BottomTab href={`/join/${token}/gallery`} active={isGallery} label={t("navGallery")}>
             <GridIcon size={20} active={isGallery} />
           </BottomTab>
         </nav>,

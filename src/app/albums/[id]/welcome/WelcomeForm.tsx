@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { updateWelcomePage } from "@/app/albums/actions";
 import { SCHEMES, SCHEME_KEYS, getScheme } from "@/lib/colorSchemes";
 
@@ -349,6 +350,8 @@ textarea.wf-input::placeholder { font-family: var(--serif); font-style: italic; 
 `;
 
 export function WelcomeForm({ album }: { album: Album }) {
+  const t = useTranslations("welcomePage");
+  const tc = useTranslations("common");
   const [error, setError]                   = useState<string | null>(null);
   const [loading, setLoading]               = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -450,7 +453,7 @@ export function WelcomeForm({ album }: { album: Album }) {
         <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
           <Link href="/" className="wf-brand">Captura</Link>
           <div className="wf-nav-links">
-            <Link href="/albums" className="wf-nav-link active">Albums</Link>
+            <Link href="/albums" className="wf-nav-link active">{tc("albums")}</Link>
           </div>
         </div>
       </nav>
@@ -459,19 +462,19 @@ export function WelcomeForm({ album }: { album: Album }) {
 
         {/* BREADCRUMB */}
         <div className="wf-breadcrumb">
-          <Link href="/albums">Albums</Link>
+          <Link href="/albums">{tc("albums")}</Link>
           <span className="sep">/</span>
           <Link href={`/albums/${album.id}`}>{album.title}</Link>
           <span className="sep">/</span>
-          <span className="cur">Welcome page</span>
+          <span className="cur">{t("title")}</span>
         </div>
 
         {/* HEAD */}
         <div className="wf-head">
           <div>
-            <div className="wf-head-eyebrow">{album.title} · Personalize</div>
-            <h1 className="wf-title">Welcome <em>page</em></h1>
-            <p className="wf-sub">Design the screen guests see when they scan your QR code — cover, name, and event details.</p>
+            <div className="wf-head-eyebrow">{album.title} · {t("personalize")}</div>
+            <h1 className="wf-title">{t("title")}</h1>
+            <p className="wf-sub">{t("designDesc")}</p>
           </div>
         </div>
 
@@ -489,10 +492,10 @@ export function WelcomeForm({ album }: { album: Album }) {
               <div className="wf-card">
                 <div className="wf-card-head">
                   <div>
-                    <div className="wf-card-eyebrow">01 · Visual</div>
-                    <div className="wf-card-title">Cover <em>photo</em></div>
+                    <div className="wf-card-eyebrow">01 · {t("visual")}</div>
+                    <div className="wf-card-title">{t("coverPhoto")}</div>
                   </div>
-                  <div className="wf-card-helper">A landscape image sets the tone. We crop it square on mobile.</div>
+                  <div className="wf-card-helper">{t("coverPhotoDesc")}</div>
                 </div>
 
                 <div
@@ -523,8 +526,8 @@ export function WelcomeForm({ album }: { album: Album }) {
                       <div className="wf-cover-icon">
                         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M3 18l5-5 4 4 3-3 6 5"/></svg>
                       </div>
-                      <div className="wf-cover-label">Click to upload <em>or drag</em></div>
-                      <div className="wf-cover-sub">JPG · PNG · WebP — recommended 1200×800</div>
+                      <div className="wf-cover-label">{t("clickToUploadOrDrag")}</div>
+                      <div className="wf-cover-sub">{t("recommendedSize")}</div>
                     </div>
                   )}
 
@@ -536,7 +539,7 @@ export function WelcomeForm({ album }: { album: Album }) {
                 </div>
 
                 <div className="wf-presets-wrap">
-                  <span className="wf-presets-label">Or pick a preset gradient</span>
+                  <span className="wf-presets-label">{t("orPickPreset")}</span>
                   <div className="wf-presets">
                     {COVER_PRESETS.map((p, i) => (
                       <div
@@ -554,45 +557,45 @@ export function WelcomeForm({ album }: { album: Album }) {
               <div className="wf-card" style={{ marginTop: 20 }}>
                 <div className="wf-card-head">
                   <div>
-                    <div className="wf-card-eyebrow">02 · Story</div>
-                    <div className="wf-card-title">Event <em>details</em></div>
+                    <div className="wf-card-eyebrow">02 · {t("story")}</div>
+                    <div className="wf-card-title">{t("eventDetails")}</div>
                   </div>
-                  <div className="wf-card-helper">Keep names short. They appear prominently on the welcome screen.</div>
+                  <div className="wf-card-helper">{t("keepNamesShort")}</div>
                 </div>
 
                 <div className="wf-field">
                   <label htmlFor="title" className="wf-label">
-                    Event name <span className="req">*</span>
+                    {t("eventName")} <span className="req">*</span>
                   </label>
                   <input
                     id="title" name="title" type="text" required maxLength={60}
                     defaultValue={album.title}
                     onChange={e => { setPhTitle(e.target.value); markDirty(); }}
-                    placeholder="e.g. Alexandra & Andrei"
+                    placeholder={t("eventNamePlaceholder")}
                     className="wf-input"
                   />
                   <div className="wf-char">{phTitle.length} / 60</div>
                 </div>
 
                 <div className="wf-field">
-                  <label htmlFor="description" className="wf-label">Description</label>
+                  <label htmlFor="description" className="wf-label">{t("description")}</label>
                   <textarea
                     id="description" name="description" maxLength={240} rows={3}
                     defaultValue={album.description ?? ""}
                     onChange={e => { setPhDescription(e.target.value); markDirty(); }}
-                    placeholder="e.g. Împărtășiți cu noi momentele voastre speciale"
+                    placeholder={t("descriptionPlaceholder")}
                     className="wf-input"
                   />
                   <div className="wf-char">{phDescription.length} / 240</div>
                 </div>
 
                 <div className="wf-field">
-                  <label htmlFor="location" className="wf-label">The setting · venue or city</label>
+                  <label htmlFor="location" className="wf-label">{t("location")}</label>
                   <input
                     id="location" name="location" type="text"
                     defaultValue={album.location ?? ""}
                     onChange={e => { setPhLocation(e.target.value); markDirty(); }}
-                    placeholder="e.g. Lake Como, Italy"
+                    placeholder={t("locationPlaceholder")}
                     className="wf-input"
                   />
                 </div>
@@ -602,10 +605,10 @@ export function WelcomeForm({ album }: { album: Album }) {
               <div className="wf-card" style={{ marginTop: 20 }}>
                 <div className="wf-card-head">
                   <div>
-                    <div className="wf-card-eyebrow">03 · Style</div>
-                    <div className="wf-card-title">Color <em>scheme</em></div>
+                    <div className="wf-card-eyebrow">03 · {t("style")}</div>
+                    <div className="wf-card-title">{t("colorScheme")}</div>
                   </div>
-                  <div className="wf-card-helper">Applied to all guest screens — welcome, upload, and gallery.</div>
+                  <div className="wf-card-helper">{t("colorSchemeDesc")}</div>
                 </div>
 
                 <div className="wf-schemes">
@@ -640,7 +643,7 @@ export function WelcomeForm({ album }: { album: Album }) {
 
           {/* RIGHT: PREVIEW */}
           <div className="wf-col-side">
-            <div className="wf-preview-label">Live preview · what guests see</div>
+            <div className="wf-preview-label">{t("livePreview")}</div>
 
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
               <div className="wf-phone">
@@ -670,20 +673,20 @@ export function WelcomeForm({ album }: { album: Album }) {
                   {/* Content panel */}
                   <div className="wf-ph-right">
                     <div className="wf-ph-wordmark">Captura</div>
-                    <div className="wf-ph-tag">You are invited</div>
+                    <div className="wf-ph-tag">{t("youAreInvited")}</div>
                     <div className="wf-ph-heading">{phTitle || <em>Your event</em>}</div>
                     {phDescription && <div className="wf-ph-sub">{phDescription}</div>}
                     <div className="wf-ph-actions">
                       <div className="wf-ph-btn-primary">
                         <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                        Add your photos
+                        {t("addYourPhotos")}
                       </div>
                       <div className="wf-ph-btn-secondary">
                         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-                        View gallery
+                        {t("viewGallery")}
                       </div>
                     </div>
-                    <div className="wf-ph-powered">Powered by Captura</div>
+                    <div className="wf-ph-powered">{t("poweredByCaptura")}</div>
                   </div>
                 </div>
               </div>
@@ -698,13 +701,13 @@ export function WelcomeForm({ album }: { album: Album }) {
       <div className="wf-action-bar">
         <div className="wf-action-inner">
           <div className="wf-dirty">
-            {dirty && <><span className="pulse" /><span>Unsaved changes</span></>}
+            {dirty && <><span className="pulse" /><span>{t("unsavedChanges")}</span></>}
           </div>
           <div className="wf-bar-actions">
-            <Link href={`/albums/${album.id}`} className="wf-btn wf-btn-text">Cancel</Link>
+            <Link href={`/albums/${album.id}`} className="wf-btn wf-btn-text">{t("cancel")}</Link>
             <button type="submit" form="welcome-form" disabled={loading} className="wf-btn wf-btn-primary">
               <svg viewBox="0 0 16 16"><path d="M3 1h8l3 3v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zM5 1v4h6V1M5 11h6"/></svg>
-              {uploadingCover ? "Uploading…" : loading ? "Saving…" : "Save welcome page"}
+              {uploadingCover ? tc("uploading") : loading ? t("saving") : t("saveWelcomePage")}
             </button>
           </div>
         </div>

@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { VideoThumb } from "@/components/VideoThumb";
 import { deleteMedia, deleteMediaBulk } from "@/app/albums/actions";
+import { useTranslations, useLocale } from "next-intl";
 
 /* ─── CopyButton ─────────────────────────────────────────────────────────── */
-function CopyButton({ url }: { url: string }) {
+function CopyButton({ url, labelCopy, labelCopied }: { url: string; labelCopy: string; labelCopied: string }) {
   const [copied, setCopied] = useState(false);
   async function handleCopy() {
     try {
@@ -32,9 +33,9 @@ function CopyButton({ url }: { url: string }) {
     }} onMouseOver={e => (e.currentTarget.style.opacity = ".85")}
        onMouseOut={e  => (e.currentTarget.style.opacity = "1")}>
       {copied ? (
-        <><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> Copied!</>
+        <><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg> {labelCopied}</>
       ) : (
-        <><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg> Copy link</>
+        <><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg> {labelCopy}</>
       )}
     </button>
   );
@@ -111,16 +112,17 @@ async function cropToDataUrl(
 }
 
 /* ─── Time-ago helper ────────────────────────────────────────────────────── */
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, locale: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  const isRo = locale === "ro";
+  if (mins < 1) return isRo ? "acum" : "just now";
+  if (mins < 60) return isRo ? `acum ${mins}m` : `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return isRo ? `acum ${hrs}h` : `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  if (days < 30) return isRo ? `acum ${days}z` : `${days}d ago`;
+  return new Date(iso).toLocaleDateString(isRo ? "ro-RO" : "en-GB", { day: "numeric", month: "short" });
 }
 
 /* ─── Panel CSS ──────────────────────────────────────────────────────────── */
@@ -817,6 +819,9 @@ function IconPlay() {
 
 /* ─── Main component ─────────────────────────────────────────────────────── */
 export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, page = 1, totalPages = 1, initialFaceClusters }: Props) {
+  const t = useTranslations("gallery");
+  const locale = useLocale();
+
   /* ── items state ── */
   const [items, setItems] = useState(initial);
   useEffect(() => { setItems(initial); }, [initial]);
@@ -1049,12 +1054,12 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
 
   /* ── sub-toolbar status text ── */
   function subInfo() {
-    if (selecting) return `${selected.size} selected`;
+    if (selecting) return t("nSelected", { count: selected.size });
     if (selectedFace !== null) {
-      if (fetchingFace) return "Loading photos…";
-      return `Showing ${displayItems.length} photo${displayItems.length !== 1 ? "s" : ""} with this person`;
+      if (fetchingFace) return t("loadingPhotos");
+      return t("showingPhotosWithPerson", { count: displayItems.length });
     }
-    return "Showing all photos · sorted by upload date";
+    return t("showingAllPhotos");
   }
 
   /* ── keyboard: close lightbox on Escape ── */
@@ -1092,13 +1097,13 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
                   <span className="text-xs tracking-widest uppercase text-secondary font-semibold">{firstQR.label}</span>
                 </div>
                 <div className="max-w-xs">
-                  <p className="font-noto-serif text-2xl font-light text-on-surface">Waiting for the first upload</p>
+                  <p className="font-noto-serif text-2xl font-light text-on-surface">{t("waitingFirstUpload")}</p>
                   <p className="text-sm text-on-surface-variant leading-relaxed mt-2">
-                    Print it, project it, or send the link — guests scan and upload straight from their phones.
+                    {t("shareHint")}
                   </p>
                 </div>
                 <div className="flex flex-wrap justify-center gap-2">
-                  <CopyButton url={firstQR.joinUrl} />
+                  <CopyButton url={firstQR.joinUrl} labelCopy={t("copyLink")} labelCopied={t("copied")} />
                   <a
                     href={firstQR.dataUrl}
                     download="qr-code.png"
@@ -1107,14 +1112,14 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
                     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>
                     </svg>
-                    Download QR
+                    {t("downloadQR")}
                   </a>
                 </div>
               </div>
             ) : (
               <div className="og-no-results">
-                <p>No uploads yet.</p>
-                <p style={{ marginTop: 6, fontSize: 12, opacity: 0.7 }}>Create a QR code to start collecting photos from your guests.</p>
+                <p>{t("noUploadsYet")}</p>
+                <p style={{ marginTop: 6, fontSize: 12, opacity: 0.7 }}>{t("createQRHint")}</p>
               </div>
             )}
           </div>
@@ -1139,16 +1144,16 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
                 <IconFace />
               </div>
               <div className="og-face-modal-text">
-                <h3>Enable face filter</h3>
+                <h3>{t("enableFaceFilter")}</h3>
                 <p style={{ marginBottom: 0 }}>
-                  Captura will group photos by the faces that appear in them. This may take a few moments depending on album size.
-                  <span className="og-face-modal-hint">Results are saved — next visit will be instant.</span>
+                  {t("faceFilterDescription")}
+                  <span className="og-face-modal-hint">{t("faceFilterHint")}</span>
                 </p>
               </div>
             </div>
             <div className="og-modal-btns">
-              <button onClick={() => setShowFaceConfirm(false)}>Cancel</button>
-              <button className="primary" onClick={handleFaceEnable}>Enable</button>
+              <button onClick={() => setShowFaceConfirm(false)}>{t("cancel")}</button>
+              <button className="primary" onClick={handleFaceEnable}>{t("enable")}</button>
             </div>
           </div>
         </div>
@@ -1158,16 +1163,16 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
       {confirmDelete && (
         <div className="og-modal-backdrop" onClick={() => setConfirmDelete(null)}>
           <div className="og-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Delete file?</h3>
-            <p>This permanently removes the file from storage and cannot be undone.</p>
+            <h3>{t("deleteFileTitle")}</h3>
+            <p>{t("deleteFileDesc")}</p>
             <div className="og-modal-btns">
-              <button onClick={() => setConfirmDelete(null)}>Cancel</button>
+              <button onClick={() => setConfirmDelete(null)}>{t("cancel")}</button>
               <button
                 className="primary"
                 disabled={deleting === confirmDelete}
                 onClick={() => handleDelete(confirmDelete)}
               >
-                {deleting === confirmDelete ? "Deleting…" : "Delete"}
+                {deleting === confirmDelete ? t("deleting") : t("delete")}
               </button>
             </div>
           </div>
@@ -1178,12 +1183,12 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
       {confirmBulkDelete && (
         <div className="og-modal-backdrop" onClick={() => setConfirmBulkDelete(false)}>
           <div className="og-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Delete {selected.size} {selected.size === 1 ? "file" : "files"}?</h3>
-            <p>This permanently removes the selected files from storage and cannot be undone.</p>
+            <h3>{t("deleteBulkTitle", { count: selected.size })}</h3>
+            <p>{t("deleteBulkDesc")}</p>
             <div className="og-modal-btns">
-              <button onClick={() => setConfirmBulkDelete(false)}>Cancel</button>
+              <button onClick={() => setConfirmBulkDelete(false)}>{t("cancel")}</button>
               <button className="primary" disabled={bulkDeleting} onClick={handleBulkDelete}>
-                {bulkDeleting ? "Deleting…" : "Delete all"}
+                {bulkDeleting ? t("deleting") : t("deleteAll")}
               </button>
             </div>
           </div>
@@ -1201,7 +1206,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
             {!faceEnabled && faceStatus === "idle" && imageItems.length > 0 && (
               <button className="og-face-btn" onClick={() => setShowFaceConfirm(true)}>
                 <IconFace />
-                Filter by face
+                {t("filterByFace")}
               </button>
             )}
 
@@ -1210,7 +1215,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
               <>
                 <button className="og-face-btn active">
                   <IconFace />
-                  Scanning faces…
+                  {t("scanningFaces")}
                 </button>
                 <div className="og-fp-track">
                   <div className="og-fp-fill" />
@@ -1223,10 +1228,10 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
               <>
                 <button className="og-face-btn active">
                   <IconFace />
-                  No faces found
+                  {t("noFacesFound")}
                 </button>
                 <button className="og-disable-btn" onClick={handleFaceDisable}>
-                  <IconClose size={13} /> Disable
+                  <IconClose size={13} /> {t("disable")}
                 </button>
               </>
             )}
@@ -1240,7 +1245,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
                   title="Click to disable face filter"
                 >
                   <IconFace />
-                  Filter by face
+                  {t("filterByFace")}
                 </button>
 
                 {/* "All" chip — only when a face is selected */}
@@ -1249,7 +1254,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
                     className="og-all-chip"
                     onClick={() => { setSelectedFace(null); setFaceItems(null); }}
                   >
-                    <IconClose size={11} /> All
+                    <IconClose size={11} /> {t("all")}
                   </button>
                 )}
 
@@ -1261,7 +1266,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
                       key={cluster.id}
                       className={`og-face-chip${selectedFace === cluster.id ? " selected" : ""}`}
                       onClick={() => handleFaceChipClick(cluster.id)}
-                      title={`${count} photo${count !== 1 ? "s" : ""}`}
+                      title={t("photoCount", { count })}
                     >
                       {cropSrc ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -1277,7 +1282,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
                 })}
 
                 <button className="og-disable-btn" onClick={handleFaceDisable}>
-                  <IconClose size={13} /> Disable
+                  <IconClose size={13} /> {t("disable")}
                 </button>
               </>
             )}
@@ -1287,10 +1292,10 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
               <>
                 <button className="og-face-btn" onClick={() => loadFaces()}>
                   <IconFace />
-                  Retry face scan
+                  {t("retryFaceScan")}
                 </button>
                 <button className="og-disable-btn" onClick={handleFaceDisable}>
-                  <IconClose size={13} /> Dismiss
+                  <IconClose size={13} /> {t("dismiss")}
                 </button>
               </>
             )}
@@ -1298,7 +1303,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
 
           {/* Count */}
           <div className="og-toolbar-right">
-            {items.length} {items.length === 1 ? "photo" : "photos"}
+            {t("photoCount", { count: items.length })}
           </div>
         </div>
 
@@ -1309,7 +1314,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
             {!selecting ? (
               <>
                 <button className="og-sub-btn" onClick={() => setSelecting(true)}>
-                  Select
+                  {t("select")}
                 </button>
                 <button
                   className="og-sub-btn gold"
@@ -1317,7 +1322,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
                   onClick={() => triggerDownload()}
                 >
                   <IconDownload />
-                  {downloading ? "Preparing…" : "Download all"}
+                  {downloading ? t("preparing") : t("downloadAll")}
                 </button>
               </>
             ) : (
@@ -1327,14 +1332,14 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
                   disabled={selected.size === items.length}
                   onClick={() => setSelected(new Set(items.map((i) => i.id)))}
                 >
-                  Select all
+                  {t("selectAll")}
                 </button>
                 <button
                   className="og-sub-btn"
                   disabled={selected.size === 0}
                   onClick={() => setSelected(new Set())}
                 >
-                  Deselect
+                  {t("deselect")}
                 </button>
                 <button
                   className="og-sub-btn"
@@ -1342,7 +1347,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
                   onClick={() => triggerDownload(Array.from(selected))}
                 >
                   <IconDownload />
-                  {downloading ? "Preparing…" : "Download"}
+                  {downloading ? t("preparing") : t("download")}
                 </button>
                 <button
                   className="og-sub-btn danger"
@@ -1350,10 +1355,10 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
                   onClick={() => { if (selected.size > 0) setConfirmBulkDelete(true); }}
                 >
                   <IconTrash />
-                  Delete
+                  {t("delete")}
                 </button>
                 <button className="og-sub-btn text-only" onClick={exitSelection}>
-                  Cancel
+                  {t("cancel")}
                 </button>
               </>
             )}
@@ -1436,7 +1441,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
                   {/* Meta */}
                   <div className="og-tile-meta">
                     <span>{item.uploader_name ?? ""}</span>
-                    <span>{timeAgo(item.created_at)}</span>
+                    <span>{timeAgo(item.created_at, locale)}</span>
                   </div>
                 </div>
               );
@@ -1445,7 +1450,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
 
           {/* No results */}
           {displayItems.length === 0 && (
-            <div className="og-no-results">No photos match this filter.</div>
+            <div className="og-no-results">{t("noPhotosMatchFilter")}</div>
           )}
         </div>
 
@@ -1453,12 +1458,12 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
         {!faceItems && totalPages > 1 && (
           <div className="og-pagination">
             {page > 1
-              ? <a href={`/albums/${albumId}/gallery?page=${page - 1}`} className="og-page-btn">← Previous</a>
-              : <span className="og-page-btn disabled">← Previous</span>}
-            <span className="og-page-info">Page {page} of {totalPages}</span>
+              ? <a href={`/albums/${albumId}/gallery?page=${page - 1}`} className="og-page-btn">{t("previous")}</a>
+              : <span className="og-page-btn disabled">{t("previous")}</span>}
+            <span className="og-page-info">{t("pageOf", { page, total: totalPages })}</span>
             {page < totalPages
-              ? <a href={`/albums/${albumId}/gallery?page=${page + 1}`} className="og-page-btn">Next →</a>
-              : <span className="og-page-btn disabled">Next →</span>}
+              ? <a href={`/albums/${albumId}/gallery?page=${page + 1}`} className="og-page-btn">{t("next")}</a>
+              : <span className="og-page-btn disabled">{t("next")}</span>}
           </div>
         )}
       </div>
@@ -1474,7 +1479,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
             </button>
             <div className="og-lb-caption" style={{ position: "static", transform: "none", flex: 1, textAlign: "left", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {lightbox.uploader_name && <>{lightbox.uploader_name} · </>}
-              {timeAgo(lightbox.created_at)}
+              {timeAgo(lightbox.created_at, locale)}
               {displayItems.length > 1 && <> · {lbIdx + 1} / {displayItems.length}</>}
             </div>
             <button
@@ -1502,7 +1507,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
               }}
             >
               <IconDownload />
-              {saving ? "Saving…" : "Save"}
+              {saving ? t("saving") : t("save")}
             </button>
           </div>
 

@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { updateAlbum } from "@/app/albums/actions";
 
 interface Album {
@@ -28,6 +29,7 @@ function toDatetimeLocal(iso: string | null): string {
 }
 
 export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props) {
+  const t = useTranslations("editAlbum");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showGallery, setShowGallery] = useState(album.show_gallery);
@@ -87,7 +89,7 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
                 <path d="M10 3L5 8l5 5" />
               </svg>
-              Back to album
+              {t("backToAlbum")}
             </Link>
           </div>
         </nav>
@@ -96,8 +98,8 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
           <div className="ea-container">
 
             <div className="ea-header">
-              <h1 className="ea-title">Edit <em>{album.title}</em></h1>
-              <p className="ea-subtitle">Update your album details. The QR code and join link stay the same.</p>
+              <h1 className="ea-title">{t("title")} <em>{album.title}</em></h1>
+              <p className="ea-subtitle">{t("subtitle")}</p>
             </div>
 
             {error && <div className="ea-error-banner">{error}</div>}
@@ -108,12 +110,12 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
               {/* Basic info */}
               <section className="ea-section">
                 <div className="ea-section-head">
-                  <h2 className="ea-section-title">Basic info</h2>
+                  <h2 className="ea-section-title">{t("basicInfo")}</h2>
                 </div>
                 <div className="ea-section-body">
                   <div className="ea-field">
                     <label htmlFor="title" className="ea-label">
-                      Album title <span className="ea-req">*</span>
+                      {t("albumTitle")} <span className="ea-req">*</span>
                     </label>
                     <input
                       id="title" name="title" type="text" required
@@ -122,7 +124,7 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
                     />
                   </div>
                   <div className="ea-hint-box">
-                    Personalize the guest welcome page (cover photo, description, location) from the album detail page.
+                    {t("personalizeHint")}
                   </div>
                 </div>
               </section>
@@ -130,8 +132,8 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
               {/* Card thumbnail */}
               <section className="ea-section">
                 <div className="ea-section-head">
-                  <h2 className="ea-section-title">Card thumbnail</h2>
-                  <p className="ea-section-sub">Shown on the dashboard album card. Different from the guest welcome page cover.</p>
+                  <h2 className="ea-section-title">{t("cardThumbnail")}</h2>
+                  <p className="ea-section-sub">{t("thumbnailHint")}</p>
                 </div>
                 <div className="ea-section-body">
                   {coverPreview ? (
@@ -140,17 +142,17 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
                       <img src={coverPreview} alt="Thumbnail" className="ea-thumb-img" />
                       {coverUploading && (
                         <div className="ea-thumb-overlay">
-                          <span className="ea-thumb-uploading">Uploading…</span>
+                          <span className="ea-thumb-uploading">{t("uploading")}</span>
                         </div>
                       )}
                       {!coverUploading && (
                         <div className="ea-thumb-hover">
                           <label className="ea-thumb-btn">
-                            Change
+                            {t("change")}
                             <input ref={coverInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleCoverChange} />
                           </label>
                           <button type="button" className="ea-thumb-btn ea-thumb-btn-remove" onClick={removeCover}>
-                            Remove
+                            {t("remove")}
                           </button>
                         </div>
                       )}
@@ -163,8 +165,8 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
                         <path d="M4 30l8-8 6 6 6-8 12 10" />
                       </svg>
                       <div>
-                        <p className="ea-upload-label">Click to upload a thumbnail</p>
-                        <p className="ea-upload-sub">JPG, PNG or WebP — shown on album cards</p>
+                        <p className="ea-upload-label">{t("clickToUploadThumbnail")}</p>
+                        <p className="ea-upload-sub">{t("thumbnailFileTypes")}</p>
                       </div>
                       <input ref={coverInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleCoverChange} />
                     </label>
@@ -175,12 +177,12 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
               {/* Dates */}
               <section className="ea-section">
                 <div className="ea-section-head">
-                  <h2 className="ea-section-title">Dates</h2>
+                  <h2 className="ea-section-title">{t("dates")}</h2>
                 </div>
                 <div className="ea-section-body">
                   <div className="ea-date-grid">
                     <div className="ea-field">
-                      <label htmlFor="open_date" className="ea-label">Open date</label>
+                      <label htmlFor="open_date" className="ea-label">{t("openDate")}</label>
                       <input
                         id="open_date" name="open_date" type="datetime-local"
                         defaultValue={toDatetimeLocal(album.open_date)}
@@ -188,7 +190,7 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
                       />
                     </div>
                     <div className="ea-field">
-                      <label htmlFor="close_date" className="ea-label">Close date</label>
+                      <label htmlFor="close_date" className="ea-label">{t("closeDate")}</label>
                       <input
                         id="close_date" name="close_date" type="datetime-local"
                         defaultValue={toDatetimeLocal(album.close_date)}
@@ -202,14 +204,14 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
               {/* Storage */}
               <section className="ea-section">
                 <div className="ea-section-head">
-                  <h2 className="ea-section-title">Storage allocation</h2>
+                  <h2 className="ea-section-title">{t("storageAllocation")}</h2>
                 </div>
                 <div className="ea-section-body">
 
                   <div className="ea-storage-pool">
                     <div className="ea-storage-pool-row">
-                      <span className="ea-storage-pool-label">Your storage pool</span>
-                      <span className="ea-storage-pool-total">{planStorageGb} GB total</span>
+                      <span className="ea-storage-pool-label">{t("yourStoragePool")}</span>
+                      <span className="ea-storage-pool-total">{planStorageGb} {t("gbTotal")}</span>
                     </div>
                     <div className="ea-pool-track">
                       <div className="ea-pool-fill-others" style={{ width: `${usedByOthersPercent}%` }} />
@@ -218,15 +220,15 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
                     <div className="ea-pool-legend">
                       <span className="ea-legend-item">
                         <span className="ea-legend-dot ea-legend-dot-others" />
-                        Other albums — {allocatedGbOthers} GB
+                        {t("otherAlbums")} — {allocatedGbOthers} GB
                       </span>
                       <span className="ea-legend-item">
                         <span className="ea-legend-dot ea-legend-dot-this" />
-                        This album — {inputGb} GB
+                        {t("thisAlbum")} — {inputGb} GB
                       </span>
                       <span className="ea-legend-item">
                         <span className="ea-legend-dot ea-legend-dot-free" />
-                        Free — {Math.max(0, remaining - inputGb)} GB
+                        {t("free")} — {Math.max(0, remaining - inputGb)} GB
                       </span>
                     </div>
                   </div>
@@ -234,9 +236,9 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
                   <div className="ea-field">
                     <div className="ea-storage-label-row">
                       <label htmlFor="allocated_gb" className="ea-label">
-                        Allocate to this album (GB) <span className="ea-req">*</span>
+                        {t("allocateGb")} <span className="ea-req">*</span>
                       </label>
-                      <span className="ea-storage-avail">{remaining} GB available</span>
+                      <span className="ea-storage-avail">{remaining} GB</span>
                     </div>
                     <input
                       id="allocated_gb" name="allocated_gb" type="number"
@@ -245,7 +247,7 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
                       onChange={(e) => setInputGb(Math.max(1, Math.min(remaining, parseInt(e.target.value) || 1)))}
                       className="ea-input"
                     />
-                    <p className="ea-field-hint">Enter between 1 and {remaining} GB.</p>
+                    <p className="ea-field-hint">{t("enterBetween")} {remaining} GB.</p>
                   </div>
                 </div>
               </section>
@@ -253,14 +255,14 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
               {/* Settings */}
               <section className="ea-section">
                 <div className="ea-section-head">
-                  <h2 className="ea-section-title">Settings</h2>
+                  <h2 className="ea-section-title">{t("settings")}</h2>
                 </div>
                 <div className="ea-section-body">
                   <div className="ea-toggle-field">
                     <div>
-                      <p className="ea-toggle-label">Gallery visibility</p>
+                      <p className="ea-toggle-label">{t("galleryVisibility")}</p>
                       <p className="ea-toggle-desc">
-                        When enabled, guests can browse all uploads. When disabled, guests only see their own.
+                        {t("galleryVisibilityDesc")}
                       </p>
                     </div>
                     <button
@@ -274,9 +276,9 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
 
                   <div className="ea-toggle-field">
                     <div>
-                      <p className="ea-toggle-label">Require PIN</p>
+                      <p className="ea-toggle-label">{t("requirePin")}</p>
                       <p className="ea-toggle-desc">
-                        Guests must enter a 4-digit PIN before accessing the album.
+                        {t("requirePinDesc")}
                       </p>
                     </div>
                     <button
@@ -291,28 +293,28 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
                   {pinRequired && (
                     <div className="ea-field">
                       <label className="ea-label">
-                        {album.pin_required ? "Change PIN" : "Set PIN"} <span className="ea-req">*</span>
+                        {album.pin_required ? t("changePin") : t("pinLabel")} <span className="ea-req">*</span>
                       </label>
                       <input
                         className="ea-input"
                         type="text"
                         inputMode="numeric"
                         maxLength={4}
-                        placeholder={album.pin_required ? "Enter new PIN to change" : "4-digit PIN"}
+                        placeholder={album.pin_required ? "Enter new PIN to change" : t("pinLabel")}
                         value={pin}
                         onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
                       />
                       {album.pin_required && (
-                        <p className="ea-field-hint">Leave empty to keep the current PIN.</p>
+                        <p className="ea-field-hint">{t("keepPinHint")}</p>
                       )}
                     </div>
                   )}
 
                   <div className="ea-toggle-field">
                     <div>
-                      <p className="ea-toggle-label">Face Finder</p>
+                      <p className="ea-toggle-label">{t("faceFinder")}</p>
                       <p className="ea-toggle-desc">
-                        Allow guests to filter photos by face — they tap a face bubble to see only photos featuring that person.
+                        {t("faceFinderDesc")}
                       </p>
                     </div>
                     <button
@@ -328,9 +330,9 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
 
               {/* Submit */}
               <div className="ea-footer">
-                <Link href={`/albums/${album.id}`} className="ea-btn-cancel">Cancel</Link>
+                <Link href={`/albums/${album.id}`} className="ea-btn-cancel">{t("cancel")}</Link>
                 <button type="submit" disabled={loading} className="ea-btn-save">
-                  {loading ? "Saving…" : "Save changes"}
+                  {loading ? t("saving") : t("saveChanges")}
                 </button>
               </div>
             </form>

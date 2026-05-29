@@ -8,12 +8,13 @@ import { AlbumStatusButton } from "./AlbumStatusButton";
 import { QRCodesSection } from "./QRCodesSection";
 import { DeleteAlbumButton } from "./DeleteAlbumButton";
 import { OwnerUploadButton } from "./gallery/OwnerUploadButton";
+import { getTranslations, getLocale } from "next-intl/server";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function formatDate(iso: string | null) {
+function formatDate(iso: string | null, locale: string) {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-GB", {
+  return new Date(iso).toLocaleDateString(locale === "ro" ? "ro-RO" : "en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -104,6 +105,10 @@ export default async function AlbumPage({
       return { ...qr, joinUrl, dataUrl };
     })
   );
+
+  const t = await getTranslations("albumDetail");
+  const tc = await getTranslations("common");
+  const locale = await getLocale();
 
   const percent = usagePercent(album.used_bytes ?? 0, album.allocated_gb);
 
@@ -575,14 +580,14 @@ export default async function AlbumPage({
           <div className="ap-nav-left">
             <Link href="/" className="ap-brand">Captura</Link>
             <div className="ap-nav-links">
-              <Link href="/dashboard" className="ap-nav-link">Dashboard</Link>
-              <Link href="/albums" className="ap-nav-link active">Albums</Link>
+              <Link href="/dashboard" className="ap-nav-link">{tc("dashboard")}</Link>
+              <Link href="/albums" className="ap-nav-link active">{tc("albums")}</Link>
             </div>
           </div>
           <div className="ap-nav-right">
             <div className="ap-user-avatar">{initials}</div>
             <form action={logout}>
-              <button type="submit" className="ap-signout">Sign out</button>
+              <button type="submit" className="ap-signout">{tc("signOut")}</button>
             </form>
           </div>
         </nav>
@@ -591,9 +596,9 @@ export default async function AlbumPage({
 
           {/* Breadcrumb */}
           <div className="ap-breadcrumb">
-            <Link href="/dashboard">Dashboard</Link>
+            <Link href="/dashboard">{tc("dashboard")}</Link>
             <span className="sep">/</span>
-            <Link href="/albums">Albums</Link>
+            <Link href="/albums">{tc("albums")}</Link>
             <span className="sep">/</span>
             <span className="current">{album.title}</span>
           </div>
@@ -603,7 +608,7 @@ export default async function AlbumPage({
             <div className="ap-head-left">
               <div className={`ap-status-pill ${album.status === "active" ? "active" : "archived"}`}>
                 <span className="ap-status-dot" />
-                {album.status === "active" ? "Active" : "Archived"}
+                {album.status === "active" ? t("active") : t("archived")}
               </div>
               <h1 className="ap-album-title">{album.title}</h1>
               {album.description && (
@@ -618,7 +623,7 @@ export default async function AlbumPage({
                 <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
                   <path d="M11 2l3 3-9 9H2v-3z" />
                 </svg>
-                Personalize welcome page
+                {t("personalizeWelcome")}
               </Link>
               <Link
                 href={`/albums/${album.id}/edit`}
@@ -627,7 +632,7 @@ export default async function AlbumPage({
                 <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
                   <path d="M11 2l3 3-9 9H2v-3z" />
                 </svg>
-                Edit album
+                {t("editAlbum")}
               </Link>
               <AlbumStatusButton albumId={album.id} currentStatus={album.status} />
               <DeleteAlbumButton albumId={album.id} albumTitle={album.title} />
@@ -651,7 +656,7 @@ export default async function AlbumPage({
                   </div>
                   <div>
                     <div className="ap-stat-num">{totalMediaCount}</div>
-                    <div className="ap-stat-label">Media files</div>
+                    <div className="ap-stat-label">{t("statMediaFiles")}</div>
                   </div>
                 </div>
 
@@ -666,7 +671,7 @@ export default async function AlbumPage({
                       {album.allocated_gb}
                       <small>GB</small>
                     </div>
-                    <div className="ap-stat-label">Allocated</div>
+                    <div className="ap-stat-label">{t("statAllocated")}</div>
                   </div>
                 </div>
 
@@ -685,7 +690,7 @@ export default async function AlbumPage({
                         {(album.used_bytes ?? 0) >= 1024 ** 3 ? "GB" : "MB"}
                       </small>
                     </div>
-                    <div className="ap-stat-label">Used</div>
+                    <div className="ap-stat-label">{t("statUsed")}</div>
                   </div>
                 </div>
               </div>
@@ -693,7 +698,7 @@ export default async function AlbumPage({
               {/* Storage bar */}
               <div className="ap-card">
                 <div className="ap-storage-bar-head">
-                  <span className="left">Storage usage</span>
+                  <span className="left">{t("storageUsage")}</span>
                   <span className="right">
                     {formatBytes(album.used_bytes ?? 0)} / {album.allocated_gb} GB
                   </span>
@@ -709,32 +714,32 @@ export default async function AlbumPage({
                     }}
                   />
                 </div>
-                <div className="ap-storage-pct">{percent}% used</div>
+                <div className="ap-storage-pct">{t("percentUsed", { percent })}</div>
               </div>
 
               {/* Details card */}
               <div className="ap-card">
                 <div className="ap-card-head">
-                  <div className="ap-card-title">Details</div>
+                  <div className="ap-card-title">{t("details")}</div>
                 </div>
                 <div className="ap-details-list">
                   <div className="ap-detail-row">
-                    <span className="ap-detail-label">Open date</span>
-                    <span className="ap-detail-value">{formatDate(album.open_date)}</span>
+                    <span className="ap-detail-label">{t("openDate")}</span>
+                    <span className="ap-detail-value">{formatDate(album.open_date, locale)}</span>
                   </div>
                   <div className="ap-detail-row">
-                    <span className="ap-detail-label">Close date</span>
-                    <span className="ap-detail-value">{formatDate(album.close_date)}</span>
+                    <span className="ap-detail-label">{t("closeDate")}</span>
+                    <span className="ap-detail-value">{formatDate(album.close_date, locale)}</span>
                   </div>
                   <div className="ap-detail-row">
-                    <span className="ap-detail-label">Gallery visible to guests</span>
+                    <span className="ap-detail-label">{t("galleryVisible")}</span>
                     <span className={`ap-detail-value${album.show_gallery ? " yes" : ""}`}>
-                      {album.show_gallery ? "Yes" : "No"}
+                      {album.show_gallery ? t("yes") : t("no")}
                     </span>
                   </div>
                   <div className="ap-detail-row">
-                    <span className="ap-detail-label">Created</span>
-                    <span className="ap-detail-value">{formatDate(album.created_at)}</span>
+                    <span className="ap-detail-label">{t("created")}</span>
+                    <span className="ap-detail-value">{formatDate(album.created_at, locale)}</span>
                   </div>
                 </div>
               </div>
@@ -743,7 +748,7 @@ export default async function AlbumPage({
               {album.welcome_message && (
                 <div className="ap-card">
                   <div className="ap-card-title" style={{ marginBottom: "12px" }}>
-                    Welcome message
+                    {t("welcomeMessage")}
                   </div>
                   <p
                     style={{
@@ -763,10 +768,10 @@ export default async function AlbumPage({
               <div className="ap-uploads-card">
                 <div className="ap-uploads-head">
                   <div>
-                    <div className="ap-card-title">Recent uploads</div>
+                    <div className="ap-card-title">{t("recentUploads")}</div>
                     {totalMediaCount > 0 && (
                       <div className="ap-card-eyebrow">
-                        {totalMediaCount} {totalMediaCount === 1 ? "file" : "files"} total
+                        {t("filesTotal", { count: totalMediaCount })}
                       </div>
                     )}
                   </div>

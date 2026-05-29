@@ -1,19 +1,24 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { HapticProvider } from "@/components/HapticProvider";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 
 export const metadata: Metadata = {
   title: "Captura",
   description: "Create shared event albums and collect memories.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
-    <html lang="en">
+    <html lang={locale}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -27,8 +32,10 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased">
-        <HapticProvider />
-        {children}
+        <NextIntlClientProvider messages={messages}>
+          <HapticProvider />
+          {children}
+        </NextIntlClientProvider>
       </body>
     </html>
   );

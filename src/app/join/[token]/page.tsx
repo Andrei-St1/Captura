@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { getTranslations, getLocale } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireAlbumPin } from "@/lib/pin";
 import { getScheme, schemeToCss } from "@/lib/colorSchemes";
@@ -19,9 +20,10 @@ function getStatus(
   return "open";
 }
 
-function fmtDate(iso: string | null, opts?: Intl.DateTimeFormatOptions) {
+function fmtDate(iso: string | null, locale: string, opts?: Intl.DateTimeFormatOptions) {
   if (!iso) return null;
-  return new Date(iso).toLocaleDateString("en-GB", opts ?? { day: "numeric", month: "long", year: "numeric" });
+  const dateLocale = locale === "ro" ? "ro-RO" : "en-GB";
+  return new Date(iso).toLocaleDateString(dateLocale, opts ?? { day: "numeric", month: "long", year: "numeric" });
 }
 
 const PARTICLE_SCRIPT = `
@@ -46,6 +48,9 @@ const PARTICLE_SCRIPT = `
 
 export default async function JoinPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  const t = await getTranslations("join");
+  const tg = await getTranslations("gallery");
+  const locale = await getLocale();
   const supabase = await createClient();
 
   const { data: qr } = await supabase
@@ -68,7 +73,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
     .eq("album_id", album.id);
 
   const status = getStatus(qr, album);
-  const eventDate = fmtDate(album.open_date);
+  const eventDate = fmtDate(album.open_date, locale);
 
   const scheme = getScheme(album.color_scheme);
 
@@ -138,7 +143,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
         <div className="gw-right">
           <Link href="/" className="gw-wordmark">Captura</Link>
 
-          <div className="gw-tag">You are invited to contribute</div>
+          <div className="gw-tag">{t("inviteTag")}</div>
 
           <h1 className="gw-heading">{album.title}</h1>
 
@@ -153,7 +158,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
                   <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
                 </svg>
                 <div className="gw-chip-info">
-                  <span className="gw-chip-label">Date</span>
+                  <span className="gw-chip-label">{t("date")}</span>
                   <span className="gw-chip-value">{eventDate}</span>
                 </div>
               </div>
@@ -164,7 +169,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
                   <path d="M12 21c-4-4-7-7.5-7-11a7 7 0 0 1 14 0c0 3.5-3 7-7 11z" /><circle cx="12" cy="10" r="2.5" />
                 </svg>
                 <div className="gw-chip-info">
-                  <span className="gw-chip-label">Venue</span>
+                  <span className="gw-chip-label">{t("venue")}</span>
                   <span className="gw-chip-value">{album.location}</span>
                 </div>
               </div>
@@ -176,8 +181,8 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
                   <circle cx="12" cy="13" r="4" />
                 </svg>
                 <div className="gw-chip-info">
-                  <span className="gw-chip-label">Shared so far</span>
-                  <span className="gw-chip-value">{mediaCount} {mediaCount === 1 ? "photo" : "photos"}</span>
+                  <span className="gw-chip-label">{t("sharedSoFar")}</span>
+                  <span className="gw-chip-value">{mediaCount} {mediaCount === 1 ? tg("photo") : tg("photos")}</span>
                 </div>
               </div>
             )}
@@ -191,7 +196,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
                     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
                     <circle cx="12" cy="13" r="4" />
                   </svg>
-                  Add your photos
+                  {t("addYourPhotos")}
                 </Link>
                 {album.show_gallery && (
                   <Link href={`/join/${token}/gallery`} className="gw-btn-secondary">
@@ -199,7 +204,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
                       <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
                       <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
                     </svg>
-                    View gallery
+                    {t("viewGallery")}
                   </Link>
                 )}
               </>
@@ -207,16 +212,16 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
 
             {(status === "qr_disabled" || status === "archived") && (
               <div className="gw-status-box">
-                <p className="gw-status-title">This link is no longer active</p>
-                <p className="gw-status-body">Contact the organizer for a new invite link.</p>
+                <p className="gw-status-title">{t("linkNoLongerActive")}</p>
+                <p className="gw-status-body">{t("contactOrganizer")}</p>
               </div>
             )}
 
             {status === "not_open" && (
               <div className="gw-status-box gw-status-amber">
-                <p className="gw-status-title">Not open yet</p>
+                <p className="gw-status-title">{t("notOpenYet")}</p>
                 <p className="gw-status-body">
-                  Opens on {fmtDate(album.open_date, { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  {t("opensOn")} {fmtDate(album.open_date, locale, { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </p>
               </div>
             )}
@@ -224,9 +229,9 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
             {status === "closed" && (
               <>
                 <div className="gw-status-box">
-                  <p className="gw-status-title">Album is closed</p>
+                  <p className="gw-status-title">{t("albumClosed")}</p>
                   <p className="gw-status-body">
-                    Stopped accepting uploads on {fmtDate(album.close_date)}
+                    {t("stoppedAccepting")} {fmtDate(album.close_date, locale)}
                   </p>
                 </div>
                 {album.show_gallery && (
@@ -235,7 +240,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
                       <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
                       <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
                     </svg>
-                    View gallery
+                    {t("viewGallery")}
                   </Link>
                 )}
               </>
@@ -243,7 +248,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
           </div>
 
           <div className="gw-footer">
-            <p className="gw-powered">Powered by <Link href="/">Captura</Link></p>
+            <p className="gw-powered">{t("poweredBy")} <Link href="/">Captura</Link></p>
           </div>
         </div>
       </div>

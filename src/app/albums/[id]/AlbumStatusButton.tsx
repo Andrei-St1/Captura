@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { setAlbumStatus } from "@/app/albums/actions";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 interface Props {
   albumId: string;
@@ -13,6 +14,7 @@ export function AlbumStatusButton({ albumId, currentStatus }: Props) {
   const [confirm, setConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const t = useTranslations("albumDetail");
 
   const isActive = currentStatus === "active";
 
@@ -45,7 +47,7 @@ export function AlbumStatusButton({ albumId, currentStatus }: Props) {
             </>
           )}
         </svg>
-        {isActive ? "Archive album" : "Reopen album"}
+        {isActive ? t("archiveAlbum") : t("reopenAlbum")}
       </button>
 
       {/* Confirm modal */}
@@ -107,7 +109,7 @@ export function AlbumStatusButton({ albumId, currentStatus }: Props) {
                 marginBottom: "8px",
               }}
             >
-              {isActive ? "Archive this album?" : "Reopen this album?"}
+              {isActive ? t("archiveConfirmTitle") : t("reopenConfirmTitle")}
             </h3>
             <p
               style={{
@@ -117,9 +119,7 @@ export function AlbumStatusButton({ albumId, currentStatus }: Props) {
                 marginBottom: "24px",
               }}
             >
-              {isActive
-                ? "Guests will no longer be able to join or upload. You can reopen it at any time."
-                : "Guests will be able to join and upload again based on the album's open and close dates."}
+              {isActive ? t("archiveConfirmDesc") : t("reopenConfirmDesc")}
             </p>
 
             <div style={{ display: "flex", gap: "10px" }}>
@@ -138,7 +138,7 @@ export function AlbumStatusButton({ albumId, currentStatus }: Props) {
                   fontFamily: "var(--ap-sans, 'DM Sans', system-ui, sans-serif)",
                 }}
               >
-                Cancel
+                {t("cancel")}
               </button>
               <button
                 onClick={handleConfirm}
@@ -158,12 +158,8 @@ export function AlbumStatusButton({ albumId, currentStatus }: Props) {
                 }}
               >
                 {loading
-                  ? isActive
-                    ? "Archiving…"
-                    : "Reopening…"
-                  : isActive
-                  ? "Archive"
-                  : "Reopen"}
+                  ? isActive ? t("archiving") : t("reopening")
+                  : isActive ? t("archive") : t("reopen")}
               </button>
             </div>
           </div>

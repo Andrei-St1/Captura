@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { updateProfile, updatePassword } from "./actions";
+import { useTranslations } from "next-intl";
 
 /* ── Shared styles ── */
 const inputStyle: React.CSSProperties = {
@@ -40,7 +41,7 @@ function Field({ label, children, hint }: { label: string; children: React.React
   );
 }
 
-function StatusMessage({ state }: { state: { error?: string; success?: boolean } | null }) {
+function StatusMessage({ state, successText }: { state: { error?: string; success?: boolean } | null; successText: string }) {
   if (!state) return null;
   if (state.error) return (
     <div style={{
@@ -59,7 +60,7 @@ function StatusMessage({ state }: { state: { error?: string; success?: boolean }
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="20 6 9 17 4 12"/>
       </svg>
-      Saved successfully.
+      {successText}
     </div>
   );
 }
@@ -110,6 +111,7 @@ function EyeBtn({ show, onToggle }: { show: boolean; onToggle: () => void }) {
 export function ProfileForm({ fullName, email }: { fullName: string; email: string }) {
   const [loading, setLoading] = useState(false);
   const [state, setState]     = useState<{ error?: string; success?: boolean } | null>(null);
+  const t = useTranslations("settings");
 
   async function handleSubmit(formData: FormData) {
     setState(null); setLoading(true);
@@ -120,20 +122,20 @@ export function ProfileForm({ fullName, email }: { fullName: string; email: stri
 
   return (
     <form action={handleSubmit}>
-      <StatusMessage state={state} />
-      <Field label="Full name">
+      <StatusMessage state={state} successText={t("savedSuccessfully")} />
+      <Field label={t("fullName")}>
         <input name="full_name" type="text" required defaultValue={fullName}
           style={inputStyle}
           onFocus={e => { e.currentTarget.style.borderColor = "oklch(65% 0.012 80)"; e.currentTarget.style.boxShadow = "0 0 0 3px oklch(44% 0.16 72 / 0.10)"; }}
           onBlur={e  => { e.currentTarget.style.borderColor = "oklch(80% 0.010 80)"; e.currentTarget.style.boxShadow = "none"; }}
         />
       </Field>
-      <Field label="Email address" hint="Email cannot be changed here.">
+      <Field label={t("emailAddress")} hint={t("emailHint")}>
         <input type="email" value={email} disabled
           style={{ ...inputStyle, opacity: .5, cursor: "not-allowed" }}
         />
       </Field>
-      <SaveBtn loading={loading} label="Save changes" loadingLabel="Saving…" />
+      <SaveBtn loading={loading} label={t("saveChanges")} loadingLabel={t("saving")} />
     </form>
   );
 }
@@ -146,6 +148,7 @@ export function PasswordForm() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew]         = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const t = useTranslations("settings");
 
   async function handleSubmit(formData: FormData) {
     setState(null); setLoading(true);
@@ -164,12 +167,12 @@ export function PasswordForm() {
 
   return (
     <form id="pw-form" action={handleSubmit}>
-      <StatusMessage state={state} />
+      <StatusMessage state={state} successText={t("savedSuccessfully")} />
 
-      <Field label="Current password">
+      <Field label={t("currentPassword")}>
         <div style={{ position: "relative" }}>
           <input name="current_password" type={showCurrent ? "text" : "password"} required
-            placeholder="Your current password" style={pwInput}
+            placeholder={t("currentPasswordPlaceholder")} style={pwInput}
             onFocus={e => { e.currentTarget.style.borderColor = "oklch(65% 0.012 80)"; e.currentTarget.style.boxShadow = "0 0 0 3px oklch(44% 0.16 72 / 0.10)"; }}
             onBlur={e  => { e.currentTarget.style.borderColor = "oklch(80% 0.010 80)"; e.currentTarget.style.boxShadow = "none"; }}
           />
@@ -178,10 +181,10 @@ export function PasswordForm() {
       </Field>
 
       <div style={{ borderTop: "1px solid oklch(80% 0.010 80)", paddingTop: 16, marginTop: 4 }}>
-        <Field label="New password">
+        <Field label={t("newPassword")}>
           <div style={{ position: "relative" }}>
             <input name="new_password" type={showNew ? "text" : "password"} required minLength={8}
-              placeholder="At least 8 characters" style={pwInput}
+              placeholder={t("newPasswordPlaceholder")} style={pwInput}
               onFocus={e => { e.currentTarget.style.borderColor = "oklch(65% 0.012 80)"; e.currentTarget.style.boxShadow = "0 0 0 3px oklch(44% 0.16 72 / 0.10)"; }}
               onBlur={e  => { e.currentTarget.style.borderColor = "oklch(80% 0.010 80)"; e.currentTarget.style.boxShadow = "none"; }}
             />
@@ -189,7 +192,7 @@ export function PasswordForm() {
           </div>
         </Field>
 
-        <Field label="Confirm new password">
+        <Field label={t("confirmPassword")}>
           <div style={{ position: "relative" }}>
             <input name="confirm_password" type={showConfirm ? "text" : "password"} required minLength={8}
               placeholder="••••••••" style={pwInput}
@@ -201,7 +204,7 @@ export function PasswordForm() {
         </Field>
       </div>
 
-      <SaveBtn loading={loading} label="Update password" loadingLabel="Updating…" />
+      <SaveBtn loading={loading} label={t("updatePassword")} loadingLabel={t("updating")} />
     </form>
   );
 }

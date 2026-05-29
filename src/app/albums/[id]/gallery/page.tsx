@@ -6,6 +6,7 @@ import { generateQRDataURL } from "@/lib/qr";
 import { getFaceClustersForAlbum } from "@/lib/getFaceClusters";
 import { OwnerUploadButton } from "./OwnerUploadButton";
 import { GalleryWithFaces } from "./GalleryWithFaces";
+import { getTranslations, getLocale } from "next-intl/server";
 
 function fmtBytes(bytes: number) {
   const gb = bytes / 1024 ** 3;
@@ -15,16 +16,17 @@ function fmtBytes(bytes: number) {
   return `${Math.round(bytes / 1024)} KB`;
 }
 
-function timeAgo(iso: string) {
+function timeAgo(iso: string, locale: string) {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  const isRo = locale === "ro";
+  if (mins < 1) return isRo ? "acum" : "just now";
+  if (mins < 60) return isRo ? `acum ${mins}m` : `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return isRo ? `acum ${hrs}h` : `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  if (days < 30) return isRo ? `acum ${days}z` : `${days}d ago`;
+  return new Date(iso).toLocaleDateString(isRo ? "ro-RO" : "en-GB", { day: "numeric", month: "short" });
 }
 
 const CSS = `
@@ -259,6 +261,12 @@ export default async function AlbumGalleryPage({
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
 
+  const [t, tc, locale] = await Promise.all([
+    getTranslations("gallery"),
+    getTranslations("common"),
+    getLocale(),
+  ]);
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -332,15 +340,15 @@ export default async function AlbumGalleryPage({
           <div className="gp-nav-left">
             <Link href="/" className="gp-brand">Captura</Link>
             <div className="gp-navlinks">
-              <Link href="/dashboard" className="gp-navlink">Dashboard</Link>
-              <Link href="/albums" className="gp-navlink active">Albums</Link>
+              <Link href="/dashboard" className="gp-navlink">{tc("dashboard")}</Link>
+              <Link href="/albums" className="gp-navlink active">{tc("albums")}</Link>
             </div>
           </div>
           <div className="gp-nav-right">
             <div className="gp-avatar">{initials}</div>
             <form action={logout}>
               <button type="submit" className="gp-signout">
-                <span className="gp-signout-text">Sign out</span>
+                <span className="gp-signout-text">{tc("signOut")}</span>
               </button>
             </form>
           </div>
@@ -351,11 +359,11 @@ export default async function AlbumGalleryPage({
 
           {/* Breadcrumb */}
           <div className="gp-breadcrumb">
-            <Link href="/albums">Albums</Link>
+            <Link href="/albums">{tc("albums")}</Link>
             <span className="sep">/</span>
             <Link href={`/albums/${album.id}`}>{album.title}</Link>
             <span className="sep">/</span>
-            <span className="current">Gallery</span>
+            <span className="current">{t("galleryBreadcrumb")}</span>
           </div>
 
           {/* Page head */}
@@ -363,7 +371,7 @@ export default async function AlbumGalleryPage({
             <div>
               <h1 className="gp-title">{album.title}</h1>
               <div className="gp-meta">
-                <span><strong>{totalCount}</strong> {totalCount === 1 ? "file" : "files"}</span>
+                <span><strong>{totalCount}</strong> {t("fileCount", { count: totalCount })}</span>
                 {totalBytes > 0 && (
                   <>
                     <span className="gp-meta-dot" />
@@ -373,7 +381,7 @@ export default async function AlbumGalleryPage({
                 {lastUpload && (
                   <>
                     <span className="gp-meta-dot" />
-                    <span>Last upload {timeAgo(lastUpload)}</span>
+                    <span>{t("lastUpload", { ago: timeAgo(lastUpload, locale) })}</span>
                   </>
                 )}
               </div>
@@ -381,7 +389,7 @@ export default async function AlbumGalleryPage({
             <div className="gp-head-actions">
               <Link href={`/albums/${album.id}`} className="gp-btn gp-btn-ghost">
                 <svg viewBox="0 0 16 16"><path d="M10 4l-4 4 4 4"/></svg>
-                Back to album
+                {t("backToAlbum")}
               </Link>
               <OwnerUploadButton albumId={album.id} />
             </div>

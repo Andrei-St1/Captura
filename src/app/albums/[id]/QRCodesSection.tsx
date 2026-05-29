@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   createQRCode,
   toggleQRCode,
@@ -48,6 +49,7 @@ const S = {
 
 export function QRCodesSection({ albumId, qrCodes }: Props) {
   const router = useRouter();
+  const t = useTranslations("albumDetail");
   const [adding, setAdding]           = useState(false);
   const [newLabel, setNewLabel]       = useState("");
   const [loadingId, setLoadingId]     = useState<string | null>(null);
@@ -121,7 +123,7 @@ export function QRCodesSection({ albumId, qrCodes }: Props) {
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
         <h2 style={{ fontFamily: "var(--ap-serif, 'Cormorant Garamond', Georgia, serif)", fontSize: 20, fontWeight: 400, color: S.text }}>
-          QR codes
+          {t("qrCodes")}
         </h2>
         <button
           onClick={() => setAdding(true)}
@@ -130,7 +132,7 @@ export function QRCodesSection({ albumId, qrCodes }: Props) {
           <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M8 3v10M3 8h10" />
           </svg>
-          Add QR code
+          {t("addQRCode")}
         </button>
       </div>
 
@@ -144,13 +146,13 @@ export function QRCodesSection({ albumId, qrCodes }: Props) {
               type="text"
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
-              placeholder="Label (e.g. Ceremony guests)"
+              placeholder={t("qrLabelPlaceholder")}
               onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") setAdding(false); }}
               style={{ flex: 1, border: `1px solid ${S.border}`, borderRadius: 7, padding: "8px 10px", fontSize: 13, color: S.text, background: S.bg2, outline: "none", fontFamily: "inherit" }}
             />
             <button onClick={handleAdd} disabled={loadingId === "new"}
               style={{ background: S.gold, color: "white", border: "none", borderRadius: 7, padding: "7px 14px", fontSize: 11, fontWeight: 500, cursor: "pointer", opacity: loadingId === "new" ? 0.6 : 1, fontFamily: "inherit" }}>
-              {loadingId === "new" ? "Creating…" : "Create"}
+              {loadingId === "new" ? t("creating") : t("create")}
             </button>
             <button onClick={() => setAdding(false)} style={{ background: "none", border: "none", cursor: "pointer", color: S.muted, display: "flex", padding: 4 }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -167,9 +169,9 @@ export function QRCodesSection({ albumId, qrCodes }: Props) {
               <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" />
               <path d="M14 14h2v2h-2zM17 14h4M14 17h3M17 17v4" />
             </svg>
-            <p style={{ fontSize: 13, color: S.muted }}>No QR codes yet.</p>
+            <p style={{ fontSize: 13, color: S.muted }}>{t("noQRCodesYet")}</p>
             <button onClick={() => setAdding(true)} style={{ marginTop: 10, fontSize: 12, color: S.gold, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>
-              Create your first QR code →
+              {t("createFirstQR")}
             </button>
           </div>
         )}
@@ -213,7 +215,7 @@ export function QRCodesSection({ albumId, qrCodes }: Props) {
                 {editingId === qr.id ? (
                   <button onClick={() => handleLabelSave(qr.id)}
                     style={{ background: S.gold, color: "white", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>
-                    Save
+                    {t("save")}
                   </button>
                 ) : (
                   <button onClick={() => { setEditingId(qr.id); setEditLabel(qr.label); }}
@@ -274,7 +276,7 @@ export function QRCodesSection({ albumId, qrCodes }: Props) {
                 <div style={{ flex: 1, minWidth: 140, display: "flex", flexDirection: "column", gap: 10 }}>
                   <div>
                     <p style={{ fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", color: S.muted, fontWeight: 500, marginBottom: 6 }}>
-                      Guest join link
+                      {t("guestJoinLink")}
                     </p>
                     <p style={{ fontSize: 11, fontFamily: "ui-monospace, Consolas, monospace", color: S.text, background: S.bg, border: `1px solid ${S.border}`, borderRadius: 7, padding: "8px 10px", wordBreak: "break-all", lineHeight: 1.4 }}>
                       {qr.joinUrl}
@@ -288,9 +290,9 @@ export function QRCodesSection({ albumId, qrCodes }: Props) {
                       style={{ background: S.gold, color: "white", border: "none", borderRadius: 7, padding: "7px 10px", fontSize: 11, fontWeight: 500, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, fontFamily: "inherit" }}
                     >
                       {copied === qr.id ? (
-                        <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg> Copied!</>
+                        <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg> {t("copied")}</>
                       ) : (
-                        <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect width="14" height="14" x="8" y="8" rx="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg> Copy link</>
+                        <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect width="14" height="14" x="8" y="8" rx="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg> {t("copyLink")}</>
                       )}
                     </button>
 
@@ -302,7 +304,7 @@ export function QRCodesSection({ albumId, qrCodes }: Props) {
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" />
                       </svg>
-                      Download
+                      {t("download")}
                     </a>
 
                     <button
@@ -313,7 +315,7 @@ export function QRCodesSection({ albumId, qrCodes }: Props) {
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                         <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
                       </svg>
-                      {loadingId === qr.id ? "Regenerating…" : "Regenerate"}
+                      {loadingId === qr.id ? t("regenerating") : t("regenerate")}
                     </button>
                   </div>
                 </div>
@@ -333,23 +335,23 @@ export function QRCodesSection({ albumId, qrCodes }: Props) {
             style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: 18, padding: 24, maxWidth: 380, width: "100%", boxShadow: "0 24px 80px oklch(0% 0 0 / 0.25)" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ fontFamily: "var(--ap-serif, 'Cormorant Garamond', Georgia, serif)", fontSize: 22, fontWeight: 400, color: S.text, marginBottom: 8 }}>Delete QR code?</h3>
+            <h3 style={{ fontFamily: "var(--ap-serif, 'Cormorant Garamond', Georgia, serif)", fontSize: 22, fontWeight: 400, color: S.text, marginBottom: 8 }}>{t("deleteQRTitle")}</h3>
             <p style={{ fontSize: 13, color: S.muted, lineHeight: 1.6, marginBottom: 22 }}>
-              Anyone with this QR code will no longer be able to join the album. This cannot be undone.
+              {t("deleteQRDesc")}
             </p>
             <div style={{ display: "flex", gap: 10 }}>
               <button
                 onClick={() => setConfirmDelete(null)}
                 style={{ flex: 1, border: `1px solid ${S.border}`, background: S.bg, borderRadius: 8, padding: "10px 0", fontSize: 13, fontWeight: 500, color: S.muted, cursor: "pointer", fontFamily: "inherit" }}
               >
-                Cancel
+                {t("cancel")}
               </button>
               <button
                 onClick={() => handleDelete(confirmDelete!)}
                 disabled={loadingId === confirmDelete}
                 style={{ flex: 1, background: S.red, border: "none", borderRadius: 8, padding: "10px 0", fontSize: 13, fontWeight: 600, color: "white", cursor: "pointer", opacity: loadingId === confirmDelete ? 0.6 : 1, fontFamily: "inherit" }}
               >
-                {loadingId === confirmDelete ? "Deleting…" : "Delete"}
+                {loadingId === confirmDelete ? t("deleting") : t("delete")}
               </button>
             </div>
           </div>

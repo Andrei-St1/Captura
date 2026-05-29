@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations, useLocale } from "next-intl";
 import { createPortalSession } from "@/app/stripe/actions";
 import { getAlbumQRCodesForDashboard } from "@/app/albums/qr-actions";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -40,11 +41,6 @@ const COVER_COLORS = [
   ["oklch(72% 0.08 320)", "oklch(66% 0.06 300)"],
 ];
 
-const PLAN_FEATURES: Record<string, string[]> = {
-  starter: ["1 album", "5 GB storage", "Unlimited uploads", "ZIP download"],
-  pro: ["10 albums", "100 GB storage", "Multiple QR codes", "Face detection"],
-  business: ["30 albums", "500 GB storage", "Custom branding", "Priority support"],
-};
 
 function getAlbumStatus(album: Album): "open" | "closed" | "scheduled" {
   if (album.status !== "active") return "closed";
@@ -82,6 +78,15 @@ export default function DashboardClient({
   checkout,
 }: DashboardClientProps) {
   const router = useRouter();
+  const t = useTranslations("dashboard");
+  const ta = useTranslations("albums");
+  const locale = useLocale();
+
+  const PLAN_FEATURES: Record<string, string[]> = {
+    starter: [t("planFeature_starter_1"), t("planFeature_starter_2"), t("planFeature_starter_3"), t("planFeature_starter_4")],
+    pro: [t("planFeature_pro_1"), t("planFeature_pro_2"), t("planFeature_pro_3"), t("planFeature_pro_4")],
+    business: [t("planFeature_business_1"), t("planFeature_business_2"), t("planFeature_business_3"), t("planFeature_business_4")],
+  };
   const [filter, setFilter] = useState<"all" | "open" | "closed">("all");
   const [checkoutDismissed, setCheckoutDismissed] = useState(false);
   const [noPlanDismissed, setNoPlanDismissed] = useState(false);
@@ -114,7 +119,7 @@ export default function DashboardClient({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setDownloadError((data as { error?: string }).error ?? "Download failed.");
+        setDownloadError((data as { error?: string }).error ?? t("downloadFailed"));
         return;
       }
       const blob = await res.blob();
@@ -132,7 +137,7 @@ export default function DashboardClient({
     }
   }
 
-  const today = new Date().toLocaleDateString("en-GB", {
+  const today = new Date().toLocaleDateString(locale === "ro" ? "ro-RO" : "en-GB", {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -1253,11 +1258,11 @@ export default function DashboardClient({
           <header className="db-topbar">
             <div className="db-topbar-left">
               <h1>
-                Welcome back, <em>{user.firstName}</em>
+                {t("welcomeBack")} <em>{user.firstName}</em>
               </h1>
               <div className="db-topbar-sub">
-                {today} &nbsp;·&nbsp; {activeAlbumsCount} active{" "}
-                {activeAlbumsCount === 1 ? "album" : "albums"}
+                {today} &nbsp;·&nbsp; {activeAlbumsCount} {t("active")}{" "}
+                {activeAlbumsCount === 1 ? t("album") : t("albumPlural")}
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1268,7 +1273,7 @@ export default function DashboardClient({
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <path d="M8 3v10M3 8h10" />
                 </svg>
-                New album
+                {t("newAlbum")}
               </Link>
             </div>
           </header>
@@ -1280,10 +1285,10 @@ export default function DashboardClient({
               <div className="db-banner db-banner-green">
                 <div>
                   <div className="db-banner-title">
-                    {plan?.name ? `${plan.name} plan activated!` : "Subscription activated!"}
+                    {plan?.name ? `${plan.name} ${t("planActivated")}` : t("planActivated")}
                   </div>
                   <div className="db-banner-body">
-                    Your plan is now active. Start creating albums and collecting memories.
+                    {t("planActivatedDesc")}
                   </div>
                 </div>
                 <button
@@ -1300,14 +1305,14 @@ export default function DashboardClient({
             {!plan && !noPlanDismissed && (
               <div className="db-banner db-banner-amber">
                 <div>
-                  <div className="db-banner-title">No active plan</div>
+                  <div className="db-banner-title">{t("noActivePlan")}</div>
                   <div className="db-banner-body">
-                    Choose a plan to start creating albums and collecting memories.
+                    {t("choosePlan")}
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <Link href="/pricing" className="db-banner-link">
-                    View plans →
+                    {t("viewPlans")}
                   </Link>
                   <button
                     className="db-banner-dismiss"
@@ -1324,10 +1329,10 @@ export default function DashboardClient({
             <div className="db-bento">
               {/* Card A: albums count */}
               <div className="db-card">
-                <div className="db-card-label">Albums</div>
+                <div className="db-card-label">{t("albums")}</div>
                 <div className="db-card-big-number">{usage.albumsCount}</div>
                 <div className="db-card-hint" style={{ marginBottom: 4 }}>
-                  of {plan?.maxAlbums ?? "—"} max
+                  of {plan?.maxAlbums ?? "—"} {t("max")}
                 </div>
                 <div className="db-progress-track">
                   <div
@@ -1336,13 +1341,13 @@ export default function DashboardClient({
                   />
                 </div>
                 <div className="db-card-hint">
-                  {limits.remainingAlbums} remaining
+                  {limits.remainingAlbums} {t("remaining")}
                 </div>
               </div>
 
               {/* Card B: plan */}
               <div className="db-card">
-                <div className="db-card-label">Current plan</div>
+                <div className="db-card-label">{t("currentPlan")}</div>
                 {plan ? (
                   <>
                     <div className="db-plan-name">{plan.name}</div>
@@ -1360,18 +1365,18 @@ export default function DashboardClient({
                         className="db-upgrade-link"
                         style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600 }}
                       >
-                        Manage billing →
+                        {t("manageBilling")}
                       </button>
                     </form>
                   </>
                 ) : (
                   <>
-                    <div className="db-plan-name">Free</div>
+                    <div className="db-plan-name">{t("free")}</div>
                     <div className="db-card-hint" style={{ marginBottom: 16, lineHeight: 1.5 }}>
-                      Upgrade to unlock albums, QR codes, and shared galleries.
+                      {t("upgradeToUnlock")}
                     </div>
                     <Link href="/pricing" className="db-upgrade-link">
-                      View plans →
+                      {t("viewPlans")}
                     </Link>
                   </>
                 )}
@@ -1379,13 +1384,13 @@ export default function DashboardClient({
 
               {/* Card C: storage (spans 2 rows) */}
               <div className="db-card db-card-storage">
-                <div className="db-card-label">Storage</div>
+                <div className="db-card-label">{t("storage")}</div>
                 <div>
                   <span className="db-storage-card-used">{usage.usedStorageGb}</span>
                   <span className="db-storage-card-used-unit">GB</span>
                 </div>
                 <div className="db-storage-card-of">
-                  of {plan?.storageGb ?? "—"} GB used
+                  of {plan?.storageGb ?? "—"} {t("gbUsed")}
                 </div>
                 <div className="db-progress-track">
                   <div
@@ -1402,12 +1407,12 @@ export default function DashboardClient({
                   />
                 </div>
                 <div className="db-card-hint" style={{ marginBottom: 0 }}>
-                  {usage.storagePercent}% used &nbsp;·&nbsp; {limits.remainingStorageGb.toFixed(1)} GB free
+                  {usage.storagePercent}% {t("gbUsed")} &nbsp;·&nbsp; {limits.remainingStorageGb.toFixed(1)} {t("gbFree")}
                 </div>
 
                 {storageAlbumsSorted.length > 0 && (
                   <div className="db-album-breakdown">
-                    <div className="db-album-breakdown-title">By album</div>
+                    <div className="db-album-breakdown-title">{t("byAlbum")}</div>
                     {storageAlbumsSorted.map((a) => {
                       const usedGb = parseFloat((a.used_bytes / 1024 ** 3).toFixed(2));
                       const pct =
@@ -1450,19 +1455,19 @@ export default function DashboardClient({
 
               {/* Card D: total media + quick stats */}
               <div className="db-card db-card-uploads">
-                <div className="db-card-label">Upload overview</div>
+                <div className="db-card-label">{t("uploadOverview")}</div>
                 <div className="db-uploads-grid">
                   <div className="db-uploads-stat">
                     <div className="db-uploads-stat-number">{totalMediaCount.toLocaleString()}</div>
-                    <div className="db-uploads-stat-label">Total uploads</div>
+                    <div className="db-uploads-stat-label">{t("totalUploads")}</div>
                   </div>
                   <div className="db-uploads-stat">
                     <div className="db-uploads-stat-number">{usage.usedStorageGb}</div>
-                    <div className="db-uploads-stat-label">GB used</div>
+                    <div className="db-uploads-stat-label">{t("gbUsed")}</div>
                   </div>
                   <div className="db-uploads-stat">
                     <div className="db-uploads-stat-number">{usage.albumsCount}</div>
-                    <div className="db-uploads-stat-label">Albums</div>
+                    <div className="db-uploads-stat-label">{t("albums")}</div>
                   </div>
                 </div>
               </div>
@@ -1470,7 +1475,7 @@ export default function DashboardClient({
 
             {/* ── Albums section ────────────────────────────────────────────── */}
             <div className="db-albums-header">
-              <h2 className="db-albums-title">Albums</h2>
+              <h2 className="db-albums-title">{t("albums")}</h2>
               <div className="db-filter-group">
                 {(["all", "open", "closed"] as const).map((f) => (
                   <button
@@ -1478,7 +1483,7 @@ export default function DashboardClient({
                     className={`db-filter-btn${filter === f ? " active" : ""}`}
                     onClick={() => setFilter(f)}
                   >
-                    {f.charAt(0).toUpperCase() + f.slice(1)}
+                    {f === "all" ? t("filterAll") : f === "open" ? t("filterOpen") : t("filterClosed")}
                   </button>
                 ))}
               </div>
@@ -1488,16 +1493,15 @@ export default function DashboardClient({
               <div className="db-empty">
                 {!hasActiveSubscription ? (
                   <>
-                    <div className="db-empty-title">Every memory starts here</div>
+                    <div className="db-empty-title">{t("everyMemoryStartsHere")}</div>
                     <div className="db-empty-body">
-                      Pick a plan to unlock albums, QR codes, and shared galleries — then send your
-                      guests a single link.
+                      {t("pickAPlan")}
                     </div>
                     <Link href="/pricing" className="db-empty-cta">
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polygon points="8,1 10,6 15,6 11,9.5 12.5,15 8,12 3.5,15 5,9.5 1,6 6,6" />
                       </svg>
-                      View plans
+                      {t("viewPlans")}
                     </Link>
                     <div className="db-no-plan-cards">
                       {[
@@ -1514,23 +1518,22 @@ export default function DashboardClient({
                   </>
                 ) : (
                   <>
-                    <div className="db-empty-title">Your first album is one click away</div>
+                    <div className="db-empty-title">{t("firstAlbumOneClick")}</div>
                     <div className="db-empty-body">
-                      Create an album, share the QR code, and watch the memories roll in — guests
-                      upload straight from their phones.
+                      {t("firstAlbumDesc")}
                     </div>
                     <Link href="/albums/create" className="db-empty-cta">
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                         <path d="M8 3v10M3 8h10" />
                       </svg>
-                      Create your first album
+                      {t("newAlbum")}
                     </Link>
                     <div className="db-steps">
                       {[
                         {
                           num: "01",
-                          title: "Create an album",
-                          body: "Name it, set a date, and allocate storage. Takes under a minute.",
+                          title: t("createAnAlbum"),
+                          body: t("createAnAlbumDesc"),
                           icon: (
                             <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                               <rect x="2" y="5" width="18" height="14" rx="2" />
@@ -1541,8 +1544,8 @@ export default function DashboardClient({
                         },
                         {
                           num: "02",
-                          title: "Share the QR code",
-                          body: "Print it, project it, or send the link — guests scan and upload instantly.",
+                          title: t("shareQrCode"),
+                          body: t("shareQrCodeDesc"),
                           icon: (
                             <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                               <rect x="2" y="2" width="8" height="8" rx="1" />
@@ -1554,8 +1557,8 @@ export default function DashboardClient({
                         },
                         {
                           num: "03",
-                          title: "Collect memories",
-                          body: "Every photo and video lands in your gallery, ready to download or share.",
+                          title: t("collectMemories"),
+                          body: t("collectMemoriesDesc"),
                           icon: (
                             <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="var(--gold)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                               <rect x="2" y="2" width="18" height="18" rx="2" />
@@ -1567,7 +1570,7 @@ export default function DashboardClient({
                       ].map(({ num, title, body, icon }) => (
                         <div key={num} className="db-step">
                           <div className="db-step-icon">{icon}</div>
-                          <div className="db-step-num">Step {num}</div>
+                          <div className="db-step-num">{t("step")} {num}</div>
                           <div className="db-step-title">{title}</div>
                           <div className="db-step-body">{body}</div>
                         </div>
@@ -1585,7 +1588,7 @@ export default function DashboardClient({
                   fontSize: 14,
                 }}
               >
-                No {filter} albums found.
+                {t("noFilteredAlbums")}
               </div>
             ) : (
               <div className="db-albums-grid">
@@ -1601,7 +1604,7 @@ export default function DashboardClient({
                   const usedGb = parseFloat((album.used_bytes / 1024 ** 3).toFixed(2));
 
                   const fmtDate = (iso: string | null) =>
-                    iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—";
+                    iso ? new Date(iso).toLocaleDateString(locale === "ro" ? "ro-RO" : "en-GB", { day: "numeric", month: "short" }) : "—";
 
                   return (
                     <div
@@ -1621,7 +1624,7 @@ export default function DashboardClient({
                         <div className="db-cover-grad" />
                         <div className="db-cover-top">
                           <span className={`db-badge db-badge-${status === "open" ? "open" : status === "scheduled" ? "scheduled" : "closed"}`}>
-                            {status}
+                            {status === "open" ? t("statusOpen") : status === "scheduled" ? t("statusScheduled") : t("statusClosed")}
                           </span>
                         </div>
                       </div>
@@ -1633,7 +1636,7 @@ export default function DashboardClient({
                         <div className="db-album-meta-row">
                           <div className="db-album-meta">
                             <svg viewBox="0 0 12 12"><rect x="1" y="2" width="10" height="8" rx="1"/><circle cx="6" cy="6" r="2"/></svg>
-                            <strong>{album.mediaCount.toLocaleString()}</strong> photos
+                            <strong>{album.mediaCount.toLocaleString()}</strong> {album.mediaCount === 1 ? t("photo") : t("photos")}
                           </div>
                           <div className="db-album-meta">
                             <svg viewBox="0 0 12 12"><rect x="1" y="1" width="10" height="10" rx="1"/><path d="M1 5h10M4 1v4"/></svg>
@@ -1643,7 +1646,7 @@ export default function DashboardClient({
 
                         <div>
                           <div className="db-album-storage-row">
-                            <span>{usedGb} GB used</span>
+                            <span>{usedGb} {t("gbUsed")}</span>
                             <span>{album.allocated_gb} GB</span>
                           </div>
                           <div className="db-album-storage-track">
@@ -1659,15 +1662,15 @@ export default function DashboardClient({
                       <div className="db-album-footer">
                         <button className="db-af-btn gold"
                           onClick={(e) => { e.stopPropagation(); router.push(`/albums/${album.id}`); }}>
-                          Manage
+                          {t("manage")}
                         </button>
                         <button className="db-af-btn"
                           onClick={(e) => { e.stopPropagation(); openQR(album.id, album.title); }}>
-                          QR code
+                          {t("qrCode")}
                         </button>
                         <button className="db-af-btn"
                           onClick={(e) => { e.stopPropagation(); router.push(`/albums/${album.id}/gallery`); }}>
-                          Gallery
+                          {t("gallery")}
                         </button>
                       </div>
                     </div>
@@ -1685,7 +1688,7 @@ export default function DashboardClient({
           <div className="db-modal" onClick={(e) => e.stopPropagation()}>
             <div className="db-modal-head">
               <div>
-                <div className="db-modal-title">QR Codes</div>
+                <div className="db-modal-title">{t("qrCode")}</div>
                 <div className="db-modal-sub">{qrModal.albumTitle}</div>
               </div>
               <button className="db-modal-x" onClick={() => setQrModal(null)} aria-label="Close">
@@ -1697,19 +1700,19 @@ export default function DashboardClient({
             <div className="db-modal-body">
               {qrLoading ? (
                 <div style={{ textAlign: "center", padding: "32px 0", color: "var(--muted2)", fontSize: 13 }}>
-                  Loading QR codes…
+                  {ta("loadingQrCodes")}
                 </div>
               ) : qrItems.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "32px 0" }}>
                   <div style={{ fontSize: 13, color: "var(--muted2)", marginBottom: 12 }}>
-                    No QR codes for this album.
+                    {ta("noQrCodes")}
                   </div>
                   <button
                     className="db-modal-btn db-modal-btn-gold"
                     style={{ maxWidth: 200, margin: "0 auto", display: "block" }}
                     onClick={() => { setQrModal(null); router.push(`/albums/${qrModal.albumId}`); }}
                   >
-                    Go to album →
+                    {ta("goToAlbum")}
                   </button>
                 </div>
               ) : (
@@ -1724,7 +1727,7 @@ export default function DashboardClient({
                         {qr.label}
                         {!qr.enabled && (
                           <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 20, background: "var(--bg4)", color: "var(--muted2)" }}>
-                            disabled
+                            {ta("disabled")}
                           </span>
                         )}
                       </div>
@@ -1744,7 +1747,7 @@ export default function DashboardClient({
           <div className="db-modal" onClick={(e) => e.stopPropagation()}>
             <div className="db-modal-head">
               <div>
-                <div className="db-modal-title">Download album</div>
+                <div className="db-modal-title">{t("downloadAlbum")}</div>
                 <div className="db-modal-sub">{downloadModal.albumTitle}</div>
               </div>
               <button
@@ -1760,8 +1763,8 @@ export default function DashboardClient({
             </div>
             <div className="db-modal-body">
               <p style={{ fontSize: 14, color: "var(--text)", lineHeight: 1.6 }}>
-                Do you wish to download the contents of <strong>{downloadModal.albumTitle}</strong>?
-                All photos and videos will be bundled into a ZIP file.
+                {t("downloadConfirm")} <strong>{downloadModal.albumTitle}</strong>?{" "}
+                {t("downloadDesc")}
               </p>
               {downloadError && (
                 <p style={{ marginTop: 12, fontSize: 12, color: "var(--red)" }}>{downloadError}</p>
@@ -1773,14 +1776,14 @@ export default function DashboardClient({
                 onClick={() => setDownloadModal(null)}
                 disabled={downloadLoading}
               >
-                No
+                {t("no")}
               </button>
               <button
                 className="db-modal-btn db-modal-btn-gold"
                 onClick={() => handleDownload(downloadModal.albumId, downloadModal.albumTitle)}
                 disabled={downloadLoading}
               >
-                {downloadLoading ? "Downloading…" : "Yes, download"}
+                {downloadLoading ? t("downloading") : t("yesDownload")}
               </button>
             </div>
           </div>

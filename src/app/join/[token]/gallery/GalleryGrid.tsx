@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useTranslations, useLocale } from "next-intl";
 import { VideoThumb } from "@/components/VideoThumb";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
@@ -90,8 +91,8 @@ function IconClose({ size = 16 }: { size?: number }) {
 }
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-GB", {
+function formatDate(iso: string, locale: string) {
+  return new Date(iso).toLocaleDateString(locale === "ro" ? "ro-RO" : "en-GB", {
     day: "numeric", month: "short", year: "numeric",
   });
 }
@@ -119,6 +120,8 @@ async function downloadFile(id: string) {
 
 /* ─── Component ──────────────────────────────────────────────────────────── */
 export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1, totalPages = 1, sort = "upload", initialFaceClusters }: GalleryGridProps) {
+  const t = useTranslations("gallery");
+  const locale = useLocale();
   const [lightbox, setLightbox]       = useState<MediaItem | null>(null);
   const [downloading, setDownloading] = useState(false);
   const touchStartX = { current: 0 };
@@ -275,16 +278,16 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
                 <IconFace />
               </div>
               <div className="og-face-modal-text">
-                <h3>Enable face filter</h3>
+                <h3>{t("enableFaceFilter")}</h3>
                 <p style={{ marginBottom: 0 }}>
-                  Captura will group photos by the faces that appear in them. This may take a few moments depending on album size.
-                  <span className="og-face-modal-hint">Results are saved — next visit will be instant.</span>
+                  {t("faceFilterDescription")}
+                  <span className="og-face-modal-hint">{t("faceFilterHint")}</span>
                 </p>
               </div>
             </div>
             <div className="og-modal-btns">
-              <button onClick={() => setShowFaceConfirm(false)}>Cancel</button>
-              <button className="primary" onClick={handleFaceEnable}>Enable</button>
+              <button onClick={() => setShowFaceConfirm(false)}>{t("cancel")}</button>
+              <button className="primary" onClick={handleFaceEnable}>{t("enable")}</button>
             </div>
           </div>
         </div>
@@ -299,7 +302,7 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
             {!faceEnabled && faceStatus === "idle" && (
               <button className="og-face-btn" onClick={() => setShowFaceConfirm(true)}>
                 <IconFace />
-                Filter by face
+                {t("filterByFace")}
               </button>
             )}
 
@@ -308,7 +311,7 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
               <>
                 <button className="og-face-btn active">
                   <IconFace />
-                  Scanning faces…
+                  {t("scanningFaces")}
                 </button>
                 <div className="og-fp-track">
                   <div className="og-fp-fill" />
@@ -321,10 +324,10 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
               <>
                 <button className="og-face-btn active">
                   <IconFace />
-                  No faces found
+                  {t("noFacesFound")}
                 </button>
                 <button className="og-disable-btn" onClick={handleFaceDisable}>
-                  <IconClose size={13} /> Disable
+                  <IconClose size={13} /> {t("disable")}
                 </button>
               </>
             )}
@@ -335,10 +338,10 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
                 <button
                   className={`og-face-btn${faceEnabled ? " active" : ""}`}
                   onClick={handleFaceDisable}
-                  title="Click to disable face filter"
+                  title={t("filterByFace")}
                 >
                   <IconFace />
-                  Filter by face
+                  {t("filterByFace")}
                 </button>
 
                 {selectedFace !== null && (
@@ -346,7 +349,7 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
                     className="og-all-chip"
                     onClick={() => { setSelectedFace(null); setFaceItems(null); }}
                   >
-                    <IconClose size={11} /> All
+                    <IconClose size={11} /> {t("all")}
                   </button>
                 )}
 
@@ -375,7 +378,7 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
                 })}
 
                 <button className="og-disable-btn" onClick={handleFaceDisable}>
-                  <IconClose size={13} /> Disable
+                  <IconClose size={13} /> {t("disable")}
                 </button>
               </>
             )}
@@ -385,17 +388,17 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
               <>
                 <button className="og-face-btn" onClick={() => loadFaces()}>
                   <IconFace />
-                  Retry face scan
+                  {t("retryFaceScan")}
                 </button>
                 <button className="og-disable-btn" onClick={handleFaceDisable}>
-                  <IconClose size={13} /> Dismiss
+                  <IconClose size={13} /> {t("dismiss")}
                 </button>
               </>
             )}
           </div>
 
           <div className="og-toolbar-right">
-            {fetchingFace ? "Loading…" : `${visibleItems.length} ${visibleItems.length === 1 ? "photo" : "photos"}`}
+            {fetchingFace ? "…" : `${visibleItems.length} ${visibleItems.length === 1 ? t("photo") : t("photos")}`}
           </div>
         </div>
       )}
@@ -456,12 +459,12 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
       {!faceItems && token && totalPages > 1 && (
         <div className="gl-pagination">
           {page > 1
-            ? <a href={`/join/${token}/gallery?page=${page - 1}${sort === "taken" ? "&sort=taken" : ""}`} className="gl-page-btn">← Previous</a>
-            : <span className="gl-page-btn disabled">← Previous</span>}
-          <span className="gl-page-info">Page {page} of {totalPages}</span>
+            ? <a href={`/join/${token}/gallery?page=${page - 1}${sort === "taken" ? "&sort=taken" : ""}`} className="gl-page-btn">{t("previous")}</a>
+            : <span className="gl-page-btn disabled">{t("previous")}</span>}
+          <span className="gl-page-info">{t("page")} {page} {t("of")} {totalPages}</span>
           {page < totalPages
-            ? <a href={`/join/${token}/gallery?page=${page + 1}${sort === "taken" ? "&sort=taken" : ""}`} className="gl-page-btn">Next →</a>
-            : <span className="gl-page-btn disabled">Next →</span>}
+            ? <a href={`/join/${token}/gallery?page=${page + 1}${sort === "taken" ? "&sort=taken" : ""}`} className="gl-page-btn">{t("next")}</a>
+            : <span className="gl-page-btn disabled">{t("next")}</span>}
         </div>
       )}
 
@@ -480,7 +483,7 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
 
               <div className="gl-meta">
                 {lightbox.uploader_name && <span className="gl-uploader">{lightbox.uploader_name}</span>}
-                <span className="gl-date-size">{formatDate(lightbox.created_at)} · {formatBytes(lightbox.file_size)}</span>
+                <span className="gl-date-size">{formatDate(lightbox.created_at, locale)} · {formatBytes(lightbox.file_size)}</span>
               </div>
 
               <button
@@ -504,7 +507,7 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
                 )}
-                {downloading ? "Saving…" : "Save"}
+                {downloading ? t("saving") : t("save")}
               </button>
             </div>
 

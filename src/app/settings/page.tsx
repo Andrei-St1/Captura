@@ -5,6 +5,7 @@ import { getSubscriptionLimits } from "@/lib/subscription";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ProfileForm, PasswordForm } from "./SettingsForms";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -17,6 +18,7 @@ export default async function SettingsPage() {
 
   const limits = await getSubscriptionLimits(user.id);
   const { plan, hasActiveSubscription, usage } = limits;
+  const t = await getTranslations("settings");
 
   return (
     <>
@@ -33,8 +35,8 @@ export default async function SettingsPage() {
           {/* ── Topbar ── */}
           <header className="st-topbar">
             <div>
-              <h1 className="st-topbar-title">Account <em>settings.</em></h1>
-              <p className="st-topbar-sub">Manage your profile, security and billing.</p>
+              <h1 className="st-topbar-title">{t("titlePlain")} <em>{t("titleItalic")}</em></h1>
+              <p className="st-topbar-sub">{t("subtitle")}</p>
             </div>
             <Link href="/settings" className="st-mobile-avatar">{initials}</Link>
           </header>
@@ -45,8 +47,8 @@ export default async function SettingsPage() {
             {/* Profile */}
             <section className="st-section">
               <div className="st-section-head">
-                <h2 className="st-section-title">Profile</h2>
-                <p className="st-section-sub">Update your display name.</p>
+                <h2 className="st-section-title">{t("profileTitle")}</h2>
+                <p className="st-section-sub">{t("profileSub")}</p>
               </div>
               <div className="st-section-body">
                 <ProfileForm fullName={displayName} email={email} />
@@ -56,8 +58,8 @@ export default async function SettingsPage() {
             {/* Security */}
             <section className="st-section">
               <div className="st-section-head">
-                <h2 className="st-section-title">Security</h2>
-                <p className="st-section-sub">Change your password.</p>
+                <h2 className="st-section-title">{t("securityTitle")}</h2>
+                <p className="st-section-sub">{t("securitySub")}</p>
               </div>
               <div className="st-section-body">
                 <PasswordForm />
@@ -67,20 +69,20 @@ export default async function SettingsPage() {
             {/* Plan & Billing */}
             <section className="st-section">
               <div className="st-section-head">
-                <h2 className="st-section-title">Plan & Billing</h2>
-                <p className="st-section-sub">Manage your subscription and payment details.</p>
+                <h2 className="st-section-title">{t("billingTitle")}</h2>
+                <p className="st-section-sub">{t("billingSub")}</p>
               </div>
               <div className="st-section-body">
                 <div className="st-plan-row">
                   <div>
-                    <p className="st-plan-label">Current plan</p>
-                    <p className="st-plan-name">{plan?.name ?? "No active plan"}</p>
+                    <p className="st-plan-label">{t("currentPlan")}</p>
+                    <p className="st-plan-name">{plan?.name ?? t("noActivePlan")}</p>
                     {plan && (
-                      <p className="st-plan-detail">{plan.maxAlbums} albums · {plan.storageGb} GB storage</p>
+                      <p className="st-plan-detail">{t("planDetail", { albums: plan.maxAlbums, storage: plan.storageGb })}</p>
                     )}
                   </div>
                   <span className={`st-badge${hasActiveSubscription ? " active" : ""}`}>
-                    {hasActiveSubscription ? "Active" : "Inactive"}
+                    {hasActiveSubscription ? t("active") : t("inactive")}
                   </span>
                 </div>
                 <div className="st-billing-actions">
@@ -90,7 +92,7 @@ export default async function SettingsPage() {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>
                         </svg>
-                        Manage billing
+                        {t("manageBilling")}
                       </button>
                     </form>
                   )}
@@ -98,7 +100,7 @@ export default async function SettingsPage() {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
                     </svg>
-                    {hasActiveSubscription ? "Change plan" : "View plans"}
+                    {hasActiveSubscription ? t("changePlan") : t("viewPlans")}
                   </Link>
                 </div>
               </div>
@@ -107,13 +109,13 @@ export default async function SettingsPage() {
             {/* Usage */}
             <section className="st-section">
               <div className="st-section-head">
-                <h2 className="st-section-title">Usage</h2>
+                <h2 className="st-section-title">{t("usageTitle")}</h2>
               </div>
               <div className="st-section-body">
                 <div className="st-usage-grid">
                   {[
-                    { label: "Albums",       value: `${usage.albumsCount} / ${plan?.maxAlbums ?? "—"}`,   percent: usage.albumsPercent },
-                    { label: "Storage used", value: `${usage.usedStorageGb} / ${plan?.storageGb ?? "—"} GB`, percent: usage.storagePercent },
+                    { label: t("albumsLabel"),  value: `${usage.albumsCount} / ${plan?.maxAlbums ?? "—"}`,      percent: usage.albumsPercent },
+                    { label: t("storageLabel"), value: `${usage.usedStorageGb} / ${plan?.storageGb ?? "—"} GB`, percent: usage.storagePercent },
                   ].map(({ label, value, percent }) => (
                     <div key={label} className="st-usage-card">
                       <p className="st-usage-label">{label}</p>

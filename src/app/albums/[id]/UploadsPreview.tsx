@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 interface MediaItem {
   id: string;
@@ -17,7 +18,7 @@ interface Props {
   firstQR?: { dataUrl: string; joinUrl: string; label: string } | null;
 }
 
-function CopyButton({ url }: { url: string }) {
+function CopyButton({ url, label }: { url: string; label: string }) {
   async function handleCopy() {
     try {
       if (navigator.clipboard?.writeText) {
@@ -68,12 +69,14 @@ function CopyButton({ url }: { url: string }) {
         <rect x="3" y="3" width="9" height="9" rx="1" />
         <path d="M5 1h8a1 1 0 011 1v8" />
       </svg>
-      Copy link
+      {label}
     </button>
   );
 }
 
 export function UploadsPreview({ items, totalCount, albumId, firstQR }: Props) {
+  const t = useTranslations("albumDetail");
+
   if (items.length === 0) {
     return (
       <div style={{ padding: "32px 24px" }}>
@@ -122,7 +125,7 @@ export function UploadsPreview({ items, totalCount, albumId, firstQR }: Props) {
                   lineHeight: 1.2,
                 }}
               >
-                Waiting for the first upload
+                {t("waitingFirstUpload")}
               </p>
               <p
                 style={{
@@ -132,11 +135,11 @@ export function UploadsPreview({ items, totalCount, albumId, firstQR }: Props) {
                   marginTop: "8px",
                 }}
               >
-                Print it, project it, or send the link — guests scan and upload straight from their phones.
+                {t("shareHint")}
               </p>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "8px" }}>
-              <CopyButton url={firstQR.joinUrl} />
+              <CopyButton url={firstQR.joinUrl} label={t("copyLink")} />
               <a
                 href={firstQR.dataUrl}
                 download="qr-code.png"
@@ -167,7 +170,7 @@ export function UploadsPreview({ items, totalCount, albumId, firstQR }: Props) {
                 >
                   <path d="M8 1v9M5 7l3 3 3-3M2 13h12" />
                 </svg>
-                Download QR
+                {t("downloadQR")}
               </a>
             </div>
           </div>
@@ -188,9 +191,9 @@ export function UploadsPreview({ items, totalCount, albumId, firstQR }: Props) {
               <circle cx="9" cy="11" r="2" />
               <path d="M3 17l5-5 4 4 3-3 6 6" />
             </svg>
-            <p style={{ color: "var(--ap-muted, oklch(46% 0.010 265))", fontSize: "13px" }}>No uploads yet.</p>
+            <p style={{ color: "var(--ap-muted, oklch(46% 0.010 265))", fontSize: "13px" }}>{t("noUploadsYet")}</p>
             <p style={{ color: "var(--ap-muted2, oklch(58% 0.010 265))", fontSize: "12px", marginTop: "4px" }}>
-              Create a QR code to start collecting photos from your guests.
+              {t("createQRHint")}
             </p>
           </div>
         )}
@@ -327,7 +330,7 @@ export function UploadsPreview({ items, totalCount, albumId, firstQR }: Props) {
             <circle cx="6" cy="7" r="1" />
             <path d="M2 11l3-3 3 3 2-2 4 4" />
           </svg>
-          View all {totalCount} {totalCount === 1 ? "file" : "files"}
+          {t("viewAll", { count: totalCount })}
           <svg
             viewBox="0 0 16 16"
             width="14"

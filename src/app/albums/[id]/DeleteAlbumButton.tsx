@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { deleteAlbum } from "@/app/albums/actions";
+import { useTranslations } from "next-intl";
 
 export function DeleteAlbumButton({
   albumId,
@@ -12,6 +13,7 @@ export function DeleteAlbumButton({
 }) {
   const [confirm, setConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const t = useTranslations("albumDetail");
 
   async function handleDelete() {
     setLoading(true);
@@ -30,7 +32,7 @@ export function DeleteAlbumButton({
           <path d="M10 11v6M14 11v6" />
           <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
         </svg>
-        Delete album
+        {t("deleteAlbum")}
       </button>
 
       {confirm && (
@@ -78,7 +80,7 @@ export function DeleteAlbumButton({
                 marginBottom: "8px",
               }}
             >
-              Delete &ldquo;{albumTitle}&rdquo;?
+              {t("deleteConfirmTitle", { title: albumTitle })}
             </h3>
             <p
               style={{
@@ -88,7 +90,7 @@ export function DeleteAlbumButton({
                 marginBottom: "4px",
               }}
             >
-              This will permanently delete:
+              {t("deleteConfirmDesc")}
             </p>
             <ul
               style={{
@@ -100,10 +102,10 @@ export function DeleteAlbumButton({
                 lineHeight: 1.7,
               }}
             >
-              <li>All uploaded photos and videos</li>
-              <li>All QR codes for this album</li>
-              <li>The cover photo</li>
-              <li>All album settings</li>
+              <li>{t("deleteItem1")}</li>
+              <li>{t("deleteItem2")}</li>
+              <li>{t("deleteItem3")}</li>
+              <li>{t("deleteItem4")}</li>
             </ul>
             <p
               style={{
@@ -113,7 +115,7 @@ export function DeleteAlbumButton({
                 marginBottom: "24px",
               }}
             >
-              This cannot be undone.
+              {t("cannotBeUndone")}
             </p>
 
             <div style={{ display: "flex", gap: "10px" }}>
@@ -134,7 +136,7 @@ export function DeleteAlbumButton({
                   fontFamily: "var(--ap-sans, 'DM Sans', system-ui, sans-serif)",
                 }}
               >
-                Cancel
+                {t("cancel")}
               </button>
               <button
                 onClick={handleDelete}
@@ -153,7 +155,7 @@ export function DeleteAlbumButton({
                   fontFamily: "var(--ap-sans, 'DM Sans', system-ui, sans-serif)",
                 }}
               >
-                {loading ? "Deleting…" : "Delete permanently"}
+                {loading ? t("deleting") : t("deletePermanently")}
               </button>
             </div>
           </div>
