@@ -143,7 +143,6 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
         {/* ── RIGHT PANEL ── */}
         <div className="gw-right">
           <Link href="/" className="gw-wordmark">Captura</Link>
-          <LanguageSwitcher className="gw-lang-btn" />
 
           <div className="gw-tag">{t("inviteTag")}</div>
 
@@ -248,6 +247,8 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
               </>
             )}
           </div>
+
+          <LanguageSwitcher className="gw-lang-btn" />
 
           <div className="gw-footer">
             <p className="gw-powered">{t("poweredBy")} <Link href="/">Captura</Link></p>
@@ -384,11 +385,12 @@ const CSS = `
   .gw-wordmark:hover { opacity: 1; }
 
   .gw-lang-btn {
-    position: absolute; top: 32px; left: 36px;
+    margin-top: 16px;
     font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
     color: var(--cs-muted); background: var(--cs-bg-alt);
     border: 1px solid var(--cs-border); border-radius: 6px;
     padding: 4px 9px; cursor: pointer; transition: color 0.15s;
+    align-self: flex-start;
   }
   .gw-lang-btn:hover { color: var(--cs-text); }
 
@@ -538,7 +540,6 @@ const CSS = `
       min-height: unset;
     }
     .gw-wordmark { top: 16px; right: 16px; font-size: 13px; }
-    .gw-lang-btn { top: 16px; left: 16px; }
     .gw-heading { font-size: clamp(34px, 9vw, 52px); }
     .gw-btn-primary, .gw-btn-secondary { padding: 13px 20px; font-size: 14px; }
   }
