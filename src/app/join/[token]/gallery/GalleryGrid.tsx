@@ -124,7 +124,6 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
   const locale = useLocale();
   const [lightbox, setLightbox]       = useState<MediaItem | null>(null);
   const [downloading, setDownloading] = useState(false);
-  const touchStartX = { current: 0 };
 
   /* ── face-filter state ── */
   type FaceStatus = "idle" | "loading" | "done" | "error";
@@ -253,16 +252,6 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
     if (!lightbox) return;
     const idx = visibleItems.findIndex((i) => i.id === lightbox.id);
     setLightbox(visibleItems[(idx + dir + visibleItems.length) % visibleItems.length]);
-  }
-
-  function onTouchStart(e: React.TouchEvent) {
-    touchStartX.current = e.touches[0].clientX;
-  }
-
-  function onTouchEnd(e: React.TouchEvent) {
-    const delta = e.changedTouches[0].clientX - touchStartX.current;
-    if (Math.abs(delta) < 40) return;
-    navigate(delta < 0 ? 1 : -1);
   }
 
   return (
@@ -514,8 +503,6 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
             {/* Media — swipeable on mobile */}
             <div
               className="gl-media-wrap"
-              onTouchStart={onTouchStart}
-              onTouchEnd={onTouchEnd}
             >
               {lightbox.file_type === "video" ? (
                 <video src={lightbox.file_url} controls autoPlay className="gl-media" />

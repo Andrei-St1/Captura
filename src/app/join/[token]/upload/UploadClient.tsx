@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { extractExifDate, convertToWebP } from "@/lib/imagePreprocess";
@@ -85,6 +85,13 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
   const [allDone, setAllDone] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (files.length === 0) return;
+    const allSettled = files.every(f => f.status === "done" || f.status === "error");
+    const anyDone = files.some(f => f.status === "done");
+    if (allSettled && anyDone) setAllDone(true);
+  }, [files]);
 
   function validateFile(file: File): string | null {
     const isVideo = file.type.startsWith("video/");
@@ -336,6 +343,42 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
     }
   }
 
+  async function retryFile(item: FileItem) {
+    setAllDone(false);
+    setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "uploading", progress: 5, error: undefined } : f));
+
+    const [takenAt, uploadFile] = await Promise.all([
+      extractExifDate(item.file),
+      convertToWebP(item.file),
+    ]);
+
+    setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, progress: 10 } : f));
+
+    if (uploadFile.size >= MULTIPART_THRESHOLD) {
+      await uploadOneMultipart(item, uploadFile, takenAt);
+    } else {
+      const res = await fetch("/api/presign-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          albumId,
+          files: [{ fileName: uploadFile.name, mimeType: uploadFile.type || "application/octet-stream", fileSize: uploadFile.size }],
+        }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({ error: "Presign failed" }));
+        setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "error", error, progress: 0 } : f));
+        return;
+      }
+      const { results } = await res.json() as { results: { presignedUrl: string; filePath: string; fileUrl: string }[] };
+      if (!results[0]) {
+        setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "error", error: "Presign failed", progress: 0 } : f));
+        return;
+      }
+      await uploadOne(item, uploadFile, results[0], takenAt);
+    }
+  }
+
   async function handleUpload() {
     if (isUploading) return;
     const pending = files.filter((f) => f.status === "pending");
@@ -546,9 +589,15 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
                   </svg>
                 )}
                 {item.status === "error" && (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" /><line x1="15" x2="9" y1="9" y2="15" /><line x1="9" x2="15" y1="9" y2="15" />
-                  </svg>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); retryFile(item); }}
+                    title="Retry"
+                    className="text-on-surface-variant hover:text-on-surface transition"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
+                    </svg>
+                  </button>
                 )}
                 {item.status === "pending" && (
                   <button onClick={(e) => { e.stopPropagation(); setFiles((p) => p.filter((f) => f.id !== item.id)); }}

@@ -1036,8 +1036,6 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
   }
 
   /* ── lightbox navigation ── */
-  const lbTouchX = useRef(0);
-
   function lbNavigate(dir: 1 | -1) {
     if (!lightbox) return;
     const idx = displayItems.findIndex((i) => i.id === lightbox.id);
@@ -1045,12 +1043,6 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
   }
   function lbPrev(e: React.MouseEvent) { e.stopPropagation(); lbNavigate(-1); }
   function lbNext(e: React.MouseEvent) { e.stopPropagation(); lbNavigate(1); }
-  function lbTouchStart(e: React.TouchEvent) { lbTouchX.current = e.touches[0].clientX; }
-  function lbTouchEnd(e: React.TouchEvent) {
-    const delta = e.changedTouches[0].clientX - lbTouchX.current;
-    if (Math.abs(delta) < 40) return;
-    lbNavigate(delta < 0 ? 1 : -1);
-  }
 
   /* ── sub-toolbar status text ── */
   function subInfo() {
@@ -1518,11 +1510,8 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
             </button>
           )}
 
-          {/* Media — swipeable */}
           <div
             onClick={(e) => e.stopPropagation()}
-            onTouchStart={lbTouchStart}
-            onTouchEnd={lbTouchEnd}
           >
             {lightbox.file_type === "video" ? (
               <video src={lightbox.file_url} controls autoPlay className="og-lb-img" />
