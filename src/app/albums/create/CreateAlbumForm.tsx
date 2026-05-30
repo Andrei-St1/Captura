@@ -144,8 +144,8 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
       fd.set("pin_required", pinRequired ? "true" : "false");
       if (pinRequired && pin) fd.set("pin", pin);
       fd.set("face_finder_enabled", faceFinder ? "true" : "false");
-      if (openDate)  fd.set("open_date", openDate);
-      if (closeDate) fd.set("close_date", closeDate);
+      if (openDate)  fd.set("open_date", new Date(openDate + "T00:00").toISOString());
+      if (closeDate) fd.set("close_date", new Date(closeDate + "T00:00").toISOString());
       const result = await createAlbum(fd);
       if (result?.error) { setError(result.error); return; }
       if (result?.albumId) {
@@ -449,12 +449,12 @@ export function CreateAlbumForm({ planStorageGb, allocatedGb, user }: Props) {
                     <div className="ca-date-grid">
                       <div className="ca-field">
                         <label>{t("uploadOpens")}</label>
-                        <input className="ca-input" type="datetime-local" value={openDate} onChange={(e) => setOpenDate(e.target.value)} />
+                        <input className="ca-input" type="date" value={openDate} onChange={(e) => setOpenDate(e.target.value)} />
                         <div className="ca-field-hint">{t("leaveEmptyOpen")}</div>
                       </div>
                       <div className="ca-field">
                         <label>{t("uploadCloses")}</label>
-                        <input className="ca-input" type="datetime-local" value={closeDate} onChange={(e) => setCloseDate(e.target.value)} />
+                        <input className="ca-input" type="date" value={closeDate} onChange={(e) => setCloseDate(e.target.value)} />
                         <div className="ca-field-hint">{t("leaveEmptyClose")}</div>
                       </div>
                     </div>

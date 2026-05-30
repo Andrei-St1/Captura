@@ -23,9 +23,10 @@ interface Props {
   allocatedGbOthers: number;
 }
 
-function toDatetimeLocal(iso: string | null): string {
+function toDateInput(iso: string | null): string {
   if (!iso) return "";
-  return new Date(iso).toISOString().slice(0, 16);
+  const d = new Date(iso);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
 export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props) {
@@ -69,6 +70,10 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
     formData.set("pin_required", pinRequired ? "true" : "false");
     if (pin) formData.set("pin", pin);
     formData.set("face_finder_enabled", faceFinder ? "true" : "false");
+    const rawOpen = formData.get("open_date") as string;
+    const rawClose = formData.get("close_date") as string;
+    if (rawOpen) formData.set("open_date", new Date(rawOpen + "T00:00").toISOString());
+    if (rawClose) formData.set("close_date", new Date(rawClose + "T00:00").toISOString());
     const result = await updateAlbum(formData);
     if (result?.error) {
       setError(result.error);
@@ -184,16 +189,16 @@ export function EditAlbumForm({ album, planStorageGb, allocatedGbOthers }: Props
                     <div className="ea-field">
                       <label htmlFor="open_date" className="ea-label">{t("openDate")}</label>
                       <input
-                        id="open_date" name="open_date" type="datetime-local"
-                        defaultValue={toDatetimeLocal(album.open_date)}
+                        id="open_date" name="open_date" type="date"
+                        defaultValue={toDateInput(album.open_date)}
                         className="ea-input"
                       />
                     </div>
                     <div className="ea-field">
                       <label htmlFor="close_date" className="ea-label">{t("closeDate")}</label>
                       <input
-                        id="close_date" name="close_date" type="datetime-local"
-                        defaultValue={toDatetimeLocal(album.close_date)}
+                        id="close_date" name="close_date" type="date"
+                        defaultValue={toDateInput(album.close_date)}
                         className="ea-input"
                       />
                     </div>
