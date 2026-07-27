@@ -532,7 +532,7 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
         onDragLeave={() => setIsDragging(false)}
         onDrop={onDrop}
         onClick={() => inputRef.current?.click()}
-        className="cursor-pointer rounded-2xl border-2 border-dashed py-10 px-6 text-center transition-all border-outline-variant/40 hover:bg-surface-container-low"
+        className="cursor-pointer rounded-2xl border-2 border-dashed py-10 px-6 text-center transition-all border-outline-variant/40 hover:bg-[var(--cs-accent-faint)]"
         style={isDragging ? { borderColor: "var(--cs-accent)", background: "var(--cs-accent-faint)" } : {}}
       >
         <input ref={inputRef} type="file" multiple accept={ACCEPTED} className="hidden"
