@@ -208,3 +208,32 @@ export function PasswordForm() {
     </form>
   );
 }
+
+/* ── Google Drive connect ── */
+
+export function GoogleDriveConnect() {
+  const [connected, setConnected] = useState(false);
+  const t = useTranslations("settings");
+
+  return (
+    <div>
+      <button type="button" onClick={() => setConnected(true)} className="st-btn-outline" style={{ border: "1px solid oklch(80% 0.010 80)" }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8 3h8l6 10-3 8H5l-3-8Z"/>
+        </svg>
+        {t("useGoogleDrive")}
+      </button>
+      {connected && (
+        <div style={{
+          marginTop: 12, display: "flex", alignItems: "center", gap: 8,
+          color: "oklch(50% 0.16 155)", fontSize: 13,
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          {t("googleDriveConnected")}
+        </div>
+      )}
+    </div>
+  );
+}

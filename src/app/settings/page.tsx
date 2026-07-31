@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createPortalSession } from "@/app/stripe/actions";
 import { getSubscriptionLimits } from "@/lib/subscription";
 import { AppSidebar } from "@/components/AppSidebar";
-import { ProfileForm, PasswordForm } from "./SettingsForms";
+import { ProfileForm, PasswordForm, GoogleDriveConnect } from "./SettingsForms";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
@@ -63,6 +63,17 @@ export default async function SettingsPage() {
               </div>
               <div className="st-section-body">
                 <PasswordForm />
+              </div>
+            </section>
+
+            {/* Storage */}
+            <section className="st-section">
+              <div className="st-section-head">
+                <h2 className="st-section-title">{t("storageTitle")}</h2>
+                <p className="st-section-sub">{t("storageSub")}</p>
+              </div>
+              <div className="st-section-body">
+                <GoogleDriveConnect />
               </div>
             </section>
 

@@ -435,7 +435,11 @@
     "newPasswordPlaceholder": "Cel puțin 8 caractere",
     "confirmPassword": "Confirmă parola nouă",
     "updatePassword": "Actualizează parola",
-    "updating": "Se actualizează…"
+    "updating": "Se actualizează…",
+    "storageTitle": "Stocare",
+    "storageSub": "Conectează un furnizor de stocare pentru fișierele albumelor tale.",
+    "useGoogleDrive": "Folosește Google Drive",
+    "googleDriveConnected": "Google Drive conectat"
   },
   "home": {
     "navHow": "Cum funcționează",

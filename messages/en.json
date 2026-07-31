@@ -435,7 +435,11 @@
     "newPasswordPlaceholder": "At least 8 characters",
     "confirmPassword": "Confirm new password",
     "updatePassword": "Update password",
-    "updating": "Updating…"
+    "updating": "Updating…",
+    "storageTitle": "Storage",
+    "storageSub": "Connect a storage provider for your album files.",
+    "useGoogleDrive": "Use Google Drive",
+    "googleDriveConnected": "Google Drive connected"
   },
   "home": {
     "navHow": "How it works",
