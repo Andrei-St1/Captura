@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { detectAndSaveFaces } from "@/lib/faceDetect";
 
 export async function POST(request: NextRequest) {
@@ -23,7 +23,9 @@ export async function POST(request: NextRequest) {
   const { id, album_id, file_url, file_type } = payload.record;
   if (file_type !== "image") return NextResponse.json({ ok: true });
 
-  await detectAndSaveFaces(id, album_id, file_url);
+  after(async () => {
+    try { await detectAndSaveFaces(id, album_id, file_url); } catch (e) { console.error("[face-detect webhook]", e); }
+  });
 
   return NextResponse.json({ ok: true });
 }

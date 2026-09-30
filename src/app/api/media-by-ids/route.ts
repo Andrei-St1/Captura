@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   const supabase = createServiceClient();
   const { data } = await supabase
     .from("media")
-    .select("id, file_url, file_type, file_size, uploader_name, created_at")
+    .select("id, file_url, file_type, file_size, uploader_name, created_at, thumbnail_url")
     .eq("album_id", albumId)
     .in("id", [...new Set(mediaIds)])
     .order("created_at", { ascending: false });

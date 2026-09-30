@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { AlbumsClient } from "./AlbumsClient";
 import { AppSidebar } from "@/components/AppSidebar";
 import { getSubscriptionLimits } from "@/lib/subscription";
@@ -817,9 +817,7 @@ const CSS = `
 
 export default async function AlbumsPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) redirect("/login");
 
@@ -843,7 +841,9 @@ export default async function AlbumsPage() {
 
   const { data: albums } = await supabase
     .from("albums")
-    .select("*, media(count)")
+    .select(
+      "id, title, description, status, open_date, close_date, allocated_gb, used_bytes, created_at, thumbnail_url, media(count)"
+    )
     .eq("owner_id", user.id)
     .neq("status", "deleted")
     .order("created_at", { ascending: false });

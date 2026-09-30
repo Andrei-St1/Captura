@@ -1,7 +1,18 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const protectedRoutes = ["/dashboard", "/albums", "/settings"];
+const authRoutes = ["/login", "/register", "/forgot-password", "/reset-password"];
+
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  const isProtected = protectedRoutes.some((r) => pathname.startsWith(r));
+  const isAuthRoute = authRoutes.includes(pathname);
+  if (!isProtected && !isAuthRoute) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -25,22 +36,16 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
-
-  const protectedRoutes = ["/dashboard", "/albums", "/settings"];
-  const authRoutes = ["/login", "/register", "/forgot-password", "/reset-password"];
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims ?? null;
 
   // Unauthenticated → redirect to login
-  if (!user && protectedRoutes.some((r) => pathname.startsWith(r))) {
+  if (!user && isProtected) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
   // Authenticated on auth pages → redirect to dashboard
-  if (user && authRoutes.includes(pathname)) {
+  if (user && isAuthRoute) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

@@ -250,6 +250,21 @@ const CSS = `
 
 const PAGE_SIZE = 30;
 
+// QR output is deterministic per URL; memoize so repeat renders don't regenerate it
+const qrCache = new Map<string, Promise<string>>();
+function getQRDataUrl(url: string): Promise<string> {
+  let p = qrCache.get(url);
+  if (!p) {
+    if (qrCache.size > 500) qrCache.clear();
+    p = generateQRDataURL(url).catch((e) => {
+      qrCache.delete(url);
+      throw e;
+    });
+    qrCache.set(url, p);
+  }
+  return p;
+}
+
 export default async function AlbumGalleryPage({
   params,
   searchParams,
@@ -271,14 +286,52 @@ export default async function AlbumGalleryPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: album } = await supabase
-    .from("albums")
-    .select("id, title, status, used_bytes")
-    .eq("id", id)
-    .eq("owner_id", user.id)
-    .single();
+  const offset = (page - 1) * PAGE_SIZE;
+
+  // Album ownership check + media/QR queries are independent (media is RLS-protected), run in parallel
+  const [{ data: album }, { data: media, count }, { data: qrRows }, { data: latestMedia }] = await Promise.all([
+    supabase
+      .from("albums")
+      .select("id, title, status, used_bytes")
+      .eq("id", id)
+      .eq("owner_id", user.id)
+      .single(),
+    supabase
+      .from("media")
+      .select("id, file_url, file_type, file_size, mime_type, uploader_name, created_at, thumbnail_url, taken_at", { count: "exact" })
+      .eq("album_id", id)
+      .order("created_at", { ascending: false })
+      .range(offset, offset + PAGE_SIZE - 1),
+    supabase
+      .from("qr_codes")
+      .select("token, label, enabled")
+      .eq("album_id", id)
+      .eq("enabled", true)
+      .order("created_at", { ascending: true })
+      .limit(1),
+    supabase
+      .from("media")
+      .select("created_at")
+      .eq("album_id", id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
   if (!album || album.status === "deleted") notFound();
+
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  const firstQRRow = qrRows?.[0] ?? null;
+  const [initialFaceClusters, firstQR] = await Promise.all([
+    getFaceClustersForAlbum(album.id).catch(() => []),
+    firstQRRow
+      ? getQRDataUrl(`${appUrl}/join/${firstQRRow.token}`).then((dataUrl) => ({
+          label: firstQRRow.label,
+          joinUrl: `${appUrl}/join/${firstQRRow.token}`,
+          dataUrl,
+        }))
+      : Promise.resolve(null),
+  ]);
 
   const displayName = user.user_metadata?.full_name ?? user.email ?? "User";
   const initials = displayName
@@ -288,47 +341,11 @@ export default async function AlbumGalleryPage({
     .slice(0, 2)
     .toUpperCase();
 
-  const offset = (page - 1) * PAGE_SIZE;
-  const orderedMediaQuery = supabase
-    .from("media")
-    .select("id, file_url, file_type, file_size, mime_type, uploader_name, created_at, thumbnail_url, taken_at", { count: "exact" })
-    .eq("album_id", album.id)
-    .order("created_at", { ascending: false });
-
-  const [{ data: media, count }, { data: qrRows }, { data: latestMedia }, initialFaceClusters] = await Promise.all([
-    orderedMediaQuery.range(offset, offset + PAGE_SIZE - 1),
-    supabase
-      .from("qr_codes")
-      .select("token, label, enabled")
-      .eq("album_id", album.id)
-      .eq("enabled", true)
-      .order("created_at", { ascending: true })
-      .limit(1),
-    supabase
-      .from("media")
-      .select("created_at")
-      .eq("album_id", album.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single(),
-    getFaceClustersForAlbum(album.id).catch(() => []),
-  ]);
-
   const mediaItems = media ?? [];
   const totalCount = count ?? 0;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
   const totalBytes = (album as any).used_bytes ?? 0;
   const lastUpload = latestMedia?.created_at ?? null;
-
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
-  const firstQRRow = qrRows?.[0] ?? null;
-  const firstQR = firstQRRow
-    ? {
-        label: firstQRRow.label,
-        joinUrl: `${appUrl}/join/${firstQRRow.token}`,
-        dataUrl: await generateQRDataURL(`${appUrl}/join/${firstQRRow.token}`),
-      }
-    : null;
 
   return (
     <>

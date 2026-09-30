@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { getSubscriptionLimits } from "@/lib/subscription";
 import DashboardClient from "./DashboardClient";
 
@@ -11,9 +11,7 @@ export default async function DashboardPage({
   const { checkout } = await searchParams;
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) redirect("/login");
 

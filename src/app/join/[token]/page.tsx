@@ -117,27 +117,6 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
 
           <div className="gw-left-fade" />
           <div className="gw-left-bottom-fade" />
-
-          <div className="gw-pills">
-            {eventDate && (
-              <div className="gw-pill">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
-                </svg>
-                {eventDate}
-              </div>
-            )}
-            {album.location && (
-              <div className="gw-pill">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <path d="M12 21c-4-4-7-7.5-7-11a7 7 0 0 1 14 0c0 3.5-3 7-7 11z" /><circle cx="12" cy="10" r="2.5" />
-                </svg>
-                {album.location}
-              </div>
-            )}
-          </div>
-
-          {eventDate && <div className="gw-caption">{eventDate}</div>}
         </div>
 
         {/* ── RIGHT PANEL ── */}
@@ -274,9 +253,12 @@ const CSS = `
   }
 
   .gw-page {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    position: relative;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
     min-height: 100vh;
+    padding: 32px;
     font-family: 'DM Sans', system-ui, sans-serif;
     font-size: 14px;
     line-height: 1.5;
@@ -286,9 +268,8 @@ const CSS = `
 
   /* ── LEFT ── */
   .gw-left {
-    position: sticky;
-    top: 0;
-    height: 100vh;
+    position: fixed;
+    inset: 0;
     overflow: hidden;
     background: linear-gradient(160deg,
       var(--cs-left-g1) 0%,
@@ -327,12 +308,12 @@ const CSS = `
 
   .gw-left-fade {
     position: absolute; inset: 0;
-    background: linear-gradient(to right, transparent 65%, var(--cs-bg) 100%);
+    background: linear-gradient(to left, oklch(10% 0.02 60 / 0.35) 0%, transparent 45%);
   }
 
   .gw-left-bottom-fade {
     position: absolute; bottom: 0; left: 0; right: 0; height: 30%;
-    background: linear-gradient(to top, oklch(12% 0.04 60 / 0.5) 0%, transparent 100%);
+    background: linear-gradient(to top, oklch(12% 0.04 60 / 0.25) 0%, transparent 100%);
   }
 
   .gw-pills {
@@ -366,15 +347,22 @@ const CSS = `
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 60px 72px 60px 64px;
     position: relative;
-    background: var(--cs-bg);
-    min-height: 100vh;
+    z-index: 1;
+    width: min(480px, 100%);
+    padding: 56px 44px 36px;
+    border-radius: 24px;
+    background: color-mix(in oklch, var(--cs-bg) 78%, transparent);
+    backdrop-filter: blur(22px) saturate(1.2);
+    -webkit-backdrop-filter: blur(22px) saturate(1.2);
+    border: 1px solid color-mix(in oklch, var(--cs-text) 14%, transparent);
+    box-shadow: 0 24px 70px oklch(0% 0 0 / 0.35);
+    max-height: calc(100vh - 64px);
     overflow-y: auto;
   }
 
   .gw-wordmark {
-    position: absolute; top: 32px; right: 36px;
+    position: absolute; top: 22px; right: 28px;
     font-family: 'Cormorant Garamond', Georgia, serif;
     font-size: 15px; font-weight: 500;
     letter-spacing: 0.10em;
@@ -414,7 +402,7 @@ const CSS = `
 
   .gw-heading {
     font-family: 'Cormorant Garamond', Georgia, serif;
-    font-size: clamp(40px, 4.8vw, 72px);
+    font-size: clamp(36px, 3.6vw, 56px);
     font-weight: 400; line-height: 1.0;
     color: var(--cs-text);
     letter-spacing: -0.01em;
@@ -522,25 +510,23 @@ const CSS = `
   /* ── RESPONSIVE ── */
   @media (max-width: 768px) {
     .gw-page {
-      grid-template-columns: 1fr;
-      grid-template-rows: 260px auto;
-    }
-    .gw-left {
-      position: relative;
-      height: 260px;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 0;
     }
     .gw-left-fade {
-      background: linear-gradient(to bottom, transparent 40%, var(--cs-bg) 100%);
+      background: linear-gradient(to top, oklch(10% 0.02 60 / 0.35) 0%, transparent 50%);
     }
-    .gw-caption { display: none; }
-    .gw-pills { top: 16px; left: 16px; }
     .gw-right {
-      padding: 36px 24px 48px;
-      justify-content: flex-start;
-      min-height: unset;
+      width: 100%;
+      margin-top: 38vh;
+      padding: 44px 24px 32px;
+      border-radius: 24px 24px 0 0;
+      border-bottom: none;
+      max-height: none;
     }
-    .gw-wordmark { top: 16px; right: 16px; font-size: 13px; }
-    .gw-heading { font-size: clamp(34px, 9vw, 52px); }
+    .gw-wordmark { top: 16px; right: 20px; font-size: 13px; }
+    .gw-heading { font-size: clamp(32px, 9vw, 48px); }
     .gw-btn-primary, .gw-btn-secondary { padding: 13px 20px; font-size: 14px; }
   }
 `;
