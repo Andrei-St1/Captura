@@ -25,6 +25,17 @@ const PART_MAX_RETRIES = 3;
 const FILE_CONCURRENCY = 3;
 const PRESIGN_BATCH_SIZE = 15;
 const PREPROCESS_CONCURRENCY = 3;
+const CONFIRM_BATCH_SIZE = 10;
+const CONFIRM_IDLE_MS = 400;
+
+interface ConfirmPayload {
+  filePath: string;
+  fileUrl: string;
+  mimeType: string;
+  fileSize: number;
+  thumbnailUrl?: string;
+  takenAt?: string;
+}
 
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -88,6 +99,75 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
   const [allDone, setAllDone] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // ── Batched confirm: lanes enqueue after the R2 upload and move on immediately ──
+  const confirmBuf = useRef<{ id: string; payload: ConfirmPayload }[]>([]);
+  const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const confirmInflight = useRef<Set<Promise<void>>>(new Set());
+  // Files already stored in R2 whose confirm is pending/failed; retry re-confirms instead of re-uploading
+  const uploadedPayloads = useRef<Map<string, ConfirmPayload>>(new Map());
+
+  function failConfirm(ids: string[], error: string) {
+    const set = new Set(ids);
+    setFiles((prev) => prev.map((f) => set.has(f.id) ? { ...f, status: "error", error, progress: 0 } : f));
+  }
+
+  function flushConfirm() {
+    if (confirmTimer.current) { clearTimeout(confirmTimer.current); confirmTimer.current = null; }
+    if (confirmBuf.current.length === 0) return;
+    const batch = confirmBuf.current.splice(0);
+    const p: Promise<void> = (async () => {
+      try {
+        const res = await fetch("/api/upload-confirm-batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ albumId, items: batch.map((b) => b.payload) }),
+        });
+        let data: { results?: { index: number; ok: boolean; error?: string }[]; error?: string } = {};
+        try { data = await res.json(); } catch { /* handled below */ }
+        if (!res.ok || !data.results) {
+          failConfirm(batch.map((b) => b.id), data.error ?? `Confirm error ${res.status}`);
+          return;
+        }
+        const okIds = new Set<string>();
+        const failed = new Map<string, string>();
+        batch.forEach((b, i) => {
+          const r = data.results!.find((x) => x.index === i);
+          if (r?.ok) okIds.add(b.id);
+          else failed.set(b.id, r?.error ?? "Confirm failed");
+        });
+        okIds.forEach((id) => uploadedPayloads.current.delete(id));
+        setFiles((prev) => prev.map((f) => {
+          if (okIds.has(f.id)) return { ...f, status: "done", progress: 100, error: undefined };
+          const err = failed.get(f.id);
+          return err !== undefined ? { ...f, status: "error", error: err, progress: 0 } : f;
+        }));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        failConfirm(batch.map((b) => b.id), `Network error: ${msg}`);
+      }
+    })();
+    confirmInflight.current.add(p);
+    p.finally(() => confirmInflight.current.delete(p));
+  }
+
+  function enqueueConfirm(id: string, payload: ConfirmPayload) {
+    uploadedPayloads.current.set(id, payload);
+    confirmBuf.current.push({ id, payload });
+    if (confirmBuf.current.length >= CONFIRM_BATCH_SIZE) { flushConfirm(); return; }
+    if (confirmTimer.current) clearTimeout(confirmTimer.current);
+    confirmTimer.current = setTimeout(flushConfirm, CONFIRM_IDLE_MS);
+  }
+
+  async function drainConfirms() {
+    flushConfirm();
+    while (confirmInflight.current.size > 0) {
+      await Promise.all(Array.from(confirmInflight.current));
+      flushConfirm();
+    }
+  }
+
+  useEffect(() => () => { if (confirmTimer.current) clearTimeout(confirmTimer.current); }, []);
 
   useEffect(() => {
     if (files.length === 0) return;
@@ -162,28 +242,15 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
       // Thumbnail PUT has been running alongside the main upload; normally already settled
       const thumbnailUrl = await thumbPromise;
 
-      const confirmRes = await fetch("/api/upload-confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          albumId,
-          filePath: presign.filePath,
-          fileUrl: presign.fileUrl,
-          mimeType: uploadFile.type || "application/octet-stream",
-          fileSize: uploadFile.size,
-          ...(thumbnailUrl ? { thumbnailUrl } : {}),
-          ...(takenAt ? { takenAt } : {}),
-        }),
+      enqueueConfirm(item.id, {
+        filePath: presign.filePath,
+        fileUrl: presign.fileUrl,
+        mimeType: uploadFile.type || "application/octet-stream",
+        fileSize: uploadFile.size,
+        ...(thumbnailUrl ? { thumbnailUrl } : {}),
+        ...(takenAt ? { takenAt } : {}),
       });
-
-      const confirmText = await confirmRes.text();
-      let confirm: { success?: boolean; error?: string };
-      try { confirm = JSON.parse(confirmText); }
-      catch { return setErr(`Confirm error ${confirmRes.status}`); }
-
-      if (!confirmRes.ok || confirm.error) return setErr(confirm.error ?? "Confirm failed");
-
-      setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "done", progress: 100 } : f));
+      setProgress(95);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[upload] threw:", msg);
@@ -311,27 +378,15 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
       const thumbnailUrl = await thumbPromise;
 
       // 4. Confirm DB record
-      const confirmRes = await fetch("/api/upload-confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          albumId,
-          filePath,
-          fileUrl,
-          mimeType: uploadFile.type || "application/octet-stream",
-          fileSize: uploadFile.size,
-          ...(thumbnailUrl ? { thumbnailUrl } : {}),
-          ...(takenAt ? { takenAt } : {}),
-        }),
+      enqueueConfirm(item.id, {
+        filePath,
+        fileUrl,
+        mimeType: uploadFile.type || "application/octet-stream",
+        fileSize: uploadFile.size,
+        ...(thumbnailUrl ? { thumbnailUrl } : {}),
+        ...(takenAt ? { takenAt } : {}),
       });
-
-      let confirm: { success?: boolean; error?: string };
-      try { confirm = await confirmRes.json(); }
-      catch { return setErr(`Confirm error ${confirmRes.status}`); }
-
-      if (!confirmRes.ok || confirm.error) return setErr(confirm.error ?? "Confirm failed");
-
-      setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "done", progress: 100 } : f));
+      setProgress(95);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[multipart-upload] threw:", msg);
@@ -341,6 +396,15 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
 
   async function retryFile(item: FileItem) {
     setAllDone(false);
+
+    // Already in R2 but confirm failed: just re-confirm
+    const stored = uploadedPayloads.current.get(item.id);
+    if (stored) {
+      setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "uploading", progress: 95, error: undefined } : f));
+      enqueueConfirm(item.id, stored);
+      return;
+    }
+
     setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, status: "uploading", progress: 5, error: undefined } : f));
 
     const [takenAt, uploadFile] = await Promise.all([
@@ -489,7 +553,9 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
       await presignChain;
       closeQueue();
       await Promise.all(workerPromises);
+      await drainConfirms();
     } finally {
+      await drainConfirms();
       setIsUploading(false);
       setAllDone(true);
     }

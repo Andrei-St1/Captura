@@ -18,11 +18,18 @@ export async function getFaceClustersForAlbum(albumId: string): Promise<UIFaceCl
   const service = createServiceClient();
 
   // Auto-recompute whenever any face lacks a cluster assignment (new uploads since last cluster run)
-  const { count: unclustered } = await service
-    .from("album_faces")
-    .select("id", { count: "exact", head: true })
-    .eq("album_id", albumId)
-    .is("cluster_id", null);
+  const [{ count: unclustered }, { data: clusters }] = await Promise.all([
+    service
+      .from("album_faces")
+      .select("id", { count: "exact", head: true })
+      .eq("album_id", albumId)
+      .is("cluster_id", null),
+    service
+      .from("face_clusters")
+      .select("id, face_count, representative_face_id")
+      .eq("album_id", albumId)
+      .gte("face_count", 2),
+  ]);
 
   // Run post-response so SSR isn't blocked; new clusters appear on next load.
   if ((unclustered ?? 0) > 0) {
@@ -39,12 +46,6 @@ export async function getFaceClustersForAlbum(albumId: string): Promise<UIFaceCl
       reclusterAlbum(albumId).catch((err) => console.error("reclusterAlbum failed", err));
     }
   }
-
-  const { data: clusters } = await service
-    .from("face_clusters")
-    .select("id, face_count, representative_face_id")
-    .eq("album_id", albumId)
-    .gte("face_count", 2);
 
   if (!clusters?.length) return [];
 

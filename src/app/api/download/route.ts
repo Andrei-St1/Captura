@@ -44,43 +44,44 @@ export async function POST(request: NextRequest) {
     const zip = new JSZip();
     const usedNames = new Map<string, number>();
 
-    await Promise.all(
-      mediaFiles.map(async (media) => {
+    // Assign names up front, in record order, so dedupe is deterministic.
+    const entries = mediaFiles.map((media) => {
+      const ext = media.file_path.split(".").pop() ?? (media.file_type === "video" ? "mp4" : "jpg");
+      const base = media.uploader_name
+        ? `${media.uploader_name.replace(/[^a-zA-Z0-9_-]/g, "_")}`
+        : `file`;
+      const dateStr = new Date(media.created_at).toISOString().slice(0, 10);
+      let name = `${dateStr}_${base}.${ext}`;
+      if (usedNames.has(name)) {
+        const n = (usedNames.get(name) ?? 0) + 1;
+        usedNames.set(name, n);
+        name = `${dateStr}_${base}_${n}.${ext}`;
+      } else {
+        usedNames.set(name, 0);
+      }
+      return { key: media.file_path, name };
+    });
+
+    // Fetch with bounded concurrency.
+    const CONCURRENCY = 4;
+    let next = 0;
+    const worker = async () => {
+      while (next < entries.length) {
+        const entry = entries[next++];
         try {
-          const cmd = new GetObjectCommand({ Bucket: R2_BUCKET, Key: media.file_path });
-          const response = await r2.send(cmd);
-          const chunks: Uint8Array[] = [];
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          for await (const chunk of response.Body as any) {
-            chunks.push(chunk);
-          }
-          const buffer = Buffer.concat(chunks);
-
-          // Build a readable filename
-          const ext = media.file_path.split(".").pop() ?? (media.file_type === "video" ? "mp4" : "jpg");
-          const base = media.uploader_name
-            ? `${media.uploader_name.replace(/[^a-zA-Z0-9_-]/g, "_")}`
-            : `file`;
-          const dateStr = new Date(media.created_at).toISOString().slice(0, 10);
-          let name = `${dateStr}_${base}.${ext}`;
-
-          // Deduplicate
-          if (usedNames.has(name)) {
-            const n = (usedNames.get(name) ?? 0) + 1;
-            usedNames.set(name, n);
-            name = `${dateStr}_${base}_${n}.${ext}`;
-          } else {
-            usedNames.set(name, 0);
-          }
-
-          zip.file(name, buffer);
+          const response = await r2.send(new GetObjectCommand({ Bucket: R2_BUCKET, Key: entry.key }));
+          if (!response.Body) continue;
+          const bytes = await response.Body.transformToByteArray();
+          zip.file(entry.name, bytes);
         } catch {
           // Skip files that fail to fetch
         }
-      })
-    );
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, entries.length) }, worker));
 
-    const zipBuffer = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE", compressionOptions: { level: 3 } });
+    // Photos/videos are already compressed: store without DEFLATE to save CPU.
+    const zipBuffer = await zip.generateAsync({ type: "nodebuffer", compression: "STORE" });
 
     const safeName = album.title.replace(/[^a-zA-Z0-9_-]/g, "_");
     return new NextResponse(new Uint8Array(zipBuffer), {
