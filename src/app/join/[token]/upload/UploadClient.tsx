@@ -24,6 +24,7 @@ const PART_CONCURRENCY = 4;
 const PART_MAX_RETRIES = 3;
 const FILE_CONCURRENCY = 3;
 const PRESIGN_BATCH_SIZE = 15;
+const PREPROCESS_CONCURRENCY = 3;
 
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -132,9 +133,13 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
       setProgress(30);
 
       // Start frame extraction in parallel with upload (for videos)
-      const framePromise = presign.thumbnailPresignedUrl && uploadFile.type.startsWith("video/")
+      // and PUT the thumbnail concurrently with the main upload.
+      const { thumbnailPresignedUrl: thumbPutUrl, thumbnailFileUrl: thumbFileUrl } = presign;
+      const thumbPromise: Promise<string | undefined> = thumbPutUrl && thumbFileUrl && uploadFile.type.startsWith("video/")
         ? extractFrameFromFile(uploadFile)
-        : Promise.resolve(null);
+            .then(async (frame) => (frame && (await uploadThumbnail(frame, thumbPutUrl)) ? thumbFileUrl : undefined))
+            .catch(() => undefined)
+        : Promise.resolve(undefined);
 
       const r2Status = await new Promise<number>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
@@ -154,15 +159,8 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
 
       setProgress(85);
 
-      // Upload thumbnail if frame extracted
-      let thumbnailUrl: string | undefined;
-      if (presign.thumbnailPresignedUrl && presign.thumbnailFileUrl) {
-        const frame = await framePromise;
-        if (frame) {
-          const ok = await uploadThumbnail(frame, presign.thumbnailPresignedUrl);
-          if (ok) thumbnailUrl = presign.thumbnailFileUrl;
-        }
-      }
+      // Thumbnail PUT has been running alongside the main upload; normally already settled
+      const thumbnailUrl = await thumbPromise;
 
       const confirmRes = await fetch("/api/upload-confirm", {
         method: "POST",
@@ -228,9 +226,12 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
       };
 
       // Start frame extraction in parallel with chunk uploads
-      const framePromise = thumbnailPresignedUrl
+      // and PUT the thumbnail concurrently (don't wait for the main upload to finish)
+      const thumbPromise: Promise<string | undefined> = thumbnailPresignedUrl && thumbnailFileUrl
         ? extractFrameFromFile(uploadFile)
-        : Promise.resolve(null);
+            .then(async (frame) => (frame && (await uploadThumbnail(frame, thumbnailPresignedUrl)) ? thumbnailFileUrl : undefined))
+            .catch(() => undefined)
+        : Promise.resolve(undefined);
 
       setProgress(8);
 
@@ -307,15 +308,7 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
 
       setProgress(92);
 
-      // Upload thumbnail if frame extracted (frame should be ready by now)
-      let thumbnailUrl: string | undefined;
-      if (thumbnailPresignedUrl && thumbnailFileUrl) {
-        const frame = await framePromise;
-        if (frame) {
-          const ok = await uploadThumbnail(frame, thumbnailPresignedUrl);
-          if (ok) thumbnailUrl = thumbnailFileUrl;
-        }
-      }
+      const thumbnailUrl = await thumbPromise;
 
       // 4. Confirm DB record
       const confirmRes = await fetch("/api/upload-confirm", {
@@ -395,15 +388,25 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
         | { kind: "large"; item: FileItem; uploadFile: File; takenAt: string | null };
 
       const queue: QueueEntry[] = [];
-      let allQueued = false;
+      let closed = false;
+      // Idle workers park a resolver here; pushEntry/closeQueue wake them (no polling)
+      const waiters: (() => void)[] = [];
+      function pushEntry(entry: QueueEntry) {
+        queue.push(entry);
+        waiters.shift()?.();
+      }
+      function closeQueue() {
+        closed = true;
+        waiters.splice(0).forEach((w) => w());
+      }
 
       // Workers start immediately — drain queue as items arrive
       async function runWorker() {
-        while (!allQueued || queue.length > 0) {
-          if (queue.length === 0) {
-            await new Promise<void>((r) => setTimeout(r, 30));
-            continue;
+        for (;;) {
+          while (queue.length === 0 && !closed) {
+            await new Promise<void>((r) => waiters.push(r));
           }
+          if (queue.length === 0) return;
           const entry = queue.shift()!;
           if (entry.kind === "small") {
             await uploadOne(entry.item, entry.uploadFile, entry.presign, entry.takenAt);
@@ -447,15 +450,18 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
           }
           const { results } = await res.json() as { results: PresignResult[] };
           batch.forEach((b, i) => {
-            if (results[i]) queue.push({ kind: "small", ...b, presign: results[i] });
+            if (results[i]) pushEntry({ kind: "small", ...b, presign: results[i] });
           });
         });
       }
 
       // Preprocess all files in parallel; large files enter queue immediately,
       // small files buffer for rolling batch presign
-      await Promise.all(
-        pending.map(async (item) => {
+      // Preprocessing is bounded to PREPROCESS_CONCURRENCY at a time to cap memory use.
+      let nextIdx = 0;
+      async function preprocessWorker() {
+        while (nextIdx < pending.length) {
+          const item = pending[nextIdx++];
           setFiles((prev) => prev.map((f) =>
             f.id === item.id ? { ...f, status: "uploading", progress: 5 } : f
           ));
@@ -468,17 +474,20 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
           ));
 
           if (uploadFile.size >= MULTIPART_THRESHOLD) {
-            queue.push({ kind: "large", item, uploadFile, takenAt });
+            pushEntry({ kind: "large", item, uploadFile, takenAt });
           } else {
             smallBuffer.push({ item, uploadFile, takenAt });
             flushSmallBuffer(false);
           }
-        })
+        }
+      }
+      await Promise.all(
+        Array.from({ length: Math.min(PREPROCESS_CONCURRENCY, pending.length) }, preprocessWorker)
       );
 
       flushSmallBuffer(true);
       await presignChain;
-      allQueued = true;
+      closeQueue();
       await Promise.all(workerPromises);
     } finally {
       setIsUploading(false);
@@ -540,8 +549,21 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
       >
         <input ref={inputRef} type="file" multiple accept={ACCEPTED} className="hidden"
           onChange={(e) => e.target.files && addFiles(e.target.files)} />
-        <span className="material-symbols-outlined mb-3 block" style={{ fontSize: "32px", color: "var(--cs-accent)" }}>
-          {isDragging ? "download" : "add_a_photo"}
+        <span className="mb-3 mx-auto block" style={{ width: 32, height: 32, lineHeight: 0, color: "var(--cs-accent)" }}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            {isDragging ? (
+              <>
+                <path d="M12 3v12" />
+                <path d="m7 10 5 5 5-5" />
+                <path d="M5 21h14" />
+              </>
+            ) : (
+              <>
+                <path d="M14.5 4h-5L7.5 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2.5l-2-3Z" />
+                <circle cx="12" cy="13" r="3.5" />
+              </>
+            )}
+          </svg>
         </span>
         <p className="text-sm font-medium text-on-surface">
           {isDragging ? t("dropzone.dropHint") : t("dropzone.label")}
@@ -564,11 +586,24 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
                 item.status === "done" ? "bg-emerald-50" :
                 item.status === "error" ? "bg-red-50" : ""
               }`} style={item.status !== "done" && item.status !== "error" ? { background: "var(--cs-accent-faint)" } : {}}>
-                <span className="material-symbols-outlined" style={{
-                  fontSize: "15px",
+                <span className="block" style={{
+                  width: 15, height: 15, lineHeight: 0,
                   color: item.status === "done" ? "#059669" : item.status === "error" ? "#dc2626" : "var(--cs-accent)"
                 }}>
-                  {item.file.type.startsWith("video/") ? "videocam" : "image"}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    {item.file.type.startsWith("video/") ? (
+                      <>
+                        <path d="m22 8-6 4 6 4V8Z" />
+                        <rect x="2" y="6" width="14" height="12" rx="2" />
+                      </>
+                    ) : (
+                      <>
+                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                        <circle cx="9" cy="9" r="2" />
+                        <path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21" />
+                      </>
+                    )}
+                  </svg>
                 </span>
               </div>
 

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getQrAlbum } from "@/lib/getQrAlbum";
 import { PinClient } from "./PinClient";
 import { getScheme, schemeToCss } from "@/lib/colorSchemes";
 
@@ -13,13 +13,7 @@ export default async function PinPage({
   const { token } = await params;
   const { error }  = await searchParams;
 
-  const supabase = await createClient();
-
-  const { data: qr } = await supabase
-    .from("qr_codes")
-    .select("id, enabled, albums(id, title, status, pin_required, pin_hash, color_scheme)")
-    .eq("token", token)
-    .single();
+  const qr = await getQrAlbum(token);
 
   if (!qr) notFound();
 

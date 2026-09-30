@@ -5,6 +5,7 @@ import { getFaceClustersForAlbum } from "@/lib/getFaceClusters";
 import { GalleryGrid } from "./GalleryGrid";
 import { JoinNav } from "../JoinNav";
 import { requireAlbumPin } from "@/lib/pin";
+import { getQrAlbum } from "@/lib/getQrAlbum";
 import { getScheme, schemeToCss } from "@/lib/colorSchemes";
 
 const PAGE_SIZE = 30;
@@ -22,11 +23,7 @@ export default async function GalleryPage({
   const sort: "taken" | "upload" = sortParam === "taken" ? "taken" : "upload";
   const supabase = await createClient();
 
-  const { data: qr } = await supabase
-    .from("qr_codes")
-    .select("id, enabled, expires_at, albums(id, title, status, show_gallery, pin_required, pin_hash, face_finder_enabled, color_scheme)")
-    .eq("token", token)
-    .single();
+  const qr = await getQrAlbum(token);
 
   if (!qr) notFound();
 

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getTranslations, getLocale } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireAlbumPin } from "@/lib/pin";
+import { getQrAlbum } from "@/lib/getQrAlbum";
 import { getScheme, schemeToCss } from "@/lib/colorSchemes";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
@@ -54,24 +55,21 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
   const locale = await getLocale();
   const supabase = await createClient();
 
-  const { data: qr } = await supabase
-    .from("qr_codes")
-    .select("id, token, enabled, expires_at, albums(id, title, description, location, cover_url, open_date, close_date, status, show_gallery, pin_required, pin_hash, color_scheme)")
-    .eq("token", token)
-    .single();
+  const qr = await getQrAlbum(token);
 
   if (!qr) notFound();
   const album = qr.albums as any;
   if (!album || album.status === "deleted") notFound();
 
-  if (album.pin_required && album.pin_hash) {
-    await requireAlbumPin(album.id, album.pin_hash, token);
-  }
-
-  const { count: mediaCount } = await supabase
-    .from("media")
-    .select("*", { count: "exact", head: true })
-    .eq("album_id", album.id);
+  const [, { count: mediaCount }] = await Promise.all([
+    album.pin_required && album.pin_hash
+      ? requireAlbumPin(album.id, album.pin_hash, token)
+      : Promise.resolve(),
+    supabase
+      .from("media")
+      .select("*", { count: "exact", head: true })
+      .eq("album_id", album.id),
+  ]);
 
   const status = getStatus(qr, album);
   const eventDate = fmtDate(album.open_date, locale);
@@ -88,7 +86,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
         <div className="gw-left">
           {album.cover_url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={album.cover_url} alt={album.title} className="gw-cover-img" />
+            <img src={album.cover_url} alt={album.title} className="gw-cover-img" fetchPriority="high" decoding="async" />
           ) : (
             <>
               <div className="gw-forest-layer" />
