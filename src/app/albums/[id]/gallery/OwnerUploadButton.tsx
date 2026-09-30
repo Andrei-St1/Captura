@@ -11,8 +11,16 @@ interface Props {
   compact?: boolean;
 }
 
+// Photos are resized client-side and stay well under this, so they keep a single PUT.
 const MULTIPART_THRESHOLD = 50 * 1024 * 1024;
-const CHUNK_SIZE = 50 * 1024 * 1024;
+// Videos go multipart from 16 MB. 8 MB parts (R2 minimum is 5 MB, max 100 parts = 800 MB)
+// keep several parts in flight and make a failed part cheap to re-send.
+const VIDEO_MULTIPART_THRESHOLD = 16 * 1024 * 1024;
+const CHUNK_SIZE = 8 * 1024 * 1024;
+
+function needsMultipart(file: { size: number; type: string }) {
+  return file.size >= (file.type.startsWith("video/") ? VIDEO_MULTIPART_THRESHOLD : MULTIPART_THRESHOLD);
+}
 const PART_CONCURRENCY = 4;
 const PART_MAX_RETRIES = 3;
 const FILE_CONCURRENCY = 3;
@@ -345,7 +353,7 @@ export function OwnerUploadButton({ albumId, compact }: Props) {
           ? await Promise.all([extractExifDate(file), convertToWebP(file)])
           : [null, file];
 
-        if (processedFile.size >= MULTIPART_THRESHOLD) {
+        if (needsMultipart(processedFile)) {
           queue.push({ kind: "large", file, processedFile, takenAt });
         } else {
           smallBuffer.push({ file, processedFile, takenAt });

@@ -18,8 +18,16 @@ const MAX_IMAGE_SIZE = 50 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
 const ACCEPTED = "image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,video/mp4,video/quicktime,video/webm";
 
+// Photos are resized client-side and stay well under this, so they keep a single PUT.
 const MULTIPART_THRESHOLD = 50 * 1024 * 1024;
-const CHUNK_SIZE = 50 * 1024 * 1024;
+// Videos go multipart from 16 MB. 8 MB parts (R2 minimum is 5 MB, max 100 parts = 800 MB)
+// keep several parts in flight and make a failed part cheap to re-send.
+const VIDEO_MULTIPART_THRESHOLD = 16 * 1024 * 1024;
+const CHUNK_SIZE = 8 * 1024 * 1024;
+
+function needsMultipart(file: { size: number; type: string }) {
+  return file.size >= (file.type.startsWith("video/") ? VIDEO_MULTIPART_THRESHOLD : MULTIPART_THRESHOLD);
+}
 const PART_CONCURRENCY = 4;
 const PART_MAX_RETRIES = 3;
 const FILE_CONCURRENCY = 3;
@@ -414,7 +422,7 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
 
     setFiles((prev) => prev.map((f) => f.id === item.id ? { ...f, progress: 10 } : f));
 
-    if (uploadFile.size >= MULTIPART_THRESHOLD) {
+    if (needsMultipart(uploadFile)) {
       await uploadOneMultipart(item, uploadFile, takenAt);
     } else {
       const res = await fetch("/api/presign-batch", {
@@ -537,7 +545,7 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
             f.id === item.id ? { ...f, progress: 10 } : f
           ));
 
-          if (uploadFile.size >= MULTIPART_THRESHOLD) {
+          if (needsMultipart(uploadFile)) {
             pushEntry({ kind: "large", item, uploadFile, takenAt });
           } else {
             smallBuffer.push({ item, uploadFile, takenAt });
