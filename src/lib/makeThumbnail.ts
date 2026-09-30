@@ -2,7 +2,8 @@ import sharp from "sharp";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { r2, R2_BUCKET, R2_PUBLIC_URL } from "@/lib/r2";
 
-export const IMMUTABLE_CACHE = "public, max-age=31536000, immutable";
+import { IMMUTABLE_CACHE } from "@/lib/cacheControl";
+export { IMMUTABLE_CACHE };
 
 /**
  * Generate a ~480px WebP thumbnail and upload it to R2.
