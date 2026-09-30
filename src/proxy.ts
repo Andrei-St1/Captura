@@ -54,6 +54,13 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/stripe/webhook|api/upload|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Only routes that need an auth check; guest pages (/join/*) and APIs skip the proxy entirely.
+    "/dashboard/:path*",
+    "/albums/:path*",
+    "/settings/:path*",
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/reset-password",
   ],
 };
