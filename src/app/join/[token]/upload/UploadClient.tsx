@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { extractExifDate, convertToWebP } from "@/lib/imagePreprocess";
+import { IMMUTABLE_CACHE } from "@/lib/cacheControl";
 
 interface FileItem {
   id: string;
@@ -65,6 +66,7 @@ async function uploadThumbnail(blob: Blob, presignedUrl: string): Promise<boolea
     xhr.onerror = () => resolve(0);
     xhr.open("PUT", presignedUrl);
     xhr.setRequestHeader("Content-Type", "image/jpeg");
+    xhr.setRequestHeader("Cache-Control", IMMUTABLE_CACHE);
     xhr.send(blob);
   });
   return status > 0 && status < 400;
@@ -144,6 +146,7 @@ export function UploadClient({ albumId, albumTitle, token }: { albumId: string; 
         xhr.onerror = () => reject(new Error("Network error"));
         xhr.open("PUT", presign.presignedUrl);
         xhr.setRequestHeader("Content-Type", uploadFile.type || "application/octet-stream");
+        xhr.setRequestHeader("Cache-Control", IMMUTABLE_CACHE);
         xhr.send(uploadFile);
       });
 

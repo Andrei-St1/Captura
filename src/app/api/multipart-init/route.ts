@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { CreateMultipartUploadCommand, PutObjectCommand, UploadPartCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { r2, R2_BUCKET, R2_PUBLIC_URL } from "@/lib/r2";
+import { IMMUTABLE_CACHE } from "@/lib/cacheControl";
 import { createServiceClient } from "@/lib/supabase/service";
 
 const ALLOWED_MIME = new Set([
@@ -68,6 +69,7 @@ export async function POST(request: NextRequest) {
       Bucket: R2_BUCKET,
       Key: filePath,
       ContentType: mimeType,
+      CacheControl: IMMUTABLE_CACHE,
     }));
 
     if (!UploadId) {
@@ -93,6 +95,7 @@ export async function POST(request: NextRequest) {
             Bucket: R2_BUCKET,
             Key: thumbPath,
             ContentType: "image/jpeg",
+            CacheControl: IMMUTABLE_CACHE,
           }), { expiresIn: 3600 })
         : Promise.resolve(undefined),
     ]);
