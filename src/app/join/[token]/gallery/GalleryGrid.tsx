@@ -21,10 +21,9 @@ interface GalleryGridProps {
   albumId?: string;
   faceFinderEnabled?: boolean;
   token?: string;
-  page?: number;
-  totalPages?: number;
   sort?: "taken" | "upload";
-  initialFaceClusters?: FaceCluster[];
+  initialCursor?: string | null;
+  totalCount?: number;
 }
 
 /* ─── Face-filter types & constants ─────────────────────────────────────── */
@@ -119,9 +118,15 @@ async function downloadFile(id: string) {
 }
 
 /* ─── Component ──────────────────────────────────────────────────────────── */
-export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1, totalPages = 1, sort = "upload", initialFaceClusters }: GalleryGridProps) {
+export function GalleryGrid({ items: initialItems, albumId, faceFinderEnabled, token, sort = "upload", initialCursor = null, totalCount }: GalleryGridProps) {
   const t = useTranslations("gallery");
   const locale = useLocale();
+  const [items, setItems]             = useState<MediaItem[]>(initialItems);
+  const [cursor, setCursor]           = useState<string | null>(initialCursor);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError]     = useState(false);
+  const loadingMoreRef = useRef(false);
+  const sentinelRef    = useRef<HTMLDivElement | null>(null);
   const [lightbox, setLightbox]       = useState<MediaItem | null>(null);
   const [downloading, setDownloading] = useState(false);
 
@@ -135,10 +140,11 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
   const [selectedFace, setSelectedFace]     = useState<string | null>(null);
   const [faceItems, setFaceItems]           = useState<MediaItem[] | null>(null);
   const [fetchingFace, setFetchingFace]     = useState(false);
+  const [prefetchedClusters, setPrefetchedClusters] = useState<FaceCluster[] | null>(null);
+  const [facesReady, setFacesReady]         = useState(false);
 
   const visibleItems = faceItems ?? items;
   const imageItems   = items.filter((i) => i.file_type === "image");
-  const itemIds      = imageItems.map((i) => i.id).join(",");
   const loadFacesRef = useRef<(() => Promise<void>) | null>(null);
   const faceEnabledRef = useRef(false);
 
@@ -200,22 +206,80 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
 
   useEffect(() => { faceEnabledRef.current = faceEnabled; }, [faceEnabled]);
 
+  // Lazily fetch face clusters after first paint (not during SSR).
   useEffect(() => {
-    if (!faceEnabledRef.current) return;
-    if (imageItems.length === 0) {
-      setFaceClusters([]);
-      setFaceCrops(new Map());
-      setFaceStatus("idle");
-      return;
+    if (!faceFinderEnabled || !token) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/gallery-faces?token=${encodeURIComponent(token)}`);
+        if (!res.ok) throw new Error("fetch failed");
+        const data = await res.json();
+        if (!cancelled && Array.isArray(data)) setPrefetchedClusters(data);
+      } catch {
+        // leave null; enabling the filter will retry via loadFaces()
+      } finally {
+        if (!cancelled) setFacesReady(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [faceFinderEnabled, token]);
+
+  // Infinite scroll
+  const loadMore = useCallback(async () => {
+    if (!token || !cursor || loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    setLoadError(false);
+    try {
+      const res = await fetch(
+        `/api/gallery-media?token=${encodeURIComponent(token)}&cursor=${encodeURIComponent(cursor)}${sort === "taken" ? "&sort=taken" : ""}`
+      );
+      if (!res.ok) throw new Error("fetch failed");
+      const data: { items: MediaItem[]; nextCursor: string | null } = await res.json();
+      setItems((prev) => {
+        const seen = new Set(prev.map((i) => i.id));
+        return [...prev, ...data.items.filter((i) => !seen.has(i.id))];
+      });
+      setCursor(data.nextCursor);
+    } catch {
+      setLoadError(true);
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
     }
-    loadFacesRef.current?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemIds]);
+  }, [token, cursor, sort]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !cursor || faceItems || loadError) return;
+    const io = new IntersectionObserver(
+      (entries) => { if (entries.some((e) => e.isIntersecting)) loadMore(); },
+      { rootMargin: "800px 0px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [cursor, faceItems, loadError, loadMore, items.length]);
+
+  // Preload neighbouring lightbox images
+  useEffect(() => {
+    if (!lightbox) return;
+    const list = faceItems ?? items;
+    const idx = list.findIndex((i) => i.id === lightbox.id);
+    if (idx < 0 || list.length < 2) return;
+    for (const d of [1, -1]) {
+      const n = list[(idx + d + list.length) % list.length];
+      if (n && n.id !== lightbox.id && n.file_type !== "video") {
+        const img = new Image();
+        img.src = n.file_url;
+      }
+    }
+  }, [lightbox, faceItems, items]);
 
   function handleFaceEnable() {
     setShowFaceConfirm(false);
     setFaceEnabled(true);
-    loadFaces(initialFaceClusters?.length ? initialFaceClusters : undefined);
+    loadFaces(prefetchedClusters ?? undefined);
   }
 
   function handleFaceDisable() {
@@ -290,7 +354,7 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
       )}
 
       {/* ── Toolbar (face finder) ── */}
-      {faceFinderEnabled && albumId && imageItems.length > 0 && (
+      {faceFinderEnabled && albumId && facesReady && imageItems.length > 0 && (
         <div className="og-toolbar">
           <div className="og-toolbar-left">
 
@@ -394,7 +458,7 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
           </div>
 
           <div className="og-toolbar-right">
-            {fetchingFace ? "…" : `${visibleItems.length} ${visibleItems.length === 1 ? t("photo") : t("photos")}`}
+            {fetchingFace ? "…" : (() => { const n = faceItems ? visibleItems.length : Math.max(totalCount ?? 0, visibleItems.length); return `${n} ${n === 1 ? t("photo") : t("photos")}`; })()}
           </div>
         </div>
       )}
@@ -455,16 +519,16 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
         ))}
       </div>
 
-      {/* ── Pagination ── */}
-      {!faceItems && token && totalPages > 1 && (
-        <div className="gl-pagination">
-          {page > 1
-            ? <a href={`/join/${token}/gallery?page=${page - 1}${sort === "taken" ? "&sort=taken" : ""}`} className="gl-page-btn">{t("previous")}</a>
-            : <span className="gl-page-btn disabled">{t("previous")}</span>}
-          <span className="gl-page-info">{t("page")} {page} {t("of")} {totalPages}</span>
-          {page < totalPages
-            ? <a href={`/join/${token}/gallery?page=${page + 1}${sort === "taken" ? "&sort=taken" : ""}`} className="gl-page-btn">{t("next")}</a>
-            : <span className="gl-page-btn disabled">{t("next")}</span>}
+      {/* ── Infinite scroll sentinel ── */}
+      {!faceItems && cursor && (
+        <div ref={sentinelRef} style={{ padding: "24px 0", textAlign: "center", minHeight: 40 }}>
+          {loadError ? (
+            <button className="og-disable-btn" onClick={() => { setLoadError(false); loadMore(); }}>
+              {t("retryFaceScan")}
+            </button>
+          ) : loadingMore ? (
+            <span className="gl-page-info" style={{ fontSize: 13 }}>…</span>
+          ) : null}
         </div>
       )}
 

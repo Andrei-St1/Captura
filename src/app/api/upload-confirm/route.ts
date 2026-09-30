@@ -1,43 +1,41 @@
-import { NextRequest, NextResponse, after } from "next/server";
-import { makeThumbnailFromUrl } from "@/lib/makeThumbnail";
+import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { detectAndSaveFaces } from "@/lib/faceDetect";
+import { createClient } from "@/lib/supabase/server";
+import {
+  type ConfirmItem,
+  buildMediaRow,
+  checkAlbumAcceptsUploads,
+  fileTypeOf,
+  hasRequiredFields,
+  scheduleBytesIncrement,
+  scheduleImageWork,
+  validatePathAndMime,
+} from "@/lib/confirmUpload";
 
 export async function POST(request: NextRequest) {
   try {
-    const { albumId, filePath, fileUrl, mimeType, fileSize, uploaderName, thumbnailUrl, takenAt } =
-      await request.json() as {
-        albumId: string;
-        filePath: string;
-        fileUrl: string;
-        mimeType: string;
-        fileSize: number;
-        uploaderName?: string;
-        thumbnailUrl?: string;
-        takenAt?: string;
-      };
+    const { albumId, ...item } = await request.json() as ConfirmItem & { albumId: string };
+    const { filePath, fileUrl, mimeType, fileSize, thumbnailUrl } = item;
 
-    if (!albumId || !filePath || !fileUrl || !mimeType || !fileSize) {
+    if (!hasRequiredFields(albumId, item)) {
       return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
     }
 
-    const supabase = createServiceClient();
-    const fileType = mimeType.startsWith("video/") ? "video" : "image";
+    const invalid = validatePathAndMime(albumId, item);
+    if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
 
-    // Insert media record
+    const supabase = createServiceClient();
+
+    // Guests: album must be active and open. The album owner is exempt (as in presign-owner-batch).
+    const { data: { user } } = await (await createClient()).auth.getUser();
+    const gate = await checkAlbumAcceptsUploads(supabase, albumId, user?.id ?? null);
+    if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
+
+    const fileType = fileTypeOf(mimeType);
+
     const { data: inserted, error: dbError } = await supabase
       .from("media")
-      .insert({
-        album_id: albumId,
-        uploader_name: uploaderName || null,
-        file_url: fileUrl,
-        file_path: filePath,
-        file_type: fileType,
-        file_size: fileSize,
-        mime_type: mimeType,
-        ...(thumbnailUrl ? { thumbnail_url: thumbnailUrl } : {}),
-        ...(takenAt ? { taken_at: takenAt } : {}),
-      })
+      .insert(buildMediaRow(albumId, item))
       .select("id")
       .single();
 
@@ -47,37 +45,11 @@ export async function POST(request: NextRequest) {
 
     // Background work for images: thumbnail (presigned uploads have none) + face detection
     if (fileType === "image" && inserted?.id) {
-      const mediaId = inserted.id;
-      try {
-        after(async () => {
-          try {
-            if (!thumbnailUrl) {
-              const safeName = (filePath.split("/").pop() ?? "image").replace(/^\d+-/, "");
-              const thumb = await makeThumbnailFromUrl(fileUrl, albumId, Date.now(), safeName);
-              if (thumb) {
-                await supabase.from("media").update({ thumbnail_url: thumb }).eq("id", mediaId);
-              }
-            }
-          } catch (e) { console.error("[upload-confirm] thumbnail:", e); }
-          try { await detectAndSaveFaces(mediaId, albumId, fileUrl); } catch (e) { console.error("[upload-confirm] face detect:", e); }
-        });
-      } catch (e) {
-        console.error("[upload-confirm] after() failed:", e);
-      }
+      scheduleImageWork(supabase, "upload-confirm", inserted.id, albumId, { filePath, fileUrl, thumbnailUrl });
     }
 
     // Atomic increment — avoids read-then-write race under concurrent uploads
-    // Response doesn't depend on it, so run after the response is sent.
-    try {
-      after(async () => {
-        try {
-          const { error: rpcError } = await supabase.rpc("increment_album_bytes", { p_album_id: albumId, p_delta: fileSize });
-          if (rpcError) console.error("[upload-confirm] increment_album_bytes:", rpcError);
-        } catch (e) { console.error("[upload-confirm] increment_album_bytes:", e); }
-      });
-    } catch (e) {
-      console.error("[upload-confirm] after() failed for bytes increment:", e);
-    }
+    scheduleBytesIncrement(supabase, "upload-confirm", albumId, fileSize);
 
     return NextResponse.json({ success: true, fileUrl, fileType });
   } catch (err) {

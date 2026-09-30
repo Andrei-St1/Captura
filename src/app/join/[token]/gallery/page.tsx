@@ -1,25 +1,22 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { getFaceClustersForAlbum } from "@/lib/getFaceClusters";
+import { fetchGalleryPage, isQrActive } from "@/app/api/_lib/galleryAccess";
 import { GalleryGrid } from "./GalleryGrid";
 import { JoinNav } from "../JoinNav";
 import { requireAlbumPin } from "@/lib/pin";
 import { getQrAlbum } from "@/lib/getQrAlbum";
 import { getScheme, schemeToCss } from "@/lib/colorSchemes";
 
-const PAGE_SIZE = 30;
-
 export default async function GalleryPage({
   params,
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ page?: string; sort?: string }>;
+  searchParams: Promise<{ sort?: string }>;
 }) {
   const { token } = await params;
-  const { page: pageParam, sort: sortParam } = await searchParams;
-  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
+  const { sort: sortParam } = await searchParams;
   const sort: "taken" | "upload" = sortParam === "taken" ? "taken" : "upload";
   const supabase = await createClient();
 
@@ -29,6 +26,9 @@ export default async function GalleryPage({
 
   const album = qr.albums as any;
   if (!album || album.status === "deleted") notFound();
+
+  // Disabled/expired link: the welcome page shows the "link disabled" state
+  if (!isQrActive(qr)) redirect(`/join/${token}`);
 
   if (album.pin_required && album.pin_hash) {
     await requireAlbumPin(album.id, album.pin_hash, token);
@@ -52,24 +52,17 @@ export default async function GalleryPage({
     );
   }
 
-  const offset = (page - 1) * PAGE_SIZE;
-  const mediaQueryBase = supabase
-    .from("media")
-    .select("id, file_url, file_type, file_size, uploader_name, created_at, thumbnail_url, taken_at", { count: "exact" })
-    .eq("album_id", album.id);
-  const orderedMediaQuery = sort === "taken"
-    ? mediaQueryBase.order("taken_at", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false })
-    : mediaQueryBase.order("created_at", { ascending: false });
-  const [{ data: media, count }, initialFaceClusters] = await Promise.all([
-    orderedMediaQuery.range(offset, offset + PAGE_SIZE - 1),
-    album.face_finder_enabled
-      ? getFaceClustersForAlbum(album.id).catch(() => [])
-      : Promise.resolve([]),
-  ]);
-
-  const items = media ?? [];
-  const totalCount = count ?? 0;
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  // First page only (keyset-paginated); further pages load via /api/gallery-media.
+  const { items, nextCursor } = await fetchGalleryPage(album.id, sort, null);
+  // Only pay for a count when there may be more than one page.
+  let totalCount = items.length;
+  if (nextCursor) {
+    const { count } = await supabase
+      .from("media")
+      .select("id", { count: "exact", head: true })
+      .eq("album_id", album.id);
+    totalCount = count ?? items.length;
+  }
 
   return (
     <>
@@ -119,10 +112,10 @@ export default async function GalleryPage({
               albumId={album.id}
               faceFinderEnabled={!!album.face_finder_enabled}
               token={token}
-              page={page}
-              totalPages={totalPages}
+              key={sort}
               sort={sort}
-              initialFaceClusters={initialFaceClusters}
+              initialCursor={nextCursor}
+              totalCount={totalCount}
             />
           )}
         </main>

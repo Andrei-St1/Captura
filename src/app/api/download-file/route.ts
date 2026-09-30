@@ -18,27 +18,31 @@ export async function GET(request: NextRequest) {
   if (!media) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
   try {
-    const cmd = new GetObjectCommand({ Bucket: R2_BUCKET, Key: media.file_path });
+    const range = request.headers.get("range") ?? undefined;
+    const cmd = new GetObjectCommand({ Bucket: R2_BUCKET, Key: media.file_path, Range: range });
     const response = await r2.send(cmd);
 
     const ext      = media.file_path.split(".").pop() ?? (media.file_type === "video" ? "mp4" : "jpg");
     const date     = new Date(media.created_at).toISOString().slice(0, 10);
     const filename = `captura_${date}.${ext}`;
 
-    const chunks: Uint8Array[] = [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for await (const chunk of response.Body as any) chunks.push(chunk);
-    const buffer = Buffer.concat(chunks);
+    if (!response.Body) {
+      return NextResponse.json({ error: "Failed to fetch file." }, { status: 500 });
+    }
 
-    return new NextResponse(new Uint8Array(buffer), {
-      status: 200,
-      headers: {
-        "Content-Type": response.ContentType ?? "application/octet-stream",
-        "Content-Disposition": `attachment; filename="${filename}"`,
-        "Content-Length": String(buffer.length),
-        "Cache-Control": "private, no-store",
-      },
-    });
+    const headers: Record<string, string> = {
+      "Content-Type": response.ContentType ?? "application/octet-stream",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Cache-Control": "private, no-store",
+      "Accept-Ranges": "bytes",
+    };
+    if (response.ContentLength != null) headers["Content-Length"] = String(response.ContentLength);
+    const partial = !!range && !!response.ContentRange;
+    if (partial) headers["Content-Range"] = response.ContentRange!;
+
+    // Stream straight from R2 instead of buffering the whole object.
+    const stream = response.Body.transformToWebStream();
+    return new Response(stream, { status: partial ? 206 : 200, headers });
   } catch (err) {
     console.error("File download error:", err);
     return NextResponse.json({ error: "Failed to fetch file." }, { status: 500 });
