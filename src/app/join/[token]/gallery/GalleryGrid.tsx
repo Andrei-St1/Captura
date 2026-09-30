@@ -574,10 +574,10 @@ const CSS = `
     --og-text:     oklch(18% 0.015 265);
     --og-muted:    oklch(46% 0.010 265);
     --og-muted2:   oklch(58% 0.010 265);
-    --og-gold:     oklch(44% 0.16 72);
-    --og-gold-dim: oklch(36% 0.13 72);
-    --og-gold-glow:oklch(44% 0.16 72 / 0.10);
-    --og-gold-b:   oklch(44% 0.16 72 / 0.22);
+    --og-gold:     var(--cs-accent, oklch(44% 0.16 72));
+    --og-gold-dim: color-mix(in oklch, var(--cs-accent, oklch(44% 0.16 72)), black 18%);
+    --og-gold-glow:var(--cs-accent-faint, oklch(44% 0.16 72 / 0.10));
+    --og-gold-b:   var(--cs-accent-subtle, oklch(44% 0.16 72 / 0.22));
   }
 
   .og-toolbar {
@@ -911,7 +911,7 @@ const CSS = `
   .gl-save-btn {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 8px 16px; border-radius: 8px;
-    background: oklch(44% 0.16 72);
+    background: var(--og-gold);
     color: #fff; font-size: 12px; font-weight: 600;
     font-family: 'DM Sans', system-ui, sans-serif;
     border: none; cursor: pointer; flex-shrink: 0;
