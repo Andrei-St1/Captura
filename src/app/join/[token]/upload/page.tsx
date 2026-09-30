@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { getQrAlbum } from "@/lib/getQrAlbum";
 import { UploadClient } from "./UploadClient";
 import { JoinNav } from "../JoinNav";
 import { requireAlbumPin } from "@/lib/pin";
@@ -8,13 +8,7 @@ import { getScheme, schemeToCss } from "@/lib/colorSchemes";
 
 export default async function UploadPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const supabase = await createClient();
-
-  const { data: qr } = await supabase
-    .from("qr_codes")
-    .select("id, enabled, expires_at, albums(id, title, status, open_date, close_date, show_gallery, pin_required, pin_hash, color_scheme)")
-    .eq("token", token)
-    .single();
+  const qr = await getQrAlbum(token);
 
   if (!qr) notFound();
 

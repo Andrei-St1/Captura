@@ -67,7 +67,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Atomic increment — avoids read-then-write race under concurrent uploads
-    await supabase.rpc("increment_album_bytes", { p_album_id: albumId, p_delta: fileSize });
+    // Response doesn't depend on it, so run after the response is sent.
+    try {
+      after(async () => {
+        try {
+          const { error: rpcError } = await supabase.rpc("increment_album_bytes", { p_album_id: albumId, p_delta: fileSize });
+          if (rpcError) console.error("[upload-confirm] increment_album_bytes:", rpcError);
+        } catch (e) { console.error("[upload-confirm] increment_album_bytes:", e); }
+      });
+    } catch (e) {
+      console.error("[upload-confirm] after() failed for bytes increment:", e);
+    }
 
     return NextResponse.json({ success: true, fileUrl, fileType });
   } catch (err) {
