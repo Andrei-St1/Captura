@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PinClient } from "./PinClient";
+import { getScheme, schemeToCss } from "@/lib/colorSchemes";
 
 export default async function PinPage({
   params,
@@ -16,7 +17,7 @@ export default async function PinPage({
 
   const { data: qr } = await supabase
     .from("qr_codes")
-    .select("id, enabled, albums(id, title, status, pin_required, pin_hash)")
+    .select("id, enabled, albums(id, title, status, pin_required, pin_hash, color_scheme)")
     .eq("token", token)
     .single();
 
@@ -32,12 +33,15 @@ export default async function PinPage({
   }
 
   return (
-    <PinClient
-      token={token}
-      albumId={album.id}
-      albumTitle={album.title}
-      pinHash={album.pin_hash}
-      hasError={error === "1"}
-    />
+    <>
+      <style>{schemeToCss(getScheme(album.color_scheme))}</style>
+      <PinClient
+        token={token}
+        albumId={album.id}
+        albumTitle={album.title}
+        pinHash={album.pin_hash}
+        hasError={error === "1"}
+      />
+    </>
   );
 }

@@ -145,7 +145,7 @@ const CSS = `
     background: oklch(97% 0.008 80);
     border: 1px solid oklch(80% 0.010 80);
     display: flex; align-items: center; justify-content: center;
-    color: oklch(44% 0.16 72);
+    color: var(--cs-accent, oklch(44% 0.16 72));
     margin-bottom: 20px;
   }
 
@@ -184,8 +184,8 @@ const CSS = `
     caret-color: transparent;
   }
   .pin-box:focus {
-    border-color: oklch(44% 0.16 72);
-    box-shadow: 0 0 0 3px oklch(44% 0.16 72 / 0.12);
+    border-color: var(--cs-accent, oklch(44% 0.16 72));
+    box-shadow: 0 0 0 3px var(--cs-accent-faint);
   }
   .pin-box.error {
     border-color: oklch(52% 0.20 25 / 0.6);
@@ -200,7 +200,7 @@ const CSS = `
   .pin-btn {
     width: 100%; padding: 13px;
     border-radius: 10px;
-    background: oklch(44% 0.16 72);
+    background: var(--cs-accent, oklch(44% 0.16 72));
     color: #fff; font-size: 14px; font-weight: 600;
     font-family: 'DM Sans', system-ui, sans-serif;
     border: none; cursor: pointer;
