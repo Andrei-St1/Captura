@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { makeAndUploadThumbnail, IMMUTABLE_CACHE } from "@/lib/makeThumbnail";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { r2, R2_BUCKET, R2_PUBLIC_URL } from "@/lib/r2";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -78,15 +79,21 @@ export async function POST(request: NextRequest) {
 
     console.log("[upload] uploading to R2:", filePath);
     // Upload to R2
-    await r2.send(
-      new PutObjectCommand({
-        Bucket: R2_BUCKET,
-        Key: filePath,
-        Body: body,
-        ContentType: mimeType,
-        ContentLength: contentLength,
-      })
-    );
+    const [, thumbnailUrl] = await Promise.all([
+      r2.send(
+        new PutObjectCommand({
+          Bucket: R2_BUCKET,
+          Key: filePath,
+          Body: body,
+          ContentType: mimeType,
+          ContentLength: contentLength,
+          CacheControl: IMMUTABLE_CACHE,
+        })
+      ),
+      fileType === "image"
+        ? makeAndUploadThumbnail(buffer, albumId, timestamp, safeName)
+        : Promise.resolve(null),
+    ]);
 
     console.log("[upload] R2 done, inserting DB record...");
     const fileUrl = `${R2_PUBLIC_URL}/${filePath}`;
@@ -100,6 +107,7 @@ export async function POST(request: NextRequest) {
       file_type: fileType,
       file_size: contentLength,
       mime_type: mimeType,
+      ...(thumbnailUrl ? { thumbnail_url: thumbnailUrl } : {}),
     }).select("id").single();
 
     if (dbError) {
@@ -107,7 +115,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (fileType === "image" && inserted?.id) {
-      await detectAndSaveFaces(inserted.id, albumId, fileUrl);
+      const mediaId = inserted.id;
+      try {
+        after(async () => {
+          try { await detectAndSaveFaces(mediaId, albumId, fileUrl); } catch (e) { console.error("[upload] face detect:", e); }
+        });
+      } catch (e) {
+        console.error("[upload] after() failed:", e);
+      }
     }
 
     // Update album used_bytes

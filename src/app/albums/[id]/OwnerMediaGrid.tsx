@@ -1360,7 +1360,7 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
         {/* ── Grid ── */}
         <div className="og-grid-wrap">
           <div className={`og-grid${selecting ? " og-selecting" : ""}`}>
-            {displayItems.map((item) => {
+            {displayItems.map((item, idx) => {
               const isSelected = selected.has(item.id);
               return (
                 <div
@@ -1386,9 +1386,13 @@ export function OwnerMediaGrid({ items: initial, albumId, albumTitle, firstQR, p
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={item.file_url}
+                      src={item.thumbnail_url ?? item.file_url}
                       alt={item.uploader_name ?? "Upload"}
-                      loading="lazy"
+                      width={480}
+                      height={360}
+                      loading={idx < 4 ? "eager" : "lazy"}
+                      fetchPriority={idx < 4 ? "high" : "auto"}
+                      decoding="async"
                       onError={(e) => {
                         const t = e.currentTarget;
                         t.style.display = "none";

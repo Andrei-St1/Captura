@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { makeAndUploadThumbnail, IMMUTABLE_CACHE } from "@/lib/makeThumbnail";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { r2, R2_BUCKET, R2_PUBLIC_URL } from "@/lib/r2";
 import { createClient } from "@/lib/supabase/server";
@@ -53,13 +54,19 @@ export async function POST(request: NextRequest) {
     const filePath = `albums/${albumId}/${timestamp}-${safeName}`;
     const fileType = mimeType.startsWith("video/") ? "video" : "image";
 
-    await r2.send(new PutObjectCommand({
-      Bucket: R2_BUCKET,
-      Key: filePath,
-      Body: buffer,
-      ContentType: mimeType,
-      ContentLength: buffer.length,
-    }));
+    const [, thumbnailUrl] = await Promise.all([
+      r2.send(new PutObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: filePath,
+        Body: buffer,
+        ContentType: mimeType,
+        ContentLength: buffer.length,
+        CacheControl: IMMUTABLE_CACHE,
+      })),
+      fileType === "image"
+        ? makeAndUploadThumbnail(buffer, albumId, timestamp, safeName)
+        : Promise.resolve(null),
+    ]);
 
     const fileUrl = `${R2_PUBLIC_URL}/${filePath}`;
 
@@ -72,10 +79,18 @@ export async function POST(request: NextRequest) {
       file_size: buffer.length,
       mime_type: mimeType,
       ...(takenAt ? { taken_at: takenAt } : {}),
+      ...(thumbnailUrl ? { thumbnail_url: thumbnailUrl } : {}),
     }).select("id").single();
 
     if (fileType === "image" && inserted?.id) {
-      await detectAndSaveFaces(inserted.id, albumId, fileUrl);
+      const mediaId = inserted.id;
+      try {
+        after(async () => {
+          try { await detectAndSaveFaces(mediaId, albumId, fileUrl); } catch (e) { console.error("[upload-owner] face detect:", e); }
+        });
+      } catch (e) {
+        console.error("[upload-owner] after() failed:", e);
+      }
     }
 
     await service.rpc("increment_album_bytes", { p_album_id: albumId, p_delta: buffer.length });

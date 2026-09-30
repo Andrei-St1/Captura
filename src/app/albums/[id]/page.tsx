@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { logout } from "@/app/auth/actions";
 import { generateQRDataURL } from "@/lib/qr";
 import { UploadsPreview } from "./UploadsPreview";
@@ -48,15 +48,15 @@ export default async function AlbumPage({
   const { id } = await params;
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) redirect("/login");
 
   const { data: album } = await supabase
     .from("albums")
-    .select("*")
+    .select(
+      "id, title, description, status, allocated_gb, used_bytes, open_date, close_date, show_gallery, welcome_message, created_at"
+    )
     .eq("id", id)
     .eq("owner_id", user.id)
     .single();
@@ -72,29 +72,28 @@ export default async function AlbumPage({
     .toUpperCase();
 
   // Fetch last 4 + total count
-  const [{ data: recentMedia }, { count: mediaCount }] = await Promise.all([
+  const [{ data: recentMedia }, { count: mediaCount }, { data: qrRows }] = await Promise.all([
     supabase
       .from("media")
-      .select("id, file_url, file_type, uploader_name, created_at")
+      .select("id, file_url, thumbnail_url, file_type, uploader_name, created_at")
       .eq("album_id", album.id)
       .order("created_at", { ascending: false })
       .limit(4),
     supabase
       .from("media")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("album_id", album.id),
+    supabase
+      .from("qr_codes")
+      .select("id, token, label, enabled, expires_at, created_at")
+      .eq("album_id", album.id)
+      .order("created_at", { ascending: true }),
   ]);
 
   const recentItems = recentMedia ?? [];
   const totalMediaCount = mediaCount ?? 0;
 
   // Fetch QR codes + generate data URLs
-  const { data: qrRows } = await supabase
-    .from("qr_codes")
-    .select("id, token, label, enabled, expires_at, created_at")
-    .eq("album_id", album.id)
-    .order("created_at", { ascending: true });
-
   const appUrl = (
     process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
   ).replace(/\/$/, "");

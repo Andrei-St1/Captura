@@ -173,17 +173,24 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
     }
     const visible  = clusters.filter((c) => c.mediaIds.length >= MIN_CLUSTER_SIZE);
     const newCrops = new Map<string, string>();
+    const pending: FaceCluster[] = [];
     for (const cluster of visible.slice(0, 30)) {
-      const { representative: rep } = cluster;
-      if (rep.cropUrl) {
-        newCrops.set(cluster.id, rep.cropUrl);
-        continue;
+      if (cluster.representative.cropUrl) {
+        newCrops.set(cluster.id, cluster.representative.cropUrl);
+      } else if (cluster.representative.fileUrl) {
+        pending.push(cluster);
       }
-      const url = rep.fileUrl;
-      if (!url) continue;
-      const crop = await cropToDataUrl(url, rep.box);
-      if (crop) newCrops.set(cluster.id, crop);
     }
+    // Crop client-side only for clusters lacking a stored crop, max 6 concurrently
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < pending.length) {
+        const cluster = pending[cursor++];
+        const crop = await cropToDataUrl(cluster.representative.fileUrl!, cluster.representative.box);
+        if (crop) newCrops.set(cluster.id, crop);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(6, pending.length) }, worker));
     setFaceClusters(clusters);
     setFaceCrops(newCrops);
     setFaceStatus("done");
@@ -394,7 +401,7 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
 
       {/* ── Masonry grid ── */}
       <div className="columns-2 sm:columns-3 md:columns-4" style={{ columnGap: "8px" }}>
-        {visibleItems.map((item) => (
+        {visibleItems.map((item, idx) => (
           <div
             key={item.id}
             onClick={() => setLightbox(item)}
@@ -428,10 +435,14 @@ export function GalleryGrid({ items, albumId, faceFinderEnabled, token, page = 1
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={item.file_url}
+                src={item.thumbnail_url ?? item.file_url}
                 alt={item.uploader_name ?? "Photo"}
                 className="gl-img"
-                loading="lazy"
+                width={480}
+                height={360}
+                loading={idx < 4 ? "eager" : "lazy"}
+                fetchPriority={idx < 4 ? "high" : "auto"}
+                decoding="async"
                 onError={(e) => {
                   const t = e.currentTarget as HTMLImageElement;
                   t.style.display = "none";

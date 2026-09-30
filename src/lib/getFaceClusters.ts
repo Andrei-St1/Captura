@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { reclusterAlbum } from "@/lib/faceCluster";
 
@@ -23,8 +24,20 @@ export async function getFaceClustersForAlbum(albumId: string): Promise<UIFaceCl
     .eq("album_id", albumId)
     .is("cluster_id", null);
 
+  // Run post-response so SSR isn't blocked; new clusters appear on next load.
   if ((unclustered ?? 0) > 0) {
-    await reclusterAlbum(albumId);
+    try {
+      after(async () => {
+        try {
+          await reclusterAlbum(albumId);
+        } catch (err) {
+          console.error("reclusterAlbum failed", err);
+        }
+      });
+    } catch {
+      // Outside a request scope (e.g. API route without after support): fire and forget
+      reclusterAlbum(albumId).catch((err) => console.error("reclusterAlbum failed", err));
+    }
   }
 
   const { data: clusters } = await service

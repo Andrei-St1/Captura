@@ -7,6 +7,7 @@ interface MediaItem {
   id: string;
   file_url: string;
   file_type: string;
+  thumbnail_url?: string | null;
   uploader_name: string | null;
   created_at: string;
 }
@@ -275,8 +276,12 @@ export function UploadsPreview({ items, totalCount, albumId, firstQR }: Props) {
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={item.file_url}
+                src={item.thumbnail_url ?? item.file_url}
                 alt={item.uploader_name ?? "Upload"}
+                loading="lazy"
+                decoding="async"
+                width={480}
+                height={480}
                 style={{
                   width: "100%",
                   height: "100%",
