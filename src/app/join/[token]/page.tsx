@@ -349,12 +349,22 @@ const CSS = `
     z-index: 1;
     width: min(480px, 100%);
     padding: 56px 44px 36px;
-    border-radius: 24px;
-    background: color-mix(in oklch, var(--cs-bg) 78%, transparent);
-    backdrop-filter: blur(22px) saturate(1.2);
-    -webkit-backdrop-filter: blur(22px) saturate(1.2);
-    border: 1px solid color-mix(in oklch, var(--cs-text) 14%, transparent);
-    box-shadow: 0 24px 70px oklch(0% 0 0 / 0.35);
+    border-radius: 28px;
+    /* Liquid glass: soft highlight up top, and a fill that gets more transparent from bottom to top */
+    background:
+      radial-gradient(130% 55% at 18% 0%, oklch(100% 0 0 / 0.22) 0%, transparent 60%),
+      linear-gradient(to top,
+        color-mix(in oklch, var(--cs-bg) 92%, transparent) 0%,
+        color-mix(in oklch, var(--cs-bg) 72%, transparent) 38%,
+        color-mix(in oklch, var(--cs-bg) 44%, transparent) 72%,
+        color-mix(in oklch, var(--cs-bg) 28%, transparent) 100%);
+    backdrop-filter: blur(26px) saturate(1.6);
+    -webkit-backdrop-filter: blur(26px) saturate(1.6);
+    border: 1px solid color-mix(in oklch, white 34%, transparent);
+    box-shadow:
+      0 24px 70px oklch(0% 0 0 / 0.30),
+      inset 0 1px 0 oklch(100% 0 0 / 0.55),
+      inset 0 -28px 48px -24px color-mix(in oklch, var(--cs-bg) 70%, transparent);
     max-height: calc(100vh - 64px);
     overflow-y: auto;
   }
@@ -519,7 +529,7 @@ const CSS = `
       width: 100%;
       margin-top: 38vh;
       padding: 44px 24px 32px;
-      border-radius: 24px 24px 0 0;
+      border-radius: 28px 28px 0 0;
       border-bottom: none;
       max-height: none;
     }
